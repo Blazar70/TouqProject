@@ -11,7 +11,6 @@ import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from '../components/SpeciesSelect'
 import PhoneInput from '../components/PhoneInput'
-import PasteFromClipboardButton from '../components/PasteFromClipboardButton'
 import RequiredMark from '../components/RequiredMark'
 import { handleEnterAdvance } from '../lib/formEnterNav'
 
@@ -152,7 +151,6 @@ function RegisterPetPage() {
                 {photoFile ? t('petDetail.changePhoto') : t('petDetail.addPhoto')}
                 <input type="file" accept="image/*" onChange={handlePhotoChange} hidden />
               </label>
-              <PasteFromClipboardButton onFile={processPhotoFile} />
             </div>
             <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
           </div>

@@ -212,6 +212,7 @@ export type Database = {
           disabled: boolean
           id: string
           name: string
+          phone: string | null
         }
         Insert: {
           billing_status?: string
@@ -220,6 +221,7 @@ export type Database = {
           disabled?: boolean
           id?: string
           name: string
+          phone?: string | null
         }
         Update: {
           billing_status?: string
@@ -228,8 +230,138 @@ export type Database = {
           disabled?: boolean
           id?: string
           name?: string
+          phone?: string | null
         }
         Relationships: []
+      }
+      invoice_items: {
+        Row: {
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          service_id: string | null
+          unit_price: number
+        }
+        Insert: {
+          description: string
+          id?: string
+          invoice_id: string
+          line_total: number
+          quantity?: number
+          service_id?: string | null
+          unit_price: number
+        }
+        Update: {
+          description?: string
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number
+          service_id?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount_total: number
+          appointment_id: string | null
+          clinic_id: string
+          created_at: string
+          created_by: string
+          id: string
+          method: string
+          notes: string | null
+          paid_at: string
+          pet_id: string
+          status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount_total: number
+          appointment_id?: string | null
+          clinic_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          method: string
+          notes?: string | null
+          paid_at?: string
+          pet_id: string
+          status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount_total?: number
+          appointment_id?: string | null
+          clinic_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          method?: string
+          notes?: string | null
+          paid_at?: string
+          pet_id?: string
+          status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       medical_records: {
         Row: {
@@ -574,6 +706,41 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          active: boolean
+          clinic_id: string
+          created_at: string
+          id: string
+          name: string
+          price: number
+        }
+        Insert: {
+          active?: boolean
+          clinic_id: string
+          created_at?: string
+          id?: string
+          name: string
+          price: number
+        }
+        Update: {
+          active?: boolean
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
             referencedColumns: ["id"]
           },
         ]

@@ -393,11 +393,29 @@
 
 .login-form label,
 .pet-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  display: block;
   font-size: 0.88rem;
   color: var(--text-muted);
+}
+
+/* The label's text (plus an optional RequiredMark right after it) flows
+   inline on the first line; whatever control follows — always the last
+   child — drops to its own line below with the gap this used to get from
+   the label's own flex layout. Targeting :last-child (rather than the
+   flex-column above) keeps the required-mark asterisk on the same line as
+   its label text instead of getting its own row as a separate flex item.
+   Wrapped in :where() so this is a zero-specificity default: any other
+   *author* rule (e.g. .phone-input's own display:flex) always wins over
+   this instead of this rule clobbering a component's internal layout.
+   :not([hidden]) is still needed on top of that — :where() only wins
+   ties against other author-origin rules; it doesn't help against a
+   user-agent rule like [hidden]'s display:none, since normal author
+   styles beat normal UA styles regardless of specificity. Without this
+   exclusion, a hidden file input (PetDetail's "Change photo") would be
+   force-shown by the display:block below. */
+:where(.login-form label > :last-child, .pet-form label > :last-child):not([hidden]) {
+  display: block;
+  margin-top: 0.3rem;
 }
 
 .checkbox-group {
@@ -415,14 +433,23 @@
   color: var(--text-muted);
 }
 
-/* .pet-form label sets flex-direction:column at (0,1,1) specificity — an
-   ancestor-scoped selector is needed to win, same pattern used for
-   .cancel-button/.secondary-button/.delete-button above. */
+/* .pet-form label is display:block (see above) — checkbox-label needs its
+   own flex row instead, checkbox beside its text rather than stacked. */
 .pet-form .checkbox-label {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
   color: var(--text-h);
+}
+
+/* The checkbox <input> here is the only *element* child (the label text
+   after it is a bare text node, which :last-child ignores), so it's also
+   caught by ".pet-form label > :last-child" above — undo that block/margin
+   so it stays inline next to its text instead of dropping to its own line. */
+.pet-form .checkbox-label > :last-child {
+  display: inline-block;
+  margin-top: 0;
 }
 
 .phone-input {
@@ -557,15 +584,6 @@
 .phone-input input:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
-}
-
-.record-actions select {
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  font: inherit;
-  background: var(--bg-raised);
-  color: var(--text-h);
 }
 
 .time-select {
@@ -1340,12 +1358,6 @@
   gap: 0.5rem;
 }
 
-.pet-photo-paste {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
 .pet-owner {
   color: var(--text-muted);
   font-size: 0.85rem;
@@ -1488,13 +1500,6 @@
   align-items: start;
 }
 
-.pet-detail-topbar {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .pet-detail-sidebar {
   margin: 0;
   max-width: none;
@@ -1514,6 +1519,12 @@
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: 8px;
+}
+
+.vaccination-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 @media (max-width: 700px) {
@@ -1561,6 +1572,106 @@
   display: flex;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.service-edit-fields {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.service-edit-fields input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Wider than the default 380px .pet-form card — a line-item row (service
+   picker + description + quantity + price + remove) needs real horizontal
+   room, same reasoning as .pet-form-grid's 640px. Compound selector so
+   this reliably beats plain .pet-form's max-width regardless of which
+   rule the cascade happens to place later. */
+.pet-form.payments-record-form {
+  max-width: 640px;
+}
+
+.invoice-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.invoice-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.invoice-item-row select,
+.invoice-item-row input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.invoice-item-qty {
+  max-width: 4.5rem;
+  flex: 0 1 4.5rem;
+}
+
+.invoice-item-price {
+  max-width: 6.5rem;
+  flex: 0 1 6.5rem;
+}
+
+.invoice-item-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.invoice-total {
+  font-weight: 600;
+}
+
+.method-toggle {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.method-toggle-active {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+.payments-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.payments-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+/* Still needed for AdminBillingPage's payment-status dropdown — the
+   appointments status select this originally styled was replaced by
+   buttons, but this other .record-actions select wasn't. */
+.record-actions select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--bg-raised);
+  color: var(--text-h);
 }
 
 .record-edit-actions {

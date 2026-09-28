@@ -3,6 +3,7 @@ import DashboardPage from './pages/DashboardPage'
 import PetsPage from './pages/PetsPage'
 import RegisterPetPage from './pages/RegisterPetPage'
 import AppointmentsPage from './pages/AppointmentsPage'
+import PaymentsPage from './pages/PaymentsPage'
 import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
@@ -94,6 +95,7 @@ function App() {
             </NavLink>
             <NavLink to="/pets">{t('nav.pets')}</NavLink>
             <NavLink to="/appointments">{t('nav.appointments')}</NavLink>
+            <NavLink to="/payments">{t('nav.payments')}</NavLink>
             <NavLink to="/staff">{t('nav.staff')}</NavLink>
             <NavLink to="/settings">{t('nav.settings')}</NavLink>
           </>
@@ -122,6 +124,7 @@ function App() {
               <Route path="/pets" element={<PetsPage />} />
               <Route path="/pets/new" element={<RegisterPetPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
+              <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/staff" element={<StaffPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </>

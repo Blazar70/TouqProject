@@ -18,3 +18,12 @@ export function stripSaudiPrefix(stored: string | null) {
   if (!stored) return ''
   return stored.replace(/^\+966/, '')
 }
+
+// A clinic's own contact number is typically a landline, not a mobile
+// number, so it doesn't fit the mobile-only shape above. This just rejects
+// obviously malformed input (letters, way too few/many digits) instead of
+// enforcing one specific format.
+export function isValidClinicPhone(value: string) {
+  const digits = value.replace(/\D/g, '')
+  return /^[\d+()\-\s]+$/.test(value) && digits.length >= 7 && digits.length <= 15
+}

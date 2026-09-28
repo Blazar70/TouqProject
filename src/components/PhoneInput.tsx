@@ -18,7 +18,11 @@ function PhoneInput({ value, onChange, invalidMessage, autoFocus, required }: Ph
   const showError = touched && ((required && value === '') || (value !== '' && !isValidSaudiMobile(value)))
 
   return (
-    <>
+    // A single wrapping element, not a fragment — the label CSS styles
+    // "the label's last child" as the form control, and a fragment here
+    // would let the conditional error message become that last child
+    // instead whenever it's shown.
+    <div>
       <div className="phone-input">
         <span className="phone-prefix">+966</span>
         <input
@@ -35,7 +39,7 @@ function PhoneInput({ value, onChange, invalidMessage, autoFocus, required }: Ph
         />
       </div>
       {showError && <p className="field-error">{invalidMessage}</p>}
-    </>
+    </div>
   )
 }
 

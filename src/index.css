@@ -125,9 +125,26 @@ body::before {
   height: 150%;
   background-image: var(--paw-pattern);
   background-repeat: repeat;
-  transform: rotate(-22deg);
+  transform: rotate(-22deg) translate(0, 0);
+  animation: paw-drift 10s linear infinite;
   pointer-events: none;
   z-index: 0;
+}
+
+/* Translating before the rotate is applied means the motion itself gets
+   rotated along with the pattern, so the paws glide in the direction
+   they're pointing rather than straight up/down. 90px matches the tile
+   size so the loop point is seamless. */
+@keyframes paw-drift {
+  to {
+    transform: rotate(-22deg) translate(0, 90px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before {
+    animation: none;
+  }
 }
 
 h1,

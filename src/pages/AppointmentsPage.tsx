@@ -16,7 +16,6 @@ import { usePrintSummary } from '../lib/PrintContext'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import PetPicker from '../components/PetPicker'
 import PhotoThumbnail from '../components/PhotoThumbnail'
-import PasteFromClipboardButton from '../components/PasteFromClipboardButton'
 import Ltr from '../components/Ltr'
 import { useToast } from '../lib/ToastContext'
 import LoadingScreen from '../components/LoadingScreen'
@@ -30,12 +29,6 @@ type Appointment = Database['public']['Tables']['appointments']['Row'] & {
 type Pet = Database['public']['Tables']['pets']['Row']
 type Caregiver = Database['public']['Tables']['caregivers']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
-
-// "requested" is only ever the automatic starting state, never something a
-// vet manually picks — so it isn't a selectable option, only "confirmed"
-// and "completed" are. "cancelled" is its own dedicated action (the Cancel
-// button), not a dropdown pick.
-const SELECTABLE_STATUSES = ['confirmed', 'completed'] as const
 
 const ARCHIVED_STATUSES = new Set(['completed', 'cancelled'])
 
@@ -638,19 +631,16 @@ function AppointmentsPage() {
               <span className={`status-badge status-${appointment.status}`}>
                 {t(STATUS_LABEL_KEYS[appointment.status])}
               </span>
-              <select
-                value={SELECTABLE_STATUSES.includes(appointment.status as (typeof SELECTABLE_STATUSES)[number]) ? appointment.status : ''}
-                onChange={(e) => handleStatusChange(appointment, e.target.value)}
-              >
-                <option value="" disabled>
-                  {t('appointments.updateStatus')}
-                </option>
-                {SELECTABLE_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {t(STATUS_LABEL_KEYS[s])}
-                  </option>
-                ))}
-              </select>
+              {appointment.status === 'requested' && (
+                <button type="button" className="secondary-button" onClick={() => handleStatusChange(appointment, 'confirmed')}>
+                  {t('appointments.confirmAppointment')}
+                </button>
+              )}
+              {(appointment.status === 'confirmed' || appointment.status === 'requested') && (
+                <button type="button" className="secondary-button" onClick={() => handleStatusChange(appointment, 'completed')}>
+                  {t('appointments.markCompleted')}
+                </button>
+              )}
               <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
                 {t('appointments.reschedule')}
               </button>
@@ -907,7 +897,6 @@ function AppointmentsPage() {
                         {completionPhotoFile ? t('petDetail.changePhoto') : t('appointments.addPhotoOptional')}
                         <input type="file" accept="image/*" onChange={handleCompletionPhotoChange} hidden />
                       </label>
-                      <PasteFromClipboardButton onFile={processCompletionPhotoFile} />
                     </div>
                     <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
                   </div>

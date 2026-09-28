@@ -12,7 +12,6 @@ import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from './SpeciesSelect'
 import TrustedContactsPanel from './TrustedContactsPanel'
 import VaccinationPanel from './VaccinationPanel'
-import VaccinationBadge from './VaccinationBadge'
 import PetAvatar from './PetAvatar'
 import Ltr from './Ltr'
 import { useConfirm } from '../lib/ConfirmContext'
@@ -22,7 +21,6 @@ import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import { ListSkeleton } from './Skeleton'
 import RequiredMark from './RequiredMark'
 import PhotoThumbnail from './PhotoThumbnail'
-import PasteFromClipboardButton from './PasteFromClipboardButton'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
@@ -278,10 +276,6 @@ function PetDetail({
 
   return (
     <div className="pet-detail">
-      <div className="pet-detail-topbar">
-        <VaccinationBadge nextDate={pet.next_vaccination_date} />
-      </div>
-
       <form onSubmit={handleSavePet} className="pet-form pet-detail-sidebar">
         <h3>{t('petDetail.title')}</h3>
         {petError && <p className="form-error">{petError}</p>}
@@ -295,7 +289,6 @@ function PetDetail({
                   {uploadingPhoto ? t('petDetail.uploading') : pet.photo_url ? t('petDetail.changePhoto') : t('petDetail.addPhoto')}
                   <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploadingPhoto} hidden />
                 </label>
-                <PasteFromClipboardButton onFile={processPhotoFile} disabled={uploadingPhoto} />
               </div>
               <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
             </div>

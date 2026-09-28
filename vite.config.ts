@@ -18,8 +18,11 @@ export default defineConfig({
       // navigator.serviceWorker.ready (used by the push subscribe/
       // unsubscribe flow) would hang forever without this — needed to
       // test notifications locally, not just in a production build.
+      // Left off for now: the dev SW aggressively caches the app shell,
+      // which made ordinary UI changes look "reverted" until it was
+      // manually unregistered. Flip back to true when testing push.
       devOptions: {
-        enabled: true,
+        enabled: false,
         type: 'module',
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],

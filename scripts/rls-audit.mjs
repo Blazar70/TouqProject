@@ -83,6 +83,10 @@ async function createUser(email) {
 async function cleanup() {
   console.log('\nCleaning up seeded data...')
   if (clinicBId) {
+    // invoices cascades to invoice_items at the DB level (0037), so no
+    // separate invoice_items delete is needed here.
+    await admin.from('invoices').delete().eq('clinic_id', clinicBId)
+    await admin.from('services').delete().eq('clinic_id', clinicBId)
     await admin.from('payments').delete().eq('clinic_id', clinicBId)
     await admin.from('ownership_transfers').delete().eq('pet_id', petBId ?? '00000000-0000-0000-0000-000000000000')
     await admin.from('pet_trusted_contacts').delete().eq('pet_id', petBId ?? '00000000-0000-0000-0000-000000000000')
@@ -98,6 +102,7 @@ async function cleanup() {
     await admin.auth.admin.deleteUser(id)
   }
   if (clinicAId) {
+    await admin.from('services').delete().eq('clinic_id', clinicAId)
     await admin.from('pets').delete().eq('clinic_id', clinicAId)
     await admin.from('clinics').delete().eq('id', clinicAId)
   }
@@ -118,6 +123,11 @@ try {
     .select('id')
     .single()
   petAId = petA.id
+  const { data: serviceA } = await admin
+    .from('services')
+    .insert({ clinic_id: clinicAId, name: 'AuditServiceA', price: 10 })
+    .select('id')
+    .single()
 
   const { data: clinicB } = await admin.from('clinics').insert({ name: 'RLS Audit Clinic B' }).select('id').single()
   clinicBId = clinicB.id
@@ -165,9 +175,41 @@ try {
     .select('id')
     .single()
 
+  // payments is admin-only clinic-billing bookkeeping since 0035 (it used
+  // to be a per-pet ledger vets/owners could see) — no pet_id/owner_id
+  // columns anymore, and no vet/owner policies left to probe here.
   const { data: paymentB } = await admin
     .from('payments')
-    .insert({ pet_id: petBId, clinic_id: clinicBId, owner_id: ownerId, amount: 100, status: 'pending' })
+    .insert({ clinic_id: clinicBId, amount: 100, status: 'pending' })
+    .select('id')
+    .single()
+
+  const { data: serviceB } = await admin
+    .from('services')
+    .insert({ clinic_id: clinicBId, name: 'AuditServiceB', price: 50 })
+    .select('id')
+    .single()
+
+  const { data: invoiceB } = await admin
+    .from('invoices')
+    .insert({
+      clinic_id: clinicBId,
+      pet_id: petBId,
+      appointment_id: appointmentB.id,
+      created_by: vetBId,
+      method: 'cash',
+      status: 'verified',
+      amount_total: 50,
+      paid_at: new Date().toISOString(),
+      verified_by: vetBId,
+      verified_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+
+  await admin
+    .from('invoice_items')
+    .insert({ invoice_id: invoiceB.id, service_id: serviceB.id, description: 'AuditServiceB', unit_price: 50, quantity: 1, line_total: 50 })
     .select('id')
     .single()
 
@@ -233,9 +275,29 @@ try {
     check('vetB cannot update Clinic A itself', (data ?? []).length === 0)
   }
   {
-    const { data } = await vetB.from('payments').select('id, clinic_id')
-    const leaked = (data ?? []).some((p) => p.clinic_id !== clinicBId)
-    check('vetB payments list contains only Clinic B rows', !leaked)
+    // payments is admin-only since 0035 — vets have no policy on it at
+    // all anymore, so this should come back empty, not just Clinic-B-only.
+    const { data } = await vetB.from('payments').select('id')
+    check('vetB has no access to payments (admin-only billing ledger)', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await vetB.from('services').select('id').eq('id', serviceA.id)
+    check('vetB cannot read Clinic A service by id', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await vetB.from('services').select('id, clinic_id')
+    const leaked = (data ?? []).some((s) => s.clinic_id !== clinicBId)
+    check('vetB service list contains only Clinic B rows', !leaked)
+  }
+  {
+    const { data } = await vetB.from('invoices').select('id, clinic_id')
+    const leaked = (data ?? []).some((i) => i.clinic_id !== clinicBId)
+    check('vetB invoice list contains only Clinic B rows', !leaked)
+  }
+  {
+    const { data } = await vetB.from('invoice_items').select('id, invoice_id')
+    const leaked = (data ?? []).some((it) => it.invoice_id !== invoiceB.id)
+    check('vetB invoice_item list contains only Clinic B rows', !leaked)
   }
 
   // --- Owner role ---
@@ -257,8 +319,20 @@ try {
     check("owner can view their pet's medical records", (data ?? []).length === 1)
   }
   {
+    // Admin-only table since 0035 — owner should be blocked from both
+    // reading and writing, not just writing.
+    const { data: readData } = await owner.from('payments').select('id').eq('id', paymentB.id)
+    check('owner has no read access to payments (admin-only billing ledger)', (readData ?? []).length === 0)
     const { data } = await owner.from('payments').update({ status: 'paid' }).eq('id', paymentB.id).select()
-    check('owner cannot update a payment (select-only policy)', (data ?? []).length === 0)
+    check('owner cannot update a payment', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await owner.from('invoices').select('id')
+    check('owner has no access to invoices (vet/admin only)', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await owner.from('services').select('id')
+    check('owner has no access to services (vet/admin only)', (data ?? []).length === 0)
   }
   {
     const { data } = await owner.from('ownership_transfers').update({ status: 'accepted' }).eq('id', transferB.id).select()
@@ -278,6 +352,14 @@ try {
     const { data } = await adminUser.from('clinics').select('id').in('id', [clinicAId, clinicBId])
     check('admin sees both clinics', (data ?? []).length === 2)
   }
+  {
+    const { data } = await adminUser.from('services').select('id').in('id', [serviceA.id, serviceB.id])
+    check('admin sees services from both clinics', (data ?? []).length === 2)
+  }
+  {
+    const { data } = await adminUser.from('invoices').select('id').eq('id', invoiceB.id)
+    check('admin can see Clinic B invoice', (data ?? []).length === 1)
+  }
 
   // --- Fully unauthenticated ---
   {
@@ -287,6 +369,14 @@ try {
   {
     const { error } = await anon.from('pets').insert({ clinic_id: clinicBId, name: 'anon', species: 'Dog', owner_name: 'x' })
     check('unauthenticated insert is rejected', !!error)
+  }
+  {
+    const { data } = await anon.from('invoices').select('id')
+    check('unauthenticated request sees no invoices', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await anon.from('services').select('id')
+    check('unauthenticated request sees no services', (data ?? []).length === 0)
   }
 
   const failed = results.filter((r) => !r.pass)

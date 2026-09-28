@@ -4,9 +4,13 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
-import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
+import type { Database } from '../lib/database.types'
+import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
+import Ltr from '../components/Ltr'
+
+type Service = Database['public']['Tables']['services']['Row']
 
 const REMINDER_OFF = 'off'
 const REMINDER_CUSTOM = 'custom'
@@ -24,8 +28,20 @@ function SettingsPage() {
   const isVet = profile?.role === 'vet'
 
   const [clinicName, setClinicName] = useState('')
+  const [clinicPhone, setClinicPhone] = useState('')
   const [savingClinic, setSavingClinic] = useState(false)
   const [clinicError, setClinicError] = useState<string | null>(null)
+
+  const [services, setServices] = useState<Service[]>([])
+  const [loadingServices, setLoadingServices] = useState(false)
+  const [newServiceName, setNewServiceName] = useState('')
+  const [newServicePrice, setNewServicePrice] = useState('')
+  const [addingService, setAddingService] = useState(false)
+  const [serviceError, setServiceError] = useState<string | null>(null)
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [editServiceName, setEditServiceName] = useState('')
+  const [editServicePrice, setEditServicePrice] = useState('')
+  const [savingServiceId, setSavingServiceId] = useState<string | null>(null)
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
   const [phone, setPhone] = useState(stripSaudiPrefix(profile?.phone ?? null))
@@ -57,21 +73,124 @@ function SettingsPage() {
     if (!profile?.clinic_id) return
     supabase
       .from('clinics')
-      .select('name')
+      .select('name, phone')
       .eq('id', profile.clinic_id)
       .single()
       .then(({ data }) => {
-        if (data) setClinicName(data.name)
+        if (data) {
+          setClinicName(data.name)
+          setClinicPhone(data.phone ?? '')
+        }
       })
   }, [profile?.clinic_id])
+
+  useEffect(() => {
+    if (!profile?.clinic_id) return
+    setLoadingServices(true)
+    supabase
+      .from('services')
+      .select('*')
+      .eq('clinic_id', profile.clinic_id)
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        setServices(data ?? [])
+        setLoadingServices(false)
+      })
+  }, [profile?.clinic_id])
+
+  async function handleAddService(e: FormEvent) {
+    e.preventDefault()
+    setServiceError(null)
+    if (!profile?.clinic_id) return
+
+    const price = parseFloat(newServicePrice)
+    if (!newServiceName.trim() || Number.isNaN(price) || price < 0) {
+      setServiceError(t('settings.serviceInvalid'))
+      return
+    }
+
+    setAddingService(true)
+    const { data, error } = await supabase
+      .from('services')
+      .insert({ clinic_id: profile.clinic_id, name: newServiceName.trim(), price })
+      .select('*')
+      .single()
+    if (error || !data) {
+      setServiceError(error?.message ?? t('common.couldNotSave'))
+      setAddingService(false)
+      return
+    }
+    setServices((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)))
+    setNewServiceName('')
+    setNewServicePrice('')
+    setAddingService(false)
+  }
+
+  function startEditService(service: Service) {
+    setEditingServiceId(service.id)
+    setEditServiceName(service.name)
+    setEditServicePrice(String(service.price))
+  }
+
+  async function handleSaveServiceEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!editingServiceId) return
+
+    const price = parseFloat(editServicePrice)
+    if (!editServiceName.trim() || Number.isNaN(price) || price < 0) {
+      toast.error(t('settings.serviceInvalid'))
+      return
+    }
+
+    setSavingServiceId(editingServiceId)
+    const { data, error } = await supabase
+      .from('services')
+      .update({ name: editServiceName.trim(), price })
+      .eq('id', editingServiceId)
+      .select('*')
+      .single()
+    if (error || !data) {
+      toast.error(error?.message ?? t('common.couldNotSave'))
+      setSavingServiceId(null)
+      return
+    }
+    setServices((current) => current.map((s) => (s.id === data.id ? data : s)).sort((a, b) => a.name.localeCompare(b.name)))
+    setEditingServiceId(null)
+    setSavingServiceId(null)
+  }
+
+  async function handleToggleServiceActive(service: Service) {
+    setSavingServiceId(service.id)
+    const { data, error } = await supabase
+      .from('services')
+      .update({ active: !service.active })
+      .eq('id', service.id)
+      .select('*')
+      .single()
+    if (error || !data) {
+      toast.error(error?.message ?? t('common.couldNotSave'))
+      setSavingServiceId(null)
+      return
+    }
+    setServices((current) => current.map((s) => (s.id === data.id ? data : s)))
+    setSavingServiceId(null)
+  }
 
   async function handleSaveClinic(e: FormEvent) {
     e.preventDefault()
     setClinicError(null)
     if (!profile?.clinic_id) return
 
+    if (clinicPhone && !isValidClinicPhone(clinicPhone)) {
+      setClinicError(t('settings.invalidClinicPhone'))
+      return
+    }
+
     setSavingClinic(true)
-    const { error } = await supabase.from('clinics').update({ name: clinicName }).eq('id', profile.clinic_id)
+    const { error } = await supabase
+      .from('clinics')
+      .update({ name: clinicName, phone: clinicPhone || null })
+      .eq('id', profile.clinic_id)
     if (error) {
       setClinicError(error.message)
       setSavingClinic(false)
@@ -190,8 +309,108 @@ function SettingsPage() {
               {t('settings.clinicName')}
               <input value={clinicName} onChange={(e) => setClinicName(e.target.value)} required />
             </label>
+            <label>
+              {t('settings.clinicPhone')}
+              <input value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} dir="ltr" placeholder="+966 11 234 5678" />
+            </label>
             <button type="submit" disabled={savingClinic}>
               {savingClinic ? t('common.saving') : t('common.saveChanges')}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {isVet && (
+        <div className="settings-section">
+          <h2>{t('settings.services')}</h2>
+          <p className="pet-owner">{t('settings.servicesHint')}</p>
+
+          {loadingServices ? (
+            <p>{t('common.loading')}</p>
+          ) : services.length === 0 ? (
+            <p>{t('settings.noServices')}</p>
+          ) : (
+            <ul className="pet-list">
+              {services.map((service) =>
+                editingServiceId === service.id ? (
+                  <li key={service.id} className="pet-list-item">
+                    <form onSubmit={handleSaveServiceEdit} className="pet-row">
+                      <div className="service-edit-fields">
+                        <input value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} required />
+                        <input
+                          type="number"
+                          className="no-spinner"
+                          dir="ltr"
+                          min="0"
+                          step="0.01"
+                          value={editServicePrice}
+                          onChange={(e) => setEditServicePrice(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="record-actions">
+                        <button type="submit" className="secondary-button" disabled={savingServiceId === service.id}>
+                          {savingServiceId === service.id ? t('common.saving') : t('common.save')}
+                        </button>
+                        <button type="button" className="secondary-button" onClick={() => setEditingServiceId(null)}>
+                          {t('common.cancel')}
+                        </button>
+                      </div>
+                    </form>
+                  </li>
+                ) : (
+                  <li key={service.id} className="pet-list-item">
+                    <div className="pet-row">
+                      <div>
+                        <strong>{service.name}</strong>{' '}
+                        {!service.active && (
+                          <span className="status-badge status-cancelled">{t('settings.serviceInactive')}</span>
+                        )}
+                        <div className="pet-owner">
+                          <Ltr>{service.price.toFixed(2)}</Ltr>
+                        </div>
+                      </div>
+                      <div className="record-actions">
+                        <button type="button" className="secondary-button" onClick={() => startEditService(service)}>
+                          {t('common.edit')}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => handleToggleServiceActive(service)}
+                          disabled={savingServiceId === service.id}
+                        >
+                          {service.active ? t('settings.deactivateService') : t('settings.activateService')}
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ),
+              )}
+            </ul>
+          )}
+
+          <form onSubmit={handleAddService} className="pet-form pet-form-grid">
+            {serviceError && <p className="form-error">{serviceError}</p>}
+            <label>
+              {t('settings.serviceName')}
+              <input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} required />
+            </label>
+            <label>
+              {t('settings.servicePrice')}
+              <input
+                type="number"
+                className="no-spinner"
+                dir="ltr"
+                min="0"
+                step="0.01"
+                value={newServicePrice}
+                onChange={(e) => setNewServicePrice(e.target.value)}
+                required
+              />
+            </label>
+            <button type="submit" disabled={addingService}>
+              {addingService ? t('common.saving') : t('settings.addService')}
             </button>
           </form>
         </div>

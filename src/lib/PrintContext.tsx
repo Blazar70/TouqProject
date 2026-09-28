@@ -52,6 +52,7 @@ const PRINT_STYLES = `
   }
   .print-header h1 { margin: 0; font-size: 1.7rem; letter-spacing: -0.01em; color: #000; }
   .print-header p { margin: 0.25rem 0 0; font-size: 0.95rem; color: #000; text-transform: uppercase; letter-spacing: 0.06em; }
+  .print-clinic-phone { text-transform: none !important; letter-spacing: normal !important; color: #666 !important; font-size: 0.85rem !important; }
   .print-printed-at { font-size: 0.78rem; color: #888; white-space: nowrap; }
   .print-hero { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; margin: 0 0 1rem; }
   .print-hero-name { font-size: 2.6rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
@@ -102,6 +103,7 @@ function fieldsHtml(t: (key: TranslationKey) => string, visit: VisitSummary) {
 function buildDocument(
   t: (key: TranslationKey) => string,
   clinicLabel: string,
+  clinicPhone: string | null,
   petName: string,
   visits: VisitSummary[],
 ) {
@@ -140,6 +142,7 @@ function buildDocument(
     <header class="print-header">
       <div>
         <h1>${escapeHtml(clinicLabel)}</h1>
+        ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
         <p>${escapeHtml(title)}</p>
       </div>
       <div class="print-printed-at">${escapeHtml(t('printSummary.printedOn'))} ${escapeHtml(new Date().toLocaleString())}</div>
@@ -149,19 +152,19 @@ function buildDocument(
       ${heroDate}
     </div>
     ${body}
-    <footer class="print-footer">${escapeHtml(clinicLabel)}</footer>
+    <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>
   </body>
 </html>`
 }
 
 export function PrintProvider({ children }: { children: ReactNode }) {
   const { t } = useLanguage()
-  const { clinicName } = useAuth()
+  const { clinicName, clinicPhone } = useAuth()
 
   const runPrint = useCallback(
     (petName: string, visits: VisitSummary[]) => {
       const clinicLabel = clinicName ?? t('auth.brand')
-      const html = buildDocument(t, clinicLabel, petName, visits)
+      const html = buildDocument(t, clinicLabel, clinicPhone, petName, visits)
 
       // A separate print window, not an in-page portal — it's a fully
       // self-contained document with its own styles, so there's no React
@@ -177,7 +180,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
         printWindow.print()
       }
     },
-    [clinicName, t],
+    [clinicName, clinicPhone, t],
   )
 
   const printSummary = useCallback((petName: string, visit: VisitSummary) => runPrint(petName, [visit]), [runPrint])
