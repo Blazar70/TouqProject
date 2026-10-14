@@ -1,2 +1,4 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and normalize to LF in the repo.
+# eol=lf also checks files out with LF on Windows, so core.autocrlf=true
+# no longer prints "LF will be replaced by CRLF" warnings on every add.
+* text=auto eol=lf
