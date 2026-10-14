@@ -6,7 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { isValidSaudiMobile } from '../lib/phone'
-import { validateImageFile } from '../lib/imageUpload'
+import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from '../components/SpeciesSelect'
@@ -115,17 +115,11 @@ function RegisterPetPage() {
     // The pet's already registered at this point — a photo upload failure
     // is worth surfacing but shouldn't undo that or block navigating on.
     if (photoFile) {
-      const ext = photoFile.name.split('.').pop() || 'jpg'
-      const path = `${profile.clinic_id}/${newPet.id}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('pet-photos')
-        .upload(path, photoFile, { upsert: true, contentType: photoFile.type })
-
-      if (uploadError) {
+      const upload = await uploadPhoto(`${profile.clinic_id}/${newPet.id}`, photoFile)
+      if (upload.error !== null) {
         toast.error(t('common.couldNotSavePhoto'))
       } else {
-        const { data: publicUrlData } = supabase.storage.from('pet-photos').getPublicUrl(path)
-        await supabase.from('pets').update({ photo_url: publicUrlData.publicUrl }).eq('id', newPet.id)
+        await supabase.from('pets').update({ photo_url: upload.url }).eq('id', newPet.id)
       }
     }
 

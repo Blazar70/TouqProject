@@ -7,9 +7,10 @@ import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
 import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { matchesAppointmentSearch } from '../lib/appointmentSearch'
-import { findAppointmentConflicts } from '../lib/appointmentConflicts'
+import { CONFLICT_WINDOW_MS, findAppointmentConflicts } from '../lib/appointmentConflicts'
+import type { ConflictCandidate } from '../lib/appointmentConflicts'
 import { CANCELLATION_CATEGORIES, cancellationCategoryLabel } from '../lib/cancellation'
-import { validateImageFile } from '../lib/imageUpload'
+import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import { usePrintSummary } from '../lib/PrintContext'
@@ -52,6 +53,27 @@ function activeWindow(days: number) {
   const end = new Date(start)
   end.setDate(end.getDate() + days)
   return { start, end }
+}
+
+// The form's 12-hour picker (hour, minute, AM/PM) as a UTC ISO timestamp.
+function toScheduledAt(date: string, hour: string, minute: string, period: string) {
+  let hour24 = parseInt(hour, 10) % 12
+  if (period === 'PM') hour24 += 12
+  return new Date(`${date}T${String(hour24).padStart(2, '0')}:${minute}`).toISOString()
+}
+
+// A dedicated query, not the loaded `appointments` state — that only holds
+// the currently-paginated window, which could easily miss a real conflict
+// sitting outside it (e.g. days ahead of what's loaded).
+async function fetchConflicts(candidate: ConflictCandidate) {
+  const time = new Date(candidate.scheduledAt).getTime()
+  const { data: nearby } = await supabase
+    .from('appointments')
+    .select(APPOINTMENT_SELECT)
+    .neq('status', 'cancelled')
+    .gte('scheduled_at', new Date(time - CONFLICT_WINDOW_MS).toISOString())
+    .lte('scheduled_at', new Date(time + CONFLICT_WINDOW_MS).toISOString())
+  return findAppointmentConflicts(nearby ?? [], candidate)
 }
 
 function AppointmentsPage() {
@@ -249,25 +271,10 @@ function AppointmentsPage() {
       return
     }
 
-    let hour24 = parseInt(scheduledHour, 10) % 12
-    if (scheduledPeriod === 'PM') hour24 += 12
-    const time24 = `${String(hour24).padStart(2, '0')}:${scheduledMinute}`
-    const scheduledAt = new Date(`${scheduledDate}T${time24}`).toISOString()
+    const scheduledAt = toScheduledAt(scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod)
 
     if (!conflictAcknowledged) {
-      // A dedicated query, not the loaded `appointments` state — that only
-      // holds the currently-paginated window, which could easily miss a
-      // real conflict sitting outside it (e.g. days ahead of what's loaded).
-      const candidateTime = new Date(scheduledAt).getTime()
-      const windowStart = new Date(candidateTime - 30 * 60_000).toISOString()
-      const windowEnd = new Date(candidateTime + 30 * 60_000).toISOString()
-      const { data: nearby } = await supabase
-        .from('appointments')
-        .select(APPOINTMENT_SELECT)
-        .neq('status', 'cancelled')
-        .gte('scheduled_at', windowStart)
-        .lte('scheduled_at', windowEnd)
-      const found = findAppointmentConflicts(nearby ?? [], { petId, assignedStaffId, scheduledAt })
+      const found = await fetchConflicts({ petId, assignedStaffId, scheduledAt })
       if (found.length > 0) {
         setConflicts(found)
         return
@@ -480,22 +487,10 @@ function AppointmentsPage() {
         return
       }
 
-      let hour24 = parseInt(rescheduleHour, 10) % 12
-      if (reschedulePeriod === 'PM') hour24 += 12
-      const time24 = `${String(hour24).padStart(2, '0')}:${rescheduleMinute}`
-      const newScheduledAt = new Date(`${rescheduleDate}T${time24}`).toISOString()
+      const newScheduledAt = toScheduledAt(rescheduleDate, rescheduleHour, rescheduleMinute, reschedulePeriod)
 
       if (!rescheduleConflictAcknowledged && !forceRescheduleAcknowledged) {
-        const candidateTime = new Date(newScheduledAt).getTime()
-        const windowStart = new Date(candidateTime - 30 * 60_000).toISOString()
-        const windowEnd = new Date(candidateTime + 30 * 60_000).toISOString()
-        const { data: nearby } = await supabase
-          .from('appointments')
-          .select(APPOINTMENT_SELECT)
-          .neq('status', 'cancelled')
-          .gte('scheduled_at', windowStart)
-          .lte('scheduled_at', windowEnd)
-        const found = findAppointmentConflicts(nearby ?? [], {
+        const found = await fetchConflicts({
           petId: appointment.pet_id,
           assignedStaffId: appointment.assigned_staff_id ?? '',
           scheduledAt: newScheduledAt,
@@ -570,16 +565,11 @@ function AppointmentsPage() {
       // The record's already saved at this point — a photo upload failure
       // is worth surfacing but shouldn't undo the completion.
       if (completionPhotoFile) {
-        const ext = completionPhotoFile.name.split('.').pop() || 'jpg'
-        const path = `${profile.clinic_id}/records/${newRecord.id}.${ext}`
-        const { error: uploadError } = await supabase.storage
-          .from('pet-photos')
-          .upload(path, completionPhotoFile, { upsert: true, contentType: completionPhotoFile.type })
-        if (uploadError) {
+        const upload = await uploadPhoto(`${profile.clinic_id}/records/${newRecord.id}`, completionPhotoFile)
+        if (upload.error !== null) {
           toast.error(t('common.couldNotSavePhoto'))
         } else {
-          const { data: publicUrlData } = supabase.storage.from('pet-photos').getPublicUrl(path)
-          await supabase.from('medical_records').update({ photo_url: publicUrlData.publicUrl }).eq('id', newRecord.id)
+          await supabase.from('medical_records').update({ photo_url: upload.url }).eq('id', newRecord.id)
         }
       }
 

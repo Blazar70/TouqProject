@@ -3,7 +3,7 @@
 // other — close enough that double-booking was probably unintentional,
 // without blocking legitimately back-to-back or same-day-different-time
 // scheduling.
-const CONFLICT_WINDOW_MS = 30 * 60 * 1000
+export const CONFLICT_WINDOW_MS = 30 * 60 * 1000
 
 export type ConflictCandidate = {
   petId: string
