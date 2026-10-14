@@ -1489,6 +1489,25 @@
   margin: 0 0 0.6rem;
 }
 
+/* Weight / temperature / heart rate side by side on a tablet, stacked on a
+   phone. Inputs are 44px tall so they're easy to tap on a tablet. */
+.vitals-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 0.75rem;
+}
+
+.vitals-row input {
+  min-height: 44px;
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .vitals-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pet-detail {
   margin: 0 1rem 0.85rem;
   padding: 1.1rem;

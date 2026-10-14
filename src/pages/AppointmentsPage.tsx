@@ -9,6 +9,7 @@ import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { matchesAppointmentSearch } from '../lib/appointmentSearch'
 import { findAppointmentConflicts } from '../lib/appointmentConflicts'
 import { CANCELLATION_CATEGORIES, cancellationCategoryLabel } from '../lib/cancellation'
+import { parseVitals, visitRecordFields } from '../lib/clinicalFields'
 import { validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
@@ -96,9 +97,15 @@ function AppointmentsPage() {
   const [cancelCategory, setCancelCategory] = useState('')
   const [cancelReason, setCancelReason] = useState('')
   const [completionVisitType, setCompletionVisitType] = useState('')
+  const [completionComplaint, setCompletionComplaint] = useState('')
+  const [completionWeight, setCompletionWeight] = useState('')
+  const [completionTemperature, setCompletionTemperature] = useState('')
+  const [completionHeartRate, setCompletionHeartRate] = useState('')
+  const [completionPhysicalExam, setCompletionPhysicalExam] = useState('')
   const [completionDiagnosis, setCompletionDiagnosis] = useState('')
+  const [completionDiagnosticPlan, setCompletionDiagnosticPlan] = useState('')
   const [completionTreatment, setCompletionTreatment] = useState('')
-  const [completionNotes, setCompletionNotes] = useState('')
+  const [completionRemarks, setCompletionRemarks] = useState('')
   const [completionPhotoFile, setCompletionPhotoFile] = useState<File | null>(null)
   const [completionPhotoPreviewUrl, setCompletionPhotoPreviewUrl] = useState<string | null>(null)
   const [savingPending, setSavingPending] = useState(false)
@@ -352,14 +359,24 @@ function AppointmentsPage() {
     pendingAction?.kind === 'complete',
   )
 
+  function resetCompletionFields() {
+    setCompletionVisitType('')
+    setCompletionComplaint('')
+    setCompletionWeight('')
+    setCompletionTemperature('')
+    setCompletionHeartRate('')
+    setCompletionPhysicalExam('')
+    setCompletionDiagnosis('')
+    setCompletionDiagnosticPlan('')
+    setCompletionTreatment('')
+    setCompletionRemarks('')
+    clearCompletionPhoto()
+  }
+
   function resetPendingFields() {
     setCancelCategory('')
     setCancelReason('')
-    setCompletionVisitType('')
-    setCompletionDiagnosis('')
-    setCompletionTreatment('')
-    setCompletionNotes('')
-    clearCompletionPhoto()
+    resetCompletionFields()
     setRescheduleDate('')
     setRescheduleHour('')
     setRescheduleMinute('')
@@ -380,11 +397,7 @@ function AppointmentsPage() {
     setPendingAction({ appointmentId: appointment.id, kind: 'reschedule' })
     setCancelCategory('')
     setCancelReason('')
-    setCompletionVisitType('')
-    setCompletionDiagnosis('')
-    setCompletionTreatment('')
-    setCompletionNotes('')
-    clearCompletionPhoto()
+    resetCompletionFields()
   }
 
   async function handleStatusChange(appointment: Appointment, status: string) {
@@ -535,6 +548,18 @@ function AppointmentsPage() {
         setSavingPending(false)
         return
       }
+      // Checked before the status update so a typo in a vital can be fixed
+      // without leaving a completed appointment with no record.
+      const vitalsResult = parseVitals({
+        weight: completionWeight,
+        temperature: completionTemperature,
+        heartRate: completionHeartRate,
+      })
+      if (!vitalsResult.ok) {
+        setError(t(vitalsResult.errorKey))
+        setSavingPending(false)
+        return
+      }
 
       const { error: appointmentError } = await supabase
         .from('appointments')
@@ -555,9 +580,13 @@ function AppointmentsPage() {
           vet_id: profile.id,
           appointment_id: appointment.id,
           visit_type: completionVisitType,
+          presenting_complaint: completionComplaint.trim() || null,
+          ...vitalsResult.vitals,
+          physical_exam: completionPhysicalExam.trim() || null,
           diagnosis: completionDiagnosis,
+          diagnostic_plan: completionDiagnosticPlan.trim() || null,
           treatment: completionTreatment,
-          notes: completionNotes || null,
+          remarks: completionRemarks.trim() || null,
         })
         .select()
         .single()
@@ -678,17 +707,11 @@ function AppointmentsPage() {
                         {t('petDetail.visitType')}: {visitTypeLabel(t, record.visit_type)}
                       </p>
                     )}
-                    <p className="pet-owner">
-                      {t('petDetail.diagnosis')}: {record.diagnosis}
-                    </p>
-                    <p className="pet-owner">
-                      {t('petDetail.treatment')}: {record.treatment}
-                    </p>
-                    {record.notes && (
-                      <p className="pet-owner">
-                        {t('appointments.notesOptional')}: {record.notes}
+                    {visitRecordFields(record).map((field) => (
+                      <p key={field.labelKey} className="pet-owner">
+                        {t(field.labelKey)}: {field.value}
                       </p>
-                    )}
+                    ))}
                     {record.photo_url && (
                       <div className="record-photo">
                         <PhotoThumbnail url={record.photo_url} alt={t('petDetail.recordPhotoAlt')} size={56} />
@@ -714,9 +737,7 @@ function AppointmentsPage() {
                           printSummary(appointment.pets?.name ?? t('dashboard.unknownPet'), {
                             date: record.visit_date,
                             visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
-                            diagnosis: record.diagnosis ?? '',
-                            treatment: record.treatment ?? '',
-                            notes: record.notes,
+                            record,
                             photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,
                           })
                         }
@@ -871,9 +892,58 @@ function AppointmentsPage() {
                   </select>
                 </label>
                 <label>
+                  {t('clinical.presentingComplaint')}
+                  <textarea value={completionComplaint} onChange={(e) => setCompletionComplaint(e.target.value)} rows={2} />
+                </label>
+                {/* Numbers read left-to-right even in Arabic, hence dir="ltr" on the inputs only. */}
+                <div className="vitals-row">
+                  <label>
+                    {t('clinical.weightKg')}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      dir="ltr"
+                      value={completionWeight}
+                      onChange={(e) => setCompletionWeight(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    {t('clinical.temperatureC')}
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      dir="ltr"
+                      value={completionTemperature}
+                      onChange={(e) => setCompletionTemperature(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    {t('clinical.heartRateBpm')}
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      dir="ltr"
+                      value={completionHeartRate}
+                      onChange={(e) => setCompletionHeartRate(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <label>
+                  {t('clinical.physicalExam')}
+                  <textarea value={completionPhysicalExam} onChange={(e) => setCompletionPhysicalExam(e.target.value)} rows={3} />
+                </label>
+                <label>
                   {t('petDetail.diagnosis')}
                   <RequiredMark />
                   <input value={completionDiagnosis} onChange={(e) => setCompletionDiagnosis(e.target.value)} required />
+                </label>
+                <label>
+                  {t('clinical.diagnosticPlan')}
+                  <textarea
+                    value={completionDiagnosticPlan}
+                    onChange={(e) => setCompletionDiagnosticPlan(e.target.value)}
+                    rows={2}
+                  />
                 </label>
                 <label>
                   {t('petDetail.treatment')}
@@ -881,8 +951,8 @@ function AppointmentsPage() {
                   <input value={completionTreatment} onChange={(e) => setCompletionTreatment(e.target.value)} required />
                 </label>
                 <label>
-                  {t('appointments.notesOptional')}
-                  <textarea value={completionNotes} onChange={(e) => setCompletionNotes(e.target.value)} rows={2} />
+                  {t('clinical.remarks')}
+                  <textarea value={completionRemarks} onChange={(e) => setCompletionRemarks(e.target.value)} rows={2} />
                 </label>
                 <div
                   className={`pet-photo-row${completionPhotoDragActive ? ' pet-photo-row-drag-active' : ''}`}

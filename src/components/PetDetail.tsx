@@ -6,6 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
+import { visitRecordFields } from '../lib/clinicalFields'
 import { validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
@@ -344,9 +345,7 @@ function PetDetail({
                       records.map((record) => ({
                         date: record.visit_date,
                         visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
-                        diagnosis: record.diagnosis ?? '',
-                        treatment: record.treatment ?? '',
-                        notes: record.notes,
+                        record,
                         photoUrl: includeHistoryPhotos ? record.photo_url : null,
                       })),
                     )
@@ -428,21 +427,11 @@ function PetDetail({
                               <PhotoThumbnail url={record.photo_url} alt={t('petDetail.recordPhotoAlt')} size={56} />
                             </div>
                           )}
-                          {record.diagnosis && (
-                            <div>
-                              <strong>{t('petDetail.diagnosis')}:</strong> {record.diagnosis}
+                          {visitRecordFields(record).map((field) => (
+                            <div key={field.labelKey}>
+                              <strong>{t(field.labelKey)}:</strong> {field.value}
                             </div>
-                          )}
-                          {record.treatment && (
-                            <div>
-                              <strong>{t('petDetail.treatment')}:</strong> {record.treatment}
-                            </div>
-                          )}
-                          {record.notes && (
-                            <div>
-                              <strong>{t('common.notes')}:</strong> {record.notes}
-                            </div>
-                          )}
+                          ))}
                         </div>
                         <div className="record-actions">
                           {record.photo_url && (
@@ -464,9 +453,7 @@ function PetDetail({
                               printSummary(pet.name, {
                                 date: record.visit_date,
                                 visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
-                                diagnosis: record.diagnosis ?? '',
-                                treatment: record.treatment ?? '',
-                                notes: record.notes,
+                                record,
                                 photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,
                               })
                             }
