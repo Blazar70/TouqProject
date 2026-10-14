@@ -15,7 +15,7 @@ One browser or device registration per row, plus a dedupe log for reminders.
 - `push_subscriptions`: `profile_id`, `endpoint` unique, `p256dh`, `auth`. Policy: own rows only.
 - `appointment_reminders_sent`: composite key (appointment_id, profile_id). No policies; service role only. This is the guard that stops the 15-minute job re-sending.
 - Preferences live on `profiles` (lead minutes, notify statuses).
-- Dead endpoints (404/410) are deleted by both functions.
+- Dead endpoints (404/410) are deleted by `sendToSubscriptions` in `supabase/functions/_shared/push.ts`, used by both functions.
 
 ## Connected to
 

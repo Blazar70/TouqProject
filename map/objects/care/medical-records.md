@@ -27,7 +27,7 @@ Completion notes were deliberately written into this table, not new appointment 
 
 ## If you change this
 
-- **Hits:** the complete flow in AppointmentsPage (`src/pages/AppointmentsPage.tsx:551`), PetDetail history, Dashboard, `admin-manage-clinic` purge.
+- **Hits:** the complete flow in AppointmentsPage (`src/pages/AppointmentsPage.tsx:546`), PetDetail history, Dashboard, `admin-manage-clinic` purge.
 - **Does not hit:** vaccination schedule. A record with visit type vaccination does NOT update `pets.next_vaccination_date`; that is a separate action in VaccinationPanel.
 
 ## Surfaces

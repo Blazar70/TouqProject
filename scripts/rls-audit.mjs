@@ -151,7 +151,7 @@ try {
     .single()
   petBId = petB.id
 
-  const { data: caregiverB } = await admin
+  await admin
     .from('caregivers')
     .insert({ clinic_id: clinicBId, name: 'AuditStaffB', title: 'Vet Tech' })
     .select('id')
@@ -163,13 +163,13 @@ try {
     .select('id')
     .single()
 
-  const { data: recordB } = await admin
+  await admin
     .from('medical_records')
     .insert({ pet_id: petBId, clinic_id: clinicBId, vet_id: vetBId, visit_type: 'checkup', diagnosis: 'x', treatment: 'y' })
     .select('id')
     .single()
 
-  const { data: contactB } = await admin
+  await admin
     .from('pet_trusted_contacts')
     .insert({ pet_id: petBId, name: 'AuditContactB', phone: '5550000000' })
     .select('id')

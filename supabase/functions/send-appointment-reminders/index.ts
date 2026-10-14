@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { sendWebPush } from '../_shared/push.ts'
+import { sendToSubscriptions } from '../_shared/push.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -50,18 +50,7 @@ Deno.serve(async () => {
         icon: pet?.photo_url ?? undefined,
       }
 
-      await Promise.all(
-        (subscriptions ?? []).map(async (sub) => {
-          try {
-            await sendWebPush(sub, payload)
-          } catch (err) {
-            const statusCode = (err as { statusCode?: number })?.statusCode
-            if (statusCode === 404 || statusCode === 410) {
-              await admin.from('push_subscriptions').delete().eq('id', sub.id)
-            }
-          }
-        }),
-      )
+      await sendToSubscriptions(admin, subscriptions ?? [], payload)
 
       await admin.from('appointment_reminders_sent').insert({ appointment_id: appointment.id, profile_id: profile.id })
     }

@@ -29,3 +29,6 @@ dist-ssr
 # Supabase CLI link state and PWA dev build output
 supabase/.temp
 dev-dist
+
+# Personal Claude Code settings (plugins, local permissions)
+.claude/settings.local.json
