@@ -236,6 +236,7 @@ Deno.serve(async (req) => {
   }
 
   if (body.action === 'purge') {
+    if (isTrustedCaller) return jsonError('purge is not available to the scheduled job', 403)
     const clinicId = String(body.clinicId ?? '')
     if (!clinicId) return jsonError('Missing clinicId')
 

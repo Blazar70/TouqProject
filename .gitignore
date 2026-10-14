@@ -32,3 +32,4 @@ dev-dist
 
 # Personal Claude Code settings (plugins, local permissions)
 .claude/settings.local.json
+.claude/worktrees/
