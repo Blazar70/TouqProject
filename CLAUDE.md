@@ -2,6 +2,8 @@
 
 Bilingual (EN/AR) vet-clinic PWA. React + Vite + Supabase. Commands: `npm run dev`, `npm test`, `npm run build`, `npm run lint`.
 
+@AGENTS.md
+
 ## Where things live
 
 | Folder | What it holds |

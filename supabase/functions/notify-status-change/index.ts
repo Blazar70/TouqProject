@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { sendWebPush } from '../_shared/push.ts'
+import { sendToSubscriptions } from '../_shared/push.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -23,22 +23,18 @@ Deno.serve(async (req) => {
 
   // Confirm the caller belongs to the same clinic as the appointment —
   // otherwise anyone with a valid login could trigger a push for another
-  // clinic's appointment by guessing/observing an ID. A request carrying
-  // the service-role key itself is trusted (used for debugging/ops).
-  const authHeader = req.headers.get('Authorization') ?? ''
-  if (authHeader !== `Bearer ${serviceRoleKey}`) {
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    })
-    const {
-      data: { user },
-    } = await callerClient.auth.getUser()
-    if (!user) return new Response('unauthorized', { status: 401, headers: corsHeaders })
+  // clinic's appointment by guessing/observing an ID.
+  const callerClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+  })
+  const {
+    data: { user },
+  } = await callerClient.auth.getUser()
+  if (!user) return new Response('unauthorized', { status: 401, headers: corsHeaders })
 
-    const { data: callerProfile } = await admin.from('profiles').select('clinic_id').eq('id', user.id).maybeSingle()
-    if (!callerProfile || callerProfile.clinic_id !== appointment.clinic_id) {
-      return new Response('forbidden', { status: 403, headers: corsHeaders })
-    }
+  const { data: callerProfile } = await admin.from('profiles').select('clinic_id').eq('id', user.id).maybeSingle()
+  if (!callerProfile || callerProfile.clinic_id !== appointment.clinic_id) {
+    return new Response('forbidden', { status: 403, headers: corsHeaders })
   }
 
   const { data: profiles } = await admin
@@ -61,25 +57,7 @@ Deno.serve(async (req) => {
     icon: pet?.photo_url ?? undefined,
   }
 
-  const results = await Promise.all(
-    (subscriptions ?? []).map(async (sub) => {
-      try {
-        await sendWebPush(sub, payload)
-        return { endpoint: sub.endpoint, ok: true }
-      } catch (err) {
-        const statusCode = (err as { statusCode?: number })?.statusCode
-        if (statusCode === 404 || statusCode === 410) {
-          await admin.from('push_subscriptions').delete().eq('id', sub.id)
-        }
-        return {
-          endpoint: sub.endpoint,
-          ok: false,
-          statusCode,
-          message: err instanceof Error ? err.message : String(err),
-        }
-      }
-    }),
-  )
+  const results = await sendToSubscriptions(admin, subscriptions ?? [], payload)
 
   return new Response(JSON.stringify({ recipientCount: recipientIds.length, results }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },

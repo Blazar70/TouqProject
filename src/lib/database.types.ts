@@ -771,6 +771,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_clinic_counts: {
+        Args: never
+        Returns: { clinic_id: string; pets: number; appointments: number; staff: number }[]
+      }
       current_user_clinic_id: { Args: never; Returns: string }
       current_user_id_if_active: { Args: never; Returns: string }
       current_user_is_admin: { Args: never; Returns: boolean }

@@ -126,27 +126,28 @@ function AdminPage() {
   const [trashModalOpen, setTrashModalOpen] = useState(false)
 
   async function load() {
-    const [clinicsRes, profilesRes, petsRes, appointmentsRes, caregiversRes] = await Promise.all([
+    // Totals are counted in the database (0038); raw rows are only fetched for
+    // the windows the charts and signals below actually look at.
+    // shortcut: a window with >1000 rows is still capped by PostgREST, move it into SQL if that happens.
+    const day = 24 * 60 * 60 * 1000
+    const appointmentsSince = new Date(Date.now() - Math.max(DORMANT_WINDOW_DAYS, CHART_WEEKS * 7) * day).toISOString()
+    const petsSince = new Date(Date.now() - day).toISOString()
+    const [clinicsRes, profilesRes, countsRes, petsRes, appointmentsRes] = await Promise.all([
       supabase.from('clinics').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('pets').select('clinic_id, created_at').is('deleted_at', null),
-      supabase.from('appointments').select('clinic_id, created_at'),
-      supabase.from('caregivers').select('clinic_id').is('deleted_at', null),
+      supabase.rpc('admin_clinic_counts'),
+      supabase.from('pets').select('clinic_id, created_at').is('deleted_at', null).gte('created_at', petsSince),
+      supabase.from('appointments').select('clinic_id, created_at').gte('created_at', appointmentsSince),
     ])
+    const counts = countsRes.data ?? []
     setClinics(clinicsRes.data ?? [])
     setProfiles(profilesRes.data ?? [])
-    setPetCounts(countBy(petsRes.data ?? []))
-    setAppointmentCounts(countBy(appointmentsRes.data ?? []))
-    setStaffCounts(countBy(caregiversRes.data ?? []))
+    setPetCounts(Object.fromEntries(counts.map((c) => [c.clinic_id, c.pets])))
+    setAppointmentCounts(Object.fromEntries(counts.map((c) => [c.clinic_id, c.appointments])))
+    setStaffCounts(Object.fromEntries(counts.map((c) => [c.clinic_id, c.staff])))
     setAppointmentsRaw(appointmentsRes.data ?? [])
     setPetsRaw(petsRes.data ?? [])
     setLoading(false)
-  }
-
-  function countBy(rows: { clinic_id: string }[]) {
-    const counts: Record<string, number> = {}
-    for (const row of rows) counts[row.clinic_id] = (counts[row.clinic_id] ?? 0) + 1
-    return counts
   }
 
   useEffect(() => {
@@ -158,7 +159,8 @@ function AdminPage() {
   // support work ("a user says an appointment disappeared") doesn't require
   // drilling into each clinic one at a time to find the right one.
   useEffect(() => {
-    const q = globalQuery.trim()
+    // Commas, parentheses and quotes are PostgREST .or() syntax; raw ones break the filter.
+    const q = globalQuery.replace(/[,()"\\]/g, ' ').trim()
     if (q.length < 2) {
       setGlobalResults(null)
       return
@@ -175,7 +177,7 @@ function AdminPage() {
         supabase.from('profiles').select('id, full_name, role, clinic_id').or(profileFilter).limit(10),
         supabase.from('pets').select('id, name, owner_name, clinic_id').or(`name.ilike.%${q}%,owner_name.ilike.%${q}%`).limit(10),
       ])
-      const clinicNames = Object.fromEntries((clinicsRes.data ?? []).map((c) => [c.id, c.name]))
+      const clinicNames = Object.fromEntries(clinics.map((c) => [c.id, c.name]))
       const results: GlobalSearchResult[] = [
         ...(clinicsRes.data ?? []).map((c) => ({ type: 'clinic' as const, id: c.id, label: c.name, detail: t('admin.clinics') })),
         ...(profilesRes.data ?? []).map((p) => ({
@@ -194,7 +196,7 @@ function AdminPage() {
       setGlobalResults(results)
     }, 300)
     return () => clearTimeout(timer)
-  }, [globalQuery, t])
+  }, [globalQuery, clinics, t])
 
   const clinicNameById = useMemo(() => Object.fromEntries(clinics.map((c) => [c.id, c.name])), [clinics])
 

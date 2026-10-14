@@ -7,7 +7,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
 import { visitRecordFields } from '../lib/clinicalFields'
-import { validateImageFile } from '../lib/imageUpload'
+import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from './SpeciesSelect'
@@ -151,22 +151,16 @@ function PetDetail({
       setPetError(null)
       setUploadingPhoto(true)
 
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${profile.clinic_id}/${pet.id}.${ext}`
+      const upload = await uploadPhoto(`${profile.clinic_id}/${pet.id}`, file)
 
-      const { error: uploadError } = await supabase.storage
-        .from('pet-photos')
-        .upload(path, file, { upsert: true, contentType: file.type })
-
-      if (uploadError) {
-        setPetError(uploadError.message)
+      if (upload.error !== null) {
+        setPetError(upload.error)
         setUploadingPhoto(false)
         return
       }
 
-      const { data: publicUrlData } = supabase.storage.from('pet-photos').getPublicUrl(path)
       // Cache-bust so the new photo shows immediately even though the path is unchanged.
-      const photoUrl = `${publicUrlData.publicUrl}?t=${Date.now()}`
+      const photoUrl = `${upload.url}?t=${Date.now()}`
 
       const { data, error } = await supabase
         .from('pets')
