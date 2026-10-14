@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
-import { vaccinationStatus } from '../lib/vaccination'
+import { DUE_SOON_WINDOW_DAYS, nextVaccinationDateAfterDose, vaccinationStatus } from '../lib/vaccination'
 import { cancellationCategoryLabel, groupCancellationCounts } from '../lib/cancellation'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
@@ -45,7 +45,10 @@ function DashboardPage() {
       supabase
         .from('pets')
         .select('*')
+        .is('deleted_at', null)
         .not('next_vaccination_date', 'is', null)
+        // One day of slack for timezones; vaccinationStatus() below decides exactly.
+        .lte('next_vaccination_date', nextVaccinationDateAfterDose(DUE_SOON_WINDOW_DAYS + 1))
         .order('next_vaccination_date', { ascending: true }),
       supabase
         .from('appointments')

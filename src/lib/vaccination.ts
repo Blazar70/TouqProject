@@ -2,7 +2,7 @@ import type { TranslationKey } from './i18n/translations'
 
 export type VaccinationStatus = 'none' | 'ok' | 'due-soon' | 'overdue'
 
-const DUE_SOON_WINDOW_DAYS = 14
+export const DUE_SOON_WINDOW_DAYS = 14
 
 export function vaccinationStatus(nextDate: string | null): VaccinationStatus {
   if (!nextDate) return 'none'

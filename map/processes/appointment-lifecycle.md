@@ -19,11 +19,11 @@ Conflicts only warn, because back-to-back and same-day visits are legitimate. Co
 
 ## Steps
 
-1. Create with `assigned_staff_id`; conflicts checked first. `src/pages/AppointmentsPage.tsx:280`, `src/lib/appointmentConflicts.ts:23`
-2. Status update. `src/pages/AppointmentsPage.tsx:397`
-3. Complete: update status, then insert a medical record, optional photo. `src/pages/AppointmentsPage.tsx:541-586`
-4. Cancel: set status, `cancellation_category`, `cancellation_reason`. `src/pages/AppointmentsPage.tsx:455`
-5. Fire `notify-status-change`, best-effort. `src/pages/AppointmentsPage.tsx:411`
+1. Create with `assigned_staff_id`; conflicts checked first. `src/pages/AppointmentsPage.tsx:287`; conflict helper `fetchConflicts` `:68`, rule `src/lib/appointmentConflicts.ts:23`
+2. Status update. `src/pages/AppointmentsPage.tsx:404`
+3. Complete: update status, then insert a medical record, optional photo. `src/pages/AppointmentsPage.tsx:536-577`
+4. Cancel: set status, `cancellation_category`, `cancellation_reason`. `src/pages/AppointmentsPage.tsx:462`
+5. Fire `notify-status-change`, best-effort. `src/pages/AppointmentsPage.tsx:418`
 
 ## If you change this
 

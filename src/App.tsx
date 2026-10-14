@@ -22,9 +22,6 @@ function App() {
   const { session, profile, clinicName, clinicDisabled, loading, passwordRecovery } = useAuth()
   const { t } = useLanguage()
 
-  // TEMP: animation preview, bypasses auth — remove before shipping
-  if (window.location.pathname === '/test-loader') return <LoadingScreen />
-
   // Checked ahead of `loading`/`!session` — a recovery link signs the user
   // into a temporary session, so both of those already pass, but they
   // should see "set a new password" rather than falling through to
