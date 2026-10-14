@@ -25,3 +25,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI link state and PWA dev build output
+supabase/.temp
+dev-dist

@@ -81,6 +81,11 @@ Deno.serve(async (req) => {
     await admin.from('medical_records').delete().eq('clinic_id', clinicId)
     await admin.from('appointments').delete().eq('clinic_id', clinicId)
     await admin.from('payments').delete().eq('clinic_id', clinicId)
+    // invoice_items cascade from invoices. Both must go before the profiles
+    // are deleted (invoices.created_by/verified_by) and before the clinic row
+    // (invoices.clinic_id and services.clinic_id have no ON DELETE CASCADE).
+    await admin.from('invoices').delete().eq('clinic_id', clinicId)
+    await admin.from('services').delete().eq('clinic_id', clinicId)
     await admin.from('pets').delete().eq('clinic_id', clinicId)
     await admin.from('caregivers').delete().eq('clinic_id', clinicId)
 

@@ -1,0 +1,26 @@
+-- Touq — schedule the appointment-reminder push job (every 15 minutes).
+--
+-- NOT a migration: it embeds the service-role key, so it must never be
+-- committed with real values. Copy this file, fill in the two placeholders,
+-- and run it ONCE in the Supabase SQL editor. Requires 0024 (pg_cron, pg_net).
+--
+-- The function looks 15 minutes ahead per tick (see
+-- supabase/functions/send-appointment-reminders/index.ts), so the interval
+-- here must stay at 15 minutes or reminders will be missed or duplicated.
+--
+-- To change or remove later:  select cron.unschedule('send-appointment-reminders');
+
+select cron.schedule(
+  'send-appointment-reminders',
+  '*/15 * * * *',
+  $$
+  select net.http_post(
+    url := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-appointment-reminders',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer <SERVICE_ROLE_KEY>'
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
