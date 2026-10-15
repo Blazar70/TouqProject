@@ -24,7 +24,7 @@ A clinic's own price list.
 
 ## If you change this
 
-- **Hits:** SettingsPage, PaymentsPage service picker (still uses `price`, i.e. pre-VAT; VAT on invoices is a later phase).
+- **Hits:** SettingsPage, PaymentsPage service picker (shows and charges the post-VAT price; an itemised VAT breakdown on invoices is a later phase).
 - **Does not hit:** existing invoice amounts (copied at sale time).
 
 ## Fixed 2026-10-14
