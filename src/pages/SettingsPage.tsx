@@ -9,19 +9,21 @@ import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidClinicPhone, isV
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
-import { DEFAULT_VAT_RATE, priceWithVat, updateVatFields } from '../lib/vat'
+import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
 
 type Service = Database['public']['Tables']['services']['Row']
 
 const EMPTY_VAT_FIELDS: VatFields = { pre: '', rate: String(DEFAULT_VAT_RATE), post: '' }
 
-// price is stored pre-VAT; null if either number is missing or out of range.
+// price is stored pre-VAT, derived from the post-VAT field at 4 decimals so
+// the post-VAT price shown is exactly what comes back after saving.
+// null if either number is missing or out of range.
 function parseServicePrices(fields: VatFields): { price: number; vat_rate: number } | null {
-  const price = parseFloat(fields.pre)
+  const post = parseFloat(fields.post)
   const vatRate = parseFloat(fields.rate)
-  if (Number.isNaN(price) || price < 0 || Number.isNaN(vatRate) || vatRate < 0 || vatRate > 100) return null
-  return { price, vat_rate: vatRate }
+  if (Number.isNaN(post) || post < 0 || Number.isNaN(vatRate) || vatRate < 0 || vatRate > 100) return null
+  return { price: priceWithoutVat(post, vatRate), vat_rate: vatRate }
 }
 
 const REMINDER_OFF = 'off'

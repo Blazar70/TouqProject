@@ -11,8 +11,10 @@ export function priceWithVat(preVat: number, vatRate: number): number {
   return roundHalalas(preVat * (1 + vatRate / 100))
 }
 
+// 4 decimals, not 2: stored pre-VAT prices need the extra precision so the
+// post-VAT price staff typed comes back exactly (150 -> 130.4348 -> 150.00).
 export function priceWithoutVat(postVat: number, vatRate: number): number {
-  return roundHalalas(postVat / (1 + vatRate / 100))
+  return Math.round((postVat / (1 + vatRate / 100) + Number.EPSILON) * 10000) / 10000
 }
 
 // The three price inputs on a service form, kept as the raw strings the

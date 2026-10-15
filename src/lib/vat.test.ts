@@ -7,9 +7,16 @@ describe('priceWithVat / priceWithoutVat', () => {
     expect(priceWithoutVat(115, 15)).toBe(100)
   })
 
-  it('round-trips pre -> post -> pre', () => {
+  it('round-trips pre -> post -> pre at 2 decimals', () => {
     for (const pre of [0, 0.01, 1, 19.99, 86.96, 250, 1234.56]) {
-      expect(priceWithoutVat(priceWithVat(pre, 15), 15)).toBe(pre)
+      expect(priceWithoutVat(priceWithVat(pre, 15), 15).toFixed(2)).toBe(pre.toFixed(2))
+    }
+  })
+
+  it('a typed post-VAT price comes back exactly (every halala up to 2000)', () => {
+    for (let halalas = 0; halalas <= 200000; halalas++) {
+      const post = halalas / 100
+      expect(priceWithVat(priceWithoutVat(post, 15), 15)).toBe(post)
     }
   })
 
@@ -18,8 +25,9 @@ describe('priceWithVat / priceWithoutVat', () => {
     expect(priceWithoutVat(42.5, 0)).toBe(42.5)
   })
 
-  it('rounds to 2 decimals (halalas)', () => {
-    expect(priceWithoutVat(100, 15)).toBe(86.96) // 86.9565…
+  it('rounds post-VAT to halalas and pre-VAT to 4 decimals', () => {
+    expect(priceWithoutVat(100, 15)).toBe(86.9565) // 86.95652…
+    expect(priceWithoutVat(150, 15)).toBe(130.4348)
     expect(priceWithVat(86.96, 15)).toBe(100) // 100.004
     expect(priceWithVat(10.05, 10)).toBe(11.06) // 11.055, rounds half up
   })
