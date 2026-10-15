@@ -3,13 +3,13 @@ import type { ReactNode } from 'react'
 import { useLanguage } from './i18n/LanguageContext'
 import type { TranslationKey } from './i18n/translations'
 import { useAuth } from './AuthContext'
+import { visitRecordFields } from './clinicalFields'
+import type { VisitRecordFields } from './clinicalFields'
 
 export type VisitSummary = {
   date: string
   visitType?: string
-  diagnosis: string
-  treatment: string
-  notes?: string | null
+  record: VisitRecordFields
   // Omitted entirely (not just falsy) when the caller's "include photo"
   // checkbox is unchecked — see PetDetail / AppointmentsPage print buttons.
   photoUrl?: string | null
@@ -79,22 +79,14 @@ const PRINT_STYLES = `
 function fieldsHtml(t: (key: TranslationKey) => string, visit: VisitSummary) {
   return `
     <div class="print-fields">
-      <div class="print-field">
-        <div class="print-field-label">${escapeHtml(t('petDetail.diagnosis'))}</div>
-        <div class="print-field-value">${escapeHtml(visit.diagnosis)}</div>
-      </div>
-      <div class="print-field">
-        <div class="print-field-label">${escapeHtml(t('petDetail.treatment'))}</div>
-        <div class="print-field-value">${escapeHtml(visit.treatment)}</div>
-      </div>
-      ${
-        visit.notes
-          ? `<div class="print-field">
-               <div class="print-field-label">${escapeHtml(t('appointments.notesOptional'))}</div>
-               <div class="print-field-value">${escapeHtml(visit.notes)}</div>
-             </div>`
-          : ''
-      }
+      ${visitRecordFields(visit.record)
+        .map(
+          (field) => `<div class="print-field">
+               <div class="print-field-label">${escapeHtml(t(field.labelKey))}</div>
+               <div class="print-field-value">${escapeHtml(field.value)}</div>
+             </div>`,
+        )
+        .join('')}
     </div>
     ${visit.photoUrl ? `<div class="print-photo"><img src="${escapeHtml(visit.photoUrl)}" alt="" /></div>` : ''}
   `

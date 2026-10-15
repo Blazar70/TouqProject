@@ -19,6 +19,8 @@ Completion notes were deliberately written into this table, not new appointment 
 - `pet_id`, `clinic_id`, `vet_id` (not null), `visit_date`, `diagnosis`, `treatment`, `notes`
 - `visit_type` check: checkup, vaccination, surgery, emergency, follow_up, grooming, other (0009), mirrored in `src/lib/visitTypes.ts:3`
 - `appointment_id` nullable (0022), `photo_url` (0027, stored under a `records/` prefix in the pet-photos bucket)
+- Per-visit clinical fields, all nullable (0040): `presenting_complaint`, `weight_kg` numeric(6,2) (>0, <2000), `temperature_c` numeric(4,1) (25-45), `heart_rate_bpm` integer (1-400), `physical_exam`, `diagnostic_plan`, `remarks`. Same ranges validated client-side in `src/lib/clinicalFields.ts` (`parseVitals`); keep both in sync.
+- New completions write `remarks`, not `notes`; `notes` stays for older records and the PetDetail edit form. Display and print order comes from `visitRecordFields` in `src/lib/clinicalFields.ts`, which skips empty fields.
 
 ## Connected to
 
@@ -27,7 +29,7 @@ Completion notes were deliberately written into this table, not new appointment 
 
 ## If you change this
 
-- **Hits:** the complete flow in AppointmentsPage (`src/pages/AppointmentsPage.tsx:546`), PetDetail history, Dashboard, `admin-manage-clinic` purge.
+- **Hits:** the complete flow in AppointmentsPage (`src/pages/AppointmentsPage.tsx`, search `medical_records`), PetDetail history, the printed visit summary (`src/lib/PrintContext.tsx`), `src/lib/clinicalFields.ts`, Dashboard, `admin-manage-clinic` purge.
 - **Does not hit:** vaccination schedule. A record with visit type vaccination does NOT update `pets.next_vaccination_date`; that is a separate action in VaccinationPanel.
 
 ## Surfaces

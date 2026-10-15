@@ -369,42 +369,63 @@ export type Database = {
           clinic_id: string
           created_at: string
           diagnosis: string | null
+          diagnostic_plan: string | null
+          heart_rate_bpm: number | null
           id: string
           notes: string | null
           pet_id: string
           photo_url: string | null
+          physical_exam: string | null
+          presenting_complaint: string | null
+          remarks: string | null
+          temperature_c: number | null
           treatment: string | null
           vet_id: string
           visit_date: string
           visit_type: string | null
+          weight_kg: number | null
         }
         Insert: {
           appointment_id?: string | null
           clinic_id: string
           created_at?: string
           diagnosis?: string | null
+          diagnostic_plan?: string | null
+          heart_rate_bpm?: number | null
           id?: string
           notes?: string | null
           pet_id: string
           photo_url?: string | null
+          physical_exam?: string | null
+          presenting_complaint?: string | null
+          remarks?: string | null
+          temperature_c?: number | null
           treatment?: string | null
           vet_id: string
           visit_date?: string
           visit_type?: string | null
+          weight_kg?: number | null
         }
         Update: {
           appointment_id?: string | null
           clinic_id?: string
           created_at?: string
           diagnosis?: string | null
+          diagnostic_plan?: string | null
+          heart_rate_bpm?: number | null
           id?: string
           notes?: string | null
           pet_id?: string
           photo_url?: string | null
+          physical_exam?: string | null
+          presenting_complaint?: string | null
+          remarks?: string | null
+          temperature_c?: number | null
           treatment?: string | null
           vet_id?: string
           visit_date?: string
           visit_type?: string | null
+          weight_kg?: number | null
         }
         Relationships: [
           {
