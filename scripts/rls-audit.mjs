@@ -102,6 +102,7 @@ async function cleanup() {
     await admin.auth.admin.deleteUser(id)
   }
   if (clinicAId) {
+    await admin.storage.from('pet-photos').remove([`${clinicAId}/rls-audit.png`])
     await admin.from('services').delete().eq('clinic_id', clinicAId)
     await admin.from('pets').delete().eq('clinic_id', clinicAId)
     await admin.from('clinics').delete().eq('id', clinicAId)
@@ -128,6 +129,9 @@ try {
     .insert({ clinic_id: clinicAId, name: 'AuditServiceA', price: 10 })
     .select('id')
     .single()
+  await admin.storage
+    .from('pet-photos')
+    .upload(`${clinicAId}/rls-audit.png`, new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' }), { upsert: true })
 
   const { data: clinicB } = await admin.from('clinics').insert({ name: 'RLS Audit Clinic B' }).select('id').single()
   clinicBId = clinicB.id
@@ -300,6 +304,20 @@ try {
     check('vetB invoice_item list contains only Clinic B rows', !leaked)
   }
 
+  {
+    const { data } = await vetB.from('profiles').select('id, clinic_id')
+    const leaked = (data ?? []).some((p) => p.clinic_id !== clinicBId)
+    check('vetB profile list contains only Clinic B rows', !leaked)
+  }
+  {
+    const { data } = await vetB.from('admin_audit_log').select('id')
+    check('vetB has no access to admin_audit_log', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await vetB.storage.from('pet-photos').list(clinicAId)
+    check("vetB cannot list Clinic A's photo folder", (data ?? []).length === 0)
+  }
+
   // --- Owner role ---
   {
     const { data } = await owner.from('pets').select('id, owner_id')
@@ -313,6 +331,10 @@ try {
     const { data } = await owner.from('pets').update({ name: 'Renamed' }).eq('id', petBId).select()
     check('owner can rename their own pet (allowed field)', (data ?? []).length === 1)
     await admin.from('pets').update({ name: 'AuditPetB' }).eq('id', petBId)
+  }
+  {
+    const { data } = await ownerC.from('pets').select('id').eq('id', petBId)
+    check("owner cannot read another owner's pet", (data ?? []).length === 0)
   }
   {
     const { data } = await owner.from('medical_records').select('id').eq('pet_id', petBId)
@@ -377,6 +399,10 @@ try {
   {
     const { data } = await anon.from('services').select('id')
     check('unauthenticated request sees no services', (data ?? []).length === 0)
+  }
+  {
+    const { data } = await anon.storage.from('pet-photos').list(clinicAId)
+    check('unauthenticated request cannot list photo folders', (data ?? []).length === 0)
   }
 
   const failed = results.filter((r) => !r.pass)

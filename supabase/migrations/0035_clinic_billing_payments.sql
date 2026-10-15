@@ -5,16 +5,17 @@
 -- clinics have paid and which haven't. Drops the now-unused pet/owner
 -- link and adds a place to attach the invoice/receipt PDF.
 
-alter table payments drop column pet_id;
-alter table payments drop column owner_id;
-alter table payments add column document_path text;
-
 -- Clinic billing is admin-only bookkeeping, not something clinic staff
 -- self-report — the old policies assumed a per-pet invoice a vet would
 -- manage on their own clinic's behalf; drop them now that there's no
 -- pet/owner left to scope by. payments_all_admin (0004b) still applies.
+-- Must run before the column drops: payments_select_owner reads owner_id.
 drop policy if exists "payments_all_vet" on payments;
 drop policy if exists "payments_select_owner" on payments;
+
+alter table payments drop column pet_id;
+alter table payments drop column owner_id;
+alter table payments add column document_path text;
 
 -- Re-schedule without the payments cleanup line (0032) — payments no
 -- longer reference pet_id, so there's nothing to clear before a purge.
