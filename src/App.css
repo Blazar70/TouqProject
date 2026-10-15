@@ -2104,7 +2104,8 @@
 }
 
 .pending-action .pet-form,
-.record-list .pet-form {
+.record-list .pet-form,
+.pet-list-item > .pet-form {
   padding: 0;
   border: none;
   box-shadow: none;

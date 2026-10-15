@@ -12,6 +12,7 @@ import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
 import { Trash2 } from 'lucide-react'
+import { priceWithVat } from '../lib/vat'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
@@ -122,7 +123,7 @@ function PaymentsPage() {
     updateItem(key, {
       serviceId,
       description: service ? service.name : '',
-      unitPrice: service ? String(service.price) : '',
+      unitPrice: service ? String(priceWithVat(service.price, service.vat_rate)) : '',
     })
   }
 
@@ -371,7 +372,7 @@ function PaymentsPage() {
                   <option value="">{t('payments.customItem')}</option>
                   {services.map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} — {service.price.toFixed(2)}
+                      {service.name} — {priceWithVat(service.price, service.vat_rate).toFixed(2)}
                     </option>
                   ))}
                 </select>

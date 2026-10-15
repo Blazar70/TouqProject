@@ -9,8 +9,22 @@ import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidClinicPhone, isV
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
+import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
+import type { VatFields } from '../lib/vat'
 
 type Service = Database['public']['Tables']['services']['Row']
+
+const EMPTY_VAT_FIELDS: VatFields = { pre: '', rate: String(DEFAULT_VAT_RATE), post: '' }
+
+// price is stored pre-VAT, derived from the post-VAT field at 4 decimals so
+// the post-VAT price shown is exactly what comes back after saving.
+// null if either number is missing or out of range.
+function parseServicePrices(fields: VatFields): { price: number; vat_rate: number } | null {
+  const post = parseFloat(fields.post)
+  const vatRate = parseFloat(fields.rate)
+  if (Number.isNaN(post) || post < 0 || Number.isNaN(vatRate) || vatRate < 0 || vatRate > 100) return null
+  return { price: priceWithoutVat(post, vatRate), vat_rate: vatRate }
+}
 
 const REMINDER_OFF = 'off'
 const REMINDER_CUSTOM = 'custom'
@@ -35,12 +49,12 @@ function SettingsPage() {
   const [services, setServices] = useState<Service[]>([])
   const [loadingServices, setLoadingServices] = useState(false)
   const [newServiceName, setNewServiceName] = useState('')
-  const [newServicePrice, setNewServicePrice] = useState('')
+  const [newServicePrices, setNewServicePrices] = useState<VatFields>(EMPTY_VAT_FIELDS)
   const [addingService, setAddingService] = useState(false)
   const [serviceError, setServiceError] = useState<string | null>(null)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [editServiceName, setEditServiceName] = useState('')
-  const [editServicePrice, setEditServicePrice] = useState('')
+  const [editServicePrices, setEditServicePrices] = useState<VatFields>(EMPTY_VAT_FIELDS)
   const [savingServiceId, setSavingServiceId] = useState<string | null>(null)
 
   const [fullName, setFullName] = useState(profile?.full_name ?? '')
@@ -103,8 +117,8 @@ function SettingsPage() {
     setServiceError(null)
     if (!profile?.clinic_id) return
 
-    const price = parseFloat(newServicePrice)
-    if (!newServiceName.trim() || Number.isNaN(price) || price < 0) {
+    const prices = parseServicePrices(newServicePrices)
+    if (!newServiceName.trim() || !prices) {
       setServiceError(t('settings.serviceInvalid'))
       return
     }
@@ -112,7 +126,7 @@ function SettingsPage() {
     setAddingService(true)
     const { data, error } = await supabase
       .from('services')
-      .insert({ clinic_id: profile.clinic_id, name: newServiceName.trim(), price })
+      .insert({ clinic_id: profile.clinic_id, name: newServiceName.trim(), ...prices })
       .select('*')
       .single()
     if (error || !data) {
@@ -122,22 +136,26 @@ function SettingsPage() {
     }
     setServices((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name)))
     setNewServiceName('')
-    setNewServicePrice('')
+    setNewServicePrices(EMPTY_VAT_FIELDS)
     setAddingService(false)
   }
 
   function startEditService(service: Service) {
     setEditingServiceId(service.id)
     setEditServiceName(service.name)
-    setEditServicePrice(String(service.price))
+    setEditServicePrices({
+      pre: service.price.toFixed(2),
+      rate: String(service.vat_rate),
+      post: priceWithVat(service.price, service.vat_rate).toFixed(2),
+    })
   }
 
   async function handleSaveServiceEdit(e: FormEvent) {
     e.preventDefault()
     if (!editingServiceId) return
 
-    const price = parseFloat(editServicePrice)
-    if (!editServiceName.trim() || Number.isNaN(price) || price < 0) {
+    const prices = parseServicePrices(editServicePrices)
+    if (!editServiceName.trim() || !prices) {
       toast.error(t('settings.serviceInvalid'))
       return
     }
@@ -145,7 +163,7 @@ function SettingsPage() {
     setSavingServiceId(editingServiceId)
     const { data, error } = await supabase
       .from('services')
-      .update({ name: editServiceName.trim(), price })
+      .update({ name: editServiceName.trim(), ...prices })
       .eq('id', editingServiceId)
       .select('*')
       .single()
@@ -157,6 +175,40 @@ function SettingsPage() {
     setServices((current) => current.map((s) => (s.id === data.id ? data : s)).sort((a, b) => a.name.localeCompare(b.name)))
     setEditingServiceId(null)
     setSavingServiceId(null)
+  }
+
+  // Pre-VAT, VAT %, post-VAT inputs shared by the add and edit service forms.
+  function renderServicePriceInputs(fields: VatFields, setFields: (fields: VatFields) => void) {
+    const input = (field: keyof VatFields, max?: string) => (
+      <input
+        type="number"
+        inputMode="decimal"
+        className="no-spinner"
+        dir="ltr"
+        min="0"
+        max={max}
+        step="0.01"
+        value={fields[field]}
+        onChange={(e) => setFields(updateVatFields(fields, field, e.target.value))}
+        required={field !== 'post'}
+      />
+    )
+    return (
+      <>
+        <label>
+          {t('settings.priceBeforeVat')}
+          {input('pre')}
+        </label>
+        <label>
+          {t('settings.vatRate')}
+          {input('rate', '100')}
+        </label>
+        <label>
+          {t('settings.priceAfterVat')}
+          {input('post')}
+        </label>
+      </>
+    )
   }
 
   async function handleToggleServiceActive(service: Service) {
@@ -324,6 +376,7 @@ function SettingsPage() {
         <div className="settings-section">
           <h2>{t('settings.services')}</h2>
           <p className="pet-owner">{t('settings.servicesHint')}</p>
+          <p className="pet-owner">{t('settings.vatHint')}</p>
 
           {loadingServices ? (
             <p>{t('common.loading')}</p>
@@ -334,25 +387,17 @@ function SettingsPage() {
               {services.map((service) =>
                 editingServiceId === service.id ? (
                   <li key={service.id} className="pet-list-item">
-                    <form onSubmit={handleSaveServiceEdit} className="pet-row">
-                      <div className="service-edit-fields">
+                    <form onSubmit={handleSaveServiceEdit} className="pet-form pet-form-grid">
+                      <label>
+                        {t('settings.serviceName')}
                         <input value={editServiceName} onChange={(e) => setEditServiceName(e.target.value)} required />
-                        <input
-                          type="number"
-                          className="no-spinner"
-                          dir="ltr"
-                          min="0"
-                          step="0.01"
-                          value={editServicePrice}
-                          onChange={(e) => setEditServicePrice(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="record-actions">
-                        <button type="submit" className="secondary-button" disabled={savingServiceId === service.id}>
+                      </label>
+                      {renderServicePriceInputs(editServicePrices, setEditServicePrices)}
+                      <div className="record-edit-actions">
+                        <button type="submit" disabled={savingServiceId === service.id}>
                           {savingServiceId === service.id ? t('common.saving') : t('common.save')}
                         </button>
-                        <button type="button" className="secondary-button" onClick={() => setEditingServiceId(null)}>
+                        <button type="button" className="cancel-button" onClick={() => setEditingServiceId(null)}>
                           {t('common.cancel')}
                         </button>
                       </div>
@@ -367,7 +412,11 @@ function SettingsPage() {
                           <span className="status-badge status-cancelled">{t('settings.serviceInactive')}</span>
                         )}
                         <div className="pet-owner">
-                          <Ltr>{service.price.toFixed(2)}</Ltr>
+                          {t('settings.priceBeforeVat')}: <Ltr>{service.price.toFixed(2)}</Ltr>
+                          {' · '}
+                          {t('settings.vatShort')}: <Ltr>{`${service.vat_rate}%`}</Ltr>
+                          {' · '}
+                          {t('settings.priceAfterVat')}: <Ltr>{priceWithVat(service.price, service.vat_rate).toFixed(2)}</Ltr>
                         </div>
                       </div>
                       <div className="record-actions">
@@ -396,19 +445,7 @@ function SettingsPage() {
               {t('settings.serviceName')}
               <input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} required />
             </label>
-            <label>
-              {t('settings.servicePrice')}
-              <input
-                type="number"
-                className="no-spinner"
-                dir="ltr"
-                min="0"
-                step="0.01"
-                value={newServicePrice}
-                onChange={(e) => setNewServicePrice(e.target.value)}
-                required
-              />
-            </label>
+            {renderServicePriceInputs(newServicePrices, setNewServicePrices)}
             <button type="submit" disabled={addingService}>
               {addingService ? t('common.saving') : t('settings.addService')}
             </button>

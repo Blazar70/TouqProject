@@ -12,7 +12,8 @@ A clinic's own price list.
 
 ## Shape
 
-- `clinic_id`, `name`, `price` (>= 0), `active`
+- `clinic_id`, `name`, `price` (>= 0, PRE-VAT, 4 decimals since `0041_services_price_precision.sql`), `vat_rate` (0–100, default 15 = Saudi VAT; added in `0039_services_vat.sql`), `active`
+- Post-VAT price is not stored: derived as `price * (1 + vat_rate/100)` rounded to halalas (`src/lib/vat.ts`). SettingsPage lets staff type pre- or post-VAT; the other is calculated, and the saved pre-VAT price is derived from the post-VAT one so the post-VAT price round-trips exactly.
 - Managed on SettingsPage, read (active only) on PaymentsPage. `src/pages/PaymentsPage.tsx:83`
 - `invoice_items.service_id` is set null if a service is deleted; deactivating keeps names readable.
 
@@ -23,7 +24,7 @@ A clinic's own price list.
 
 ## If you change this
 
-- **Hits:** SettingsPage, PaymentsPage service picker.
+- **Hits:** SettingsPage, PaymentsPage service picker (still uses `price`, i.e. pre-VAT; VAT on invoices is a later phase).
 - **Does not hit:** existing invoice amounts (copied at sale time).
 
 ## Fixed 2026-10-14

@@ -718,6 +718,7 @@ export type Database = {
           id: string
           name: string
           price: number
+          vat_rate: number
         }
         Insert: {
           active?: boolean
@@ -726,6 +727,7 @@ export type Database = {
           id?: string
           name: string
           price: number
+          vat_rate?: number
         }
         Update: {
           active?: boolean
@@ -734,6 +736,7 @@ export type Database = {
           id?: string
           name?: string
           price?: number
+          vat_rate?: number
         }
         Relationships: [
           {
