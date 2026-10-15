@@ -1,4 +1,4 @@
-import { Route, Routes, NavLink } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import DashboardPage from './pages/DashboardPage'
 import PetsPage from './pages/PetsPage'
 import RegisterPetPage from './pages/RegisterPetPage'
@@ -14,8 +14,7 @@ import AdminActivityPage from './pages/AdminActivityPage'
 import { useAuth } from './lib/AuthContext'
 import { supabase } from './lib/supabase'
 import { useLanguage } from './lib/i18n/LanguageContext'
-import LanguageToggle from './components/LanguageToggle'
-import ThemeToggle from './components/ThemeToggle'
+import AppShell from './components/AppShell'
 import LoadingScreen from './components/LoadingScreen'
 import './App.css'
 
@@ -71,42 +70,7 @@ function App() {
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <div className="app">
-      <nav className="app-nav">
-        <span className="app-brand-group">
-          <span className="app-brand">{t('auth.brand')}</span>
-          {clinicName && <span className="app-clinic-name">{clinicName}</span>}
-        </span>
-        {isAdmin ? (
-          <>
-            <NavLink to="/" end>
-              {t('nav.admin')}
-            </NavLink>
-            <NavLink to="/billing">{t('nav.billing')}</NavLink>
-            <NavLink to="/activity">{t('nav.activity')}</NavLink>
-          </>
-        ) : (
-          <>
-            <NavLink to="/" end>
-              {t('nav.dashboard')}
-            </NavLink>
-            <NavLink to="/pets">{t('nav.pets')}</NavLink>
-            <NavLink to="/appointments">{t('nav.appointments')}</NavLink>
-            <NavLink to="/payments">{t('nav.payments')}</NavLink>
-            <NavLink to="/staff">{t('nav.staff')}</NavLink>
-            <NavLink to="/settings">{t('nav.settings')}</NavLink>
-          </>
-        )}
-        {!clinicName && (
-          <span className="app-user">{profile?.full_name ?? session.user.email}</span>
-        )}
-        <ThemeToggle />
-        <LanguageToggle />
-        <button type="button" className="logout-button" onClick={() => supabase.auth.signOut()}>
-          {t('nav.logout')}
-        </button>
-      </nav>
-
+    <AppShell isAdmin={isAdmin} clinicName={clinicName} userName={profile?.full_name ?? session.user.email ?? ''}>
       <main className="app-main">
         <Routes>
           {isAdmin ? (
@@ -128,7 +92,7 @@ function App() {
           )}
         </Routes>
       </main>
-    </div>
+    </AppShell>
   )
 }
 

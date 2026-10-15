@@ -11,6 +11,13 @@ export const translations = {
     'nav.billing': 'Billing',
     'nav.activity': 'Activity',
     'nav.logout': 'Log out',
+    'nav.main': 'Main navigation',
+    'nav.menu': 'Menu',
+    'nav.openMenu': 'Open menu',
+    'nav.closeMenu': 'Close menu',
+    'nav.sectionFrontDesk': 'Front desk',
+    'nav.sectionClinic': 'Clinic',
+    'nav.sectionPlatform': 'Platform',
 
     // Common
     'common.save': 'Save',
@@ -498,6 +505,13 @@ export const translations = {
     'nav.billing': 'الفواتير',
     'nav.activity': 'النشاط',
     'nav.logout': 'تسجيل الخروج',
+    'nav.main': 'التنقل الرئيسي',
+    'nav.menu': 'القائمة',
+    'nav.openMenu': 'فتح القائمة',
+    'nav.closeMenu': 'إغلاق القائمة',
+    'nav.sectionFrontDesk': 'الاستقبال',
+    'nav.sectionClinic': 'العيادة',
+    'nav.sectionPlatform': 'المنصة',
 
     'common.save': 'حفظ',
     'common.saveChanges': 'حفظ التغييرات',

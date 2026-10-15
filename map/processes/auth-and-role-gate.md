@@ -21,8 +21,8 @@ There is no public signup (0029 removed it). A disabled user can still read thei
 
 1. `signInWithPassword` or reset email. `src/pages/LoginPage.tsx:25,35`
 2. `AuthContext` loads `profiles` with `clinics(name, phone, disabled)`. `src/lib/AuthContext.tsx:78`
-3. `App` checks in order: password recovery, loading, no session, `profile.disabled`, clinic disabled. `src/App.tsx:30-69`
-4. `isAdmin = profile.role === 'admin'` picks admin routes (`/`, `/billing`, `/activity`) or clinic routes (`/`, `/pets`, `/pets/new`, `/appointments`, `/payments`, `/staff`, `/settings`). `src/App.tsx:71,111-129`
+3. `App` checks in order: password recovery, loading, no session, `profile.disabled`, clinic disabled. `src/App.tsx:29-68`
+4. `isAdmin = profile.role === 'admin'` picks admin routes (`/`, `/billing`, `/activity`) or clinic routes (`/`, `/pets`, `/pets/new`, `/appointments`, `/payments`, `/staff`, `/settings`). `src/App.tsx:70,75-93`
 
 The route gate is UI only. The real boundary is RLS.
 
