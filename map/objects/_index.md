@@ -22,7 +22,7 @@ All cards verified 2026-10-14 @ 583fe57. Line numbers in `database.types.ts` are
 ## platform
 - [admin-audit-log](platform/admin-audit-log.md) — admin actions, two writers
 - [push](platform/push.md) — `push_subscriptions` + `appointment_reminders_sent`
-- [storage-buckets](platform/storage-buckets.md) — `pet-photos` (public), `payment-documents` (private)
+- [storage-buckets](platform/storage-buckets.md) — `pet-photos` and `payment-documents`, both private
 
 ## Not carded (rules in code, cited from cards)
 

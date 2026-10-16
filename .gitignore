@@ -33,3 +33,7 @@ dev-dist
 # Personal Claude Code settings (plugins, local permissions)
 .claude/settings.local.json
 .claude/worktrees/
+
+# Local agent tool output: Chisel test-impact DB, playwright-cli snapshots/traces
+.chisel/
+.playwright-cli/

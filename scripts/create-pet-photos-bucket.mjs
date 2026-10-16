@@ -12,7 +12,7 @@ loadEnvLocal()
 
 const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
 const { data, error } = await supabase.storage.createBucket('pet-photos', {
-  public: true,
+  public: false,
   fileSizeLimit: '5MB',
 })
 console.log(error ?? data)

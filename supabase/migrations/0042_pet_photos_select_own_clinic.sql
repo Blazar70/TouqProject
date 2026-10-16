@@ -3,7 +3,7 @@
 -- photo paths. Scope SELECT to the caller's own clinic folder, same as the
 -- write policies (0020), so the upsert conflict check still sees its own rows.
 -- Displaying photos is unaffected: public-bucket URLs don't go through RLS.
--- Already applied to live by hand; this file records it (safe to re-run).
+-- Duplicate of 0025's identical fix (missed when this was written); a safe no-op.
 
 drop policy if exists "pet_photos_select_all" on storage.objects;
 drop policy if exists "pet_photos_select_own_clinic" on storage.objects;

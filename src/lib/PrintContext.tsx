@@ -4,6 +4,7 @@ import { useLanguage } from './i18n/LanguageContext'
 import type { TranslationKey } from './i18n/translations'
 import { useAuth } from './AuthContext'
 import { visitRecordFields } from './clinicalFields'
+import { signPhotoUrl } from './photoUrl'
 import type { VisitRecordFields } from './clinicalFields'
 
 export type VisitSummary = {
@@ -154,16 +155,21 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const { clinicName, clinicPhone } = useAuth()
 
   const runPrint = useCallback(
-    (petName: string, visits: VisitSummary[]) => {
+    async (petName: string, visits: VisitSummary[]) => {
       const clinicLabel = clinicName ?? t('auth.brand')
-      const html = buildDocument(t, clinicLabel, clinicPhone, petName, visits)
 
       // A separate print window, not an in-page portal — it's a fully
       // self-contained document with its own styles, so there's no React
       // render-timing race to get wrong and no dependency on hiding the
       // rest of the app via print media queries.
+      // Opened before any await: popup blockers only allow it inside the click.
       const printWindow = window.open('', '_blank', 'width=800,height=1000')
       if (!printWindow) return
+
+      const signedVisits = await Promise.all(
+        visits.map(async (visit) => (visit.photoUrl ? { ...visit, photoUrl: await signPhotoUrl(visit.photoUrl) } : visit)),
+      )
+      const html = buildDocument(t, clinicLabel, clinicPhone, petName, signedVisits)
       printWindow.document.open()
       printWindow.document.write(html)
       printWindow.document.close()

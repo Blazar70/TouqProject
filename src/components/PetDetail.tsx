@@ -160,7 +160,7 @@ function PetDetail({
       }
 
       // Cache-bust so the new photo shows immediately even though the path is unchanged.
-      const photoUrl = `${upload.url}?t=${Date.now()}`
+      const photoUrl = `${upload.path}?t=${Date.now()}`
 
       const { data, error } = await supabase
         .from('pets')
@@ -418,7 +418,7 @@ function PetDetail({
                         <div>
                           {record.photo_url && (
                             <div className="record-photo">
-                              <PhotoThumbnail url={record.photo_url} alt={t('petDetail.recordPhotoAlt')} size={56} />
+                              <PhotoThumbnail path={record.photo_url} alt={t('petDetail.recordPhotoAlt')} size={56} />
                             </div>
                           )}
                           {visitRecordFields(record).map((field) => (

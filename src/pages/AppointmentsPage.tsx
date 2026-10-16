@@ -598,7 +598,7 @@ function AppointmentsPage() {
         if (upload.error !== null) {
           toast.error(t('common.couldNotSavePhoto'))
         } else {
-          await supabase.from('medical_records').update({ photo_url: upload.url }).eq('id', newRecord.id)
+          await supabase.from('medical_records').update({ photo_url: upload.path }).eq('id', newRecord.id)
         }
       }
 
@@ -704,7 +704,7 @@ function AppointmentsPage() {
                     ))}
                     {record.photo_url && (
                       <div className="record-photo">
-                        <PhotoThumbnail url={record.photo_url} alt={t('petDetail.recordPhotoAlt')} size={56} />
+                        <PhotoThumbnail path={record.photo_url} alt={t('petDetail.recordPhotoAlt')} size={56} />
                       </div>
                     )}
                     <div className="record-actions">

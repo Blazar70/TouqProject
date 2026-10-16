@@ -119,7 +119,7 @@ function RegisterPetPage() {
       if (upload.error !== null) {
         toast.error(t('common.couldNotSavePhoto'))
       } else {
-        await supabase.from('pets').update({ photo_url: upload.url }).eq('id', newPet.id)
+        await supabase.from('pets').update({ photo_url: upload.path }).eq('id', newPet.id)
       }
     }
 

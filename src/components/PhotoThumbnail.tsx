@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { useSignedPhotoUrl } from '../lib/photoUrl'
 
 // A generic click-to-enlarge thumbnail — the same lightbox pattern as
 // PetAvatar, but for any photo URL (e.g. one attached to a medical record)
-// rather than specifically a pet's own photo_url.
-function PhotoThumbnail({ url, alt, size = 56 }: { url: string; alt: string; size?: number }) {
+// rather than specifically a pet's own photo_url. `path` is a stored photo_url.
+function PhotoThumbnail({ path, alt, size = 56 }: { path: string; alt: string; size?: number }) {
   const [showLightbox, setShowLightbox] = useState(false)
+  const url = useSignedPhotoUrl(path)
 
   useEffect(() => {
     if (!showLightbox) return
@@ -24,9 +26,13 @@ function PhotoThumbnail({ url, alt, size = 56 }: { url: string; alt: string; siz
         onClick={() => setShowLightbox(true)}
         aria-label={alt}
       >
-        <img src={url} alt={alt} className="pet-avatar" style={{ width: size, height: size }} />
+        {url ? (
+          <img src={url} alt={alt} className="pet-avatar" style={{ width: size, height: size }} />
+        ) : (
+          <span className="pet-avatar" style={{ width: size, height: size }} />
+        )}
       </button>
-      {showLightbox && (
+      {showLightbox && url && (
         <div className="lightbox-backdrop" onClick={() => setShowLightbox(false)}>
           <button type="button" className="lightbox-close" onClick={() => setShowLightbox(false)} aria-label="Close">
             <X size={22} aria-hidden />

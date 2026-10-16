@@ -19,6 +19,14 @@ export async function sendWebPush(sub: PushSubscriptionRow, payload: PushPayload
   )
 }
 
+// pet-photos is private (0043): turn a stored photo_url (path, maybe ?t=) into
+// a signed URL the notification can load. A day covers a delayed delivery.
+export async function petPhotoIcon(admin: SupabaseClient, photoUrl: string | null | undefined) {
+  if (!photoUrl) return undefined
+  const { data } = await admin.storage.from('pet-photos').createSignedUrl(photoUrl.split('?')[0], 60 * 60 * 24)
+  return data?.signedUrl
+}
+
 // Sends to every subscription and deletes the ones the browser has revoked.
 export function sendToSubscriptions(admin: SupabaseClient, subs: PushSubscriptionRow[], payload: PushPayload) {
   return Promise.all(

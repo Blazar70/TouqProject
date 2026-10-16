@@ -404,6 +404,11 @@ try {
     const { data } = await anon.storage.from('pet-photos').list(clinicAId)
     check('unauthenticated request cannot list photo folders', (data ?? []).length === 0)
   }
+  {
+    // pet-photos is private since 0043: the old public URL form must stop working.
+    const res = await fetch(`${supabaseUrl}/storage/v1/object/public/pet-photos/${clinicAId}/rls-audit.png`)
+    check('photo is not readable by public URL', !res.ok, `status ${res.status}`)
+  }
 
   const failed = results.filter((r) => !r.pass)
   console.log(`\n${results.length - failed.length}/${results.length} checks passed.`)

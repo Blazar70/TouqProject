@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import type { Database } from '../lib/database.types'
 import { speciesIcon } from '../lib/species'
+import { useSignedPhotoUrl } from '../lib/photoUrl'
 
 type Pet = Pick<Database['public']['Tables']['pets']['Row'], 'photo_url' | 'species' | 'name'>
 
 function PetAvatar({ pet, size = 40 }: { pet: Pet; size?: number }) {
   const style = { width: size, height: size }
   const [showLightbox, setShowLightbox] = useState(false)
+  const photoUrl = useSignedPhotoUrl(pet.photo_url)
 
   useEffect(() => {
     if (!showLightbox) return
@@ -18,7 +20,7 @@ function PetAvatar({ pet, size = 40 }: { pet: Pet; size?: number }) {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [showLightbox])
 
-  if (pet.photo_url) {
+  if (photoUrl) {
     return (
       <>
         <button
@@ -27,14 +29,14 @@ function PetAvatar({ pet, size = 40 }: { pet: Pet; size?: number }) {
           onClick={() => setShowLightbox(true)}
           aria-label={`View larger photo of ${pet.name}`}
         >
-          <img src={pet.photo_url} alt={pet.name} className="pet-avatar" style={style} />
+          <img src={photoUrl} alt={pet.name} className="pet-avatar" style={style} />
         </button>
         {showLightbox && (
           <div className="lightbox-backdrop" onClick={() => setShowLightbox(false)}>
             <button type="button" className="lightbox-close" onClick={() => setShowLightbox(false)} aria-label="Close">
               <X size={22} aria-hidden />
             </button>
-            <img src={pet.photo_url} alt={pet.name} className="lightbox-image" onClick={(e) => e.stopPropagation()} />
+            <img src={photoUrl} alt={pet.name} className="lightbox-image" onClick={(e) => e.stopPropagation()} />
           </div>
         )}
       </>

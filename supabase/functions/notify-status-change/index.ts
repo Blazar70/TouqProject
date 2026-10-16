@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { sendToSubscriptions } from '../_shared/push.ts'
+import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     title: 'Touq',
     body: `${pet?.name ?? 'A pet'}'s appointment is now ${appointment.status}.`,
     url: '/appointments',
-    icon: pet?.photo_url ?? undefined,
+    icon: await petPhotoIcon(admin, pet?.photo_url),
   }
 
   const results = await sendToSubscriptions(admin, subscriptions ?? [], payload)
