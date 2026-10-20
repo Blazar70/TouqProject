@@ -85,6 +85,19 @@ export const translations = {
     'auth.setNewPassword': 'Set new password',
     'auth.passwordResetDone': 'Your new password has been set.',
 
+    // Table-style list headings
+    'list.pet': 'Pet',
+    'list.owner': 'Owner',
+    'list.vaccination': 'Vaccination',
+    'list.amount': 'Amount',
+    'list.method': 'Method',
+    'list.paidAt': 'Paid at',
+    'list.status': 'Status',
+    'list.name': 'Name',
+    'list.role': 'Role',
+    'list.branches': 'Branches',
+    'list.login': 'Login & phone',
+
     // Dashboard
     'dashboard.title': 'Dashboard',
     'dashboard.welcome': 'Welcome to Touq.',
@@ -205,6 +218,7 @@ export const translations = {
 
     // Appointments
     'appointments.title': 'Appointments',
+    'appointments.legend': 'Colour key',
     'appointments.showPast': 'Show past appointments',
     'appointments.hidePast': 'Hide past appointments',
     'appointments.schedule': 'Schedule an appointment',
@@ -688,6 +702,19 @@ export const translations = {
     'auth.setNewPassword': 'تعيين كلمة مرور جديدة',
     'auth.passwordResetDone': 'تم تعيين كلمة المرور الجديدة.',
 
+    // Table-style list headings
+    'list.pet': 'الحيوان',
+    'list.owner': 'المالك',
+    'list.vaccination': 'التطعيم',
+    'list.amount': 'المبلغ',
+    'list.method': 'طريقة الدفع',
+    'list.paidAt': 'وقت الدفع',
+    'list.status': 'الحالة',
+    'list.name': 'الاسم',
+    'list.role': 'الدور',
+    'list.branches': 'الفروع',
+    'list.login': 'الدخول والهاتف',
+
     'dashboard.title': 'لوحة التحكم',
     'dashboard.welcome': 'مرحبًا بك في طوق.',
     'dashboard.todayAppointments': 'مواعيد اليوم',
@@ -800,6 +827,7 @@ export const translations = {
     'trustedContacts.removed': 'تمت إزالة {name}.',
 
     'appointments.title': 'المواعيد',
+    'appointments.legend': 'دليل الألوان',
     'appointments.showPast': 'إظهار المواعيد السابقة',
     'appointments.hidePast': 'إخفاء المواعيد السابقة',
     'appointments.schedule': 'جدولة موعد',

@@ -261,34 +261,45 @@ function PetsPage() {
           <p>{t('pets.noneMatch')}</p>
         )
       ) : (
-        <ul className="pet-list">
+        <ul className="pet-list data-table data-pets">
+          <li className="data-head" aria-hidden>
+            <span>{t('list.pet')}</span>
+            <span>{t('list.owner')}</span>
+            <span>{t('list.vaccination')}</span>
+            <span />
+          </li>
           {filteredPets.map((pet) => (
             <li key={pet.id} id={`pet-row-${pet.id}`} className="pet-list-item">
-              <div className="pet-row">
-                <div className="pet-row-toggle-with-avatar">
+              <div className="pet-row data-row">
+                <div className="pet-row-toggle-with-avatar data-cell-wide">
                   <PetAvatar pet={pet} size={40} />
                   <button type="button" className="pet-row-toggle" onClick={() => handleRowToggle(pet)}>
-                    <strong>{pet.name}</strong> — {speciesLabel(t, pet.species)}
-                    {pet.breed ? ` (${pet.breed})` : ''}
+                    <strong>{pet.name}</strong>
                     <div className="pet-owner">
-                      {t('pets.owner')}: {pet.owner_name}
-                      {pet.owner_phone ? (
-                        <>
-                          {' · '}
-                          <Ltr>{pet.owner_phone}</Ltr>
-                        </>
-                      ) : (
-                        ''
-                      )}
+                      {speciesLabel(t, pet.species)}
+                      {pet.breed ? ` · ${pet.breed}` : ''}
                     </div>
                   </button>
                 </div>
-                <VaccinationBadge nextDate={pet.next_vaccination_date} />
-                {profile?.role === 'vet' && pet.vaccination_interval_days && ['due-soon', 'overdue'].includes(vaccinationStatus(pet.next_vaccination_date)) && (
-                  <button type="button" className="secondary-button" onClick={() => handleQuickMarkGiven(pet)}>
-                    {t('vaccination.markGiven')}
-                  </button>
-                )}
+                <div className="data-cell-wide">
+                  <span className="data-label">{t('pets.owner')}: </span>
+                  {pet.owner_name}
+                  {pet.owner_phone && (
+                    <div className="pet-owner">
+                      <Ltr>{pet.owner_phone}</Ltr>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <VaccinationBadge nextDate={pet.next_vaccination_date} />
+                </div>
+                <div className="data-end">
+                  {profile?.role === 'vet' && pet.vaccination_interval_days && ['due-soon', 'overdue'].includes(vaccinationStatus(pet.next_vaccination_date)) && (
+                    <button type="button" className="secondary-button" onClick={() => handleQuickMarkGiven(pet)}>
+                      {t('vaccination.markGiven')}
+                    </button>
+                  )}
+                </div>
               </div>
               {expandedPetId === pet.id && (
                 <PetDetail

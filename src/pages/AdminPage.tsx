@@ -964,7 +964,6 @@ function AdminPage() {
             <label key={b.id} className="bulk-select-all">
               <input
                 type="checkbox"
-                className="admin-checkbox"
                 checked={selected.includes(b.id)}
                 onChange={() => setSelected(selected.includes(b.id) ? selected.filter((id) => id !== b.id) : [...selected, b.id])}
               />
@@ -1232,7 +1231,6 @@ function AdminPage() {
           <label className="bulk-select-all">
             <input
               type="checkbox"
-              className="admin-checkbox"
               checked={selectedClinicIds.size === filteredClinics.length}
               onChange={toggleSelectAllClinics}
             />
@@ -1285,7 +1283,6 @@ function AdminPage() {
                 <div className="record-accordion-header-row">
                   <input
                     type="checkbox"
-                    className="admin-checkbox"
                     checked={selectedClinicIds.has(clinic.id)}
                     onChange={() => toggleClinicSelected(clinic.id)}
                     aria-label={t('admin.selectClinic', { name: clinic.name })}

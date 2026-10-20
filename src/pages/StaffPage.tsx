@@ -374,27 +374,33 @@ function StaffPage() {
   const active = staff.filter((m) => !m.disabled)
   const removed = staff.filter((m) => m.disabled)
 
-  function renderMeta(member: Member) {
-    const branchText = memberBranches(member)
+  // Role, branches and login cells shared by the active and removed lists.
+  function renderCells(member: Member) {
     return (
-      <div className="pet-owner">
-        {member.clinic_role && t(`staff.role.${member.clinic_role as ClinicRole}`)}
-        {(member.username || member.email) && (
-          <>
-            {' · '}
-            <Ltr>{member.username ? `@${member.username}` : member.email}</Ltr>
-          </>
-        )}
-        {member.phone && (
-          <>
-            {' · '}
-            <Ltr>{member.phone}</Ltr>
-          </>
-        )}
-        {branchText && ` · ${branchText}`}
-      </div>
+      <>
+        <span>{member.clinic_role && t(`staff.role.${member.clinic_role as ClinicRole}`)}</span>
+        <span className="data-muted">{memberBranches(member)}</span>
+        <span className="data-muted data-cell-wide">
+          {(member.username || member.email) && <Ltr>{member.username ? `@${member.username}` : member.email}</Ltr>}
+          {member.phone && (
+            <div className="pet-owner">
+              <Ltr>{member.phone}</Ltr>
+            </div>
+          )}
+        </span>
+      </>
     )
   }
+
+  const staffHead = (
+    <li className="data-head" aria-hidden>
+      <span>{t('list.name')}</span>
+      <span>{t('list.role')}</span>
+      <span>{t('list.branches')}</span>
+      <span>{t('list.login')}</span>
+      <span />
+    </li>
+  )
 
   return (
     <div>
@@ -408,12 +414,13 @@ function StaffPage() {
       {active.length === 0 ? (
         <p>{t('staff.none')}</p>
       ) : (
-        <ul className="record-list">
+        <ul className="pet-list data-table data-staff">
+          {staffHead}
           {active.map((member) => {
             const isSelf = member.id === profile?.id
             const canManage = !isSelf && allowed(member, { action: 'update_staff' })
             return editingId === member.id ? (
-              <li key={member.id}>
+              <li key={member.id} className="pet-list-item">
                 <form onSubmit={(e) => handleSaveEdit(e, member)} className="pet-form">
                   {renderFields(editDraft, setEditDraft, {
                     isNew: false,
@@ -430,19 +437,19 @@ function StaffPage() {
                 </form>
               </li>
             ) : (
-              <li key={member.id}>
-                <div className="record-row">
+              <li key={member.id} className="pet-list-item">
+                <div className="pet-row data-row">
                   <button
                     type="button"
-                    className="pet-row-toggle"
+                    className="pet-row-toggle data-cell-wide"
                     onClick={() => setExpandedStaffId(expandedStaffId === member.id ? null : member.id)}
                   >
                     <strong>{member.full_name}</strong>
-                    {member.title && ` — ${member.title}`}
-                    {renderMeta(member)}
+                    {member.title && <div className="pet-owner">{member.title}</div>}
                   </button>
-                  {(canManage || (isSelf && isManager)) && (
-                    <div className="record-actions">
+                  {renderCells(member)}
+                  {canManage || (isSelf && isManager) ? (
+                    <div className="record-actions data-end">
                       <button type="button" className="secondary-button" onClick={() => startEditing(member)}>
                         {t('common.edit')}
                       </button>
@@ -457,6 +464,8 @@ function StaffPage() {
                         </button>
                       )}
                     </div>
+                  ) : (
+                    <span />
                   )}
                 </div>
                 {expandedStaffId === member.id && <StaffAppointments staffId={member.id} />}
@@ -479,17 +488,18 @@ function StaffPage() {
       {removed.length > 0 && (
         <section>
           <h2>{t('staff.removedTitle')}</h2>
-          <ul className="record-list">
+          <ul className="pet-list data-table data-staff">
+            {staffHead}
             {removed.map((member) => (
-              <li key={member.id}>
-                <div className="record-row">
-                  <div>
-                    <strong>{member.full_name}</strong>
-                    {member.title && ` — ${member.title}`}
-                    {renderMeta(member)}
+              <li key={member.id} className="pet-list-item">
+                <div className="pet-row data-row">
+                  <div className="data-cell-wide">
+                    <strong className="data-strong">{member.full_name}</strong>
+                    {member.title && <div className="pet-owner">{member.title}</div>}
                   </div>
-                  {allowed(member, { action: 'set_disabled', disabled: false }) && (
-                    <div className="record-actions">
+                  {renderCells(member)}
+                  {allowed(member, { action: 'set_disabled', disabled: false }) ? (
+                    <div className="record-actions data-end">
                       <button
                         type="button"
                         className="secondary-button"
@@ -499,6 +509,8 @@ function StaffPage() {
                         {busyId === member.id ? t('common.saving') : t('trash.restore')}
                       </button>
                     </div>
+                  ) : (
+                    <span />
                   )}
                 </div>
               </li>

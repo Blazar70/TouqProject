@@ -104,7 +104,7 @@ function visibleRange(date: Date, view: View) {
 
 function AppointmentsPage() {
   const { profile } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const toast = useToast()
   const navigate = useNavigate()
   const { printSummary } = usePrintSummary()
@@ -752,7 +752,21 @@ function AppointmentsPage() {
       {/* Fixed left-to-right in both languages so time stays on the left. */}
       {/* LTR so the month picker stays on the left in both languages, like the calendar. */}
       <div className="appointments-layout" dir="ltr">
-      <MiniMonth value={date} onChange={setDate} />
+      <div className="appointments-side">
+        <MiniMonth value={date} onChange={setDate} />
+        {/* Cancelled appointments never show on the calendar, so three colours cover it. */}
+        <div className="calendar-legend" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+          <h2>{t('appointments.legend')}</h2>
+          <ul>
+            {(['requested', 'confirmed', 'completed'] as const).map((status) => (
+              <li key={status}>
+                <span className={`calendar-legend-swatch status-${status}`} aria-hidden />
+                {t(STATUS_LABEL_KEYS[status])}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
       {/* --now-cols centres the "Now" pill across all doctor columns (see App.css). */}
       <div
         className="appointments-calendar"

@@ -2,6 +2,8 @@
   position: relative;
   z-index: 1;
   min-height: 100vh;
+  /* The off-canvas phone drawer must not widen the page (RTL sideways scroll on iOS). */
+  overflow-x: clip;
 }
 
 .offline-banner {
@@ -919,6 +921,11 @@
   margin-top: 0;
 }
 
+/* ...but the house checkbox needs grid to centre its tick (::before). */
+.pet-form .checkbox-label > input[type='checkbox'] {
+  display: grid;
+}
+
 .phone-input {
   display: flex;
   align-items: stretch;
@@ -1312,7 +1319,7 @@
   margin: 0.4rem 0;
 }
 
-.admin-checkbox {
+input[type='checkbox'] {
   appearance: none;
   -webkit-appearance: none;
   width: 18px;
@@ -1328,16 +1335,17 @@
   transition: background 0.15s, border-color 0.15s;
 }
 
-/* .pet-form input (width:100% + padding) outranks .admin-checkbox and
-   stretched it over its label in the admin branch picker. */
-.pet-form .admin-checkbox {
+/* .pet-form input (width:100% + padding) outranks input[type='checkbox'] and
+   would stretch the box over its label. */
+.pet-form input[type='checkbox'] {
+  display: inline-grid;
   width: 18px;
   height: 18px;
   padding: 0;
   flex: none;
 }
 
-.admin-checkbox::before {
+input[type='checkbox']::before {
   content: '';
   width: 10px;
   height: 10px;
@@ -1347,20 +1355,20 @@
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
 }
 
-.admin-checkbox:checked {
+input[type='checkbox']:checked {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.admin-checkbox:checked::before {
+input[type='checkbox']:checked::before {
   transform: scale(1);
 }
 
-.admin-checkbox:hover {
+input[type='checkbox']:hover {
   border-color: var(--accent);
 }
 
-.admin-checkbox:focus-visible {
+input[type='checkbox']:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -3184,4 +3192,142 @@
 
 .price-lookup-empty {
   margin-bottom: 0.75rem;
+}
+
+/* ---- Table-style lists (Pets, Payments, Staff) ----
+   >= 1024px: a heading row and fixed columns per list (--data-cols), so every
+   row lines up. Narrower (tablet portrait, phone): cells wrap into stacked rows,
+   with inline labels where a value needs one (.data-label). */
+.data-head {
+  display: none;
+}
+
+.data-row {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.5rem 1rem;
+}
+
+.data-row > .data-end {
+  margin-inline-start: auto;
+}
+
+.data-cell-wide {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.data-strong {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.data-muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.data-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.data-pets {
+  --data-cols: minmax(0, 1.2fr) minmax(0, 1fr) 11rem 15rem;
+}
+
+.data-payments {
+  --data-cols: minmax(0, 1fr) 8rem 6.5rem 11rem 7rem 10.5rem;
+}
+
+.data-staff {
+  --data-cols: minmax(0, 1.2fr) 8rem minmax(0, 1fr) minmax(0, 1fr) 15rem;
+}
+
+@media (min-width: 1024px) {
+  .data-head,
+  .data-table .data-row {
+    display: grid;
+    grid-template-columns: var(--data-cols);
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .data-head {
+    padding: 0.5rem 1rem;
+    background: var(--bg-tint);
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .data-label {
+    display: none;
+  }
+
+  .data-num {
+    justify-self: end;
+  }
+
+  .data-end {
+    justify-self: end;
+  }
+
+  .data-table .data-row > * {
+    min-width: 0;
+  }
+
+  .data-table .data-row button:not(.pet-row-toggle) {
+    font-size: 0.85rem;
+  }
+}
+
+
+/* Calendar colour key under the month picker (AppointmentsPage). */
+.appointments-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.calendar-legend {
+  padding: 0.75rem 1rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.app-main .calendar-legend h2 {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.calendar-legend ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calendar-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-h);
+  font-size: 0.85rem;
+}
+
+/* Same look as a calendar block: status tint with a solid start edge. */
+.calendar-legend-swatch {
+  flex: none;
+  width: 1.5rem;
+  height: 1rem;
+  border-inline-start: 3px solid var(--status-fg);
+  border-radius: 6px;
+  background: var(--status-bg);
 }

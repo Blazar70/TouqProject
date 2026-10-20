@@ -529,7 +529,15 @@ function PaymentsPage() {
         {filteredInvoices.length === 0 ? (
           <p>{t('payments.noneMatch')}</p>
         ) : (
-          <ul className="pet-list">
+          <ul className="pet-list data-table data-payments">
+            <li className="data-head" aria-hidden>
+              <span>{t('list.pet')}</span>
+              <span className="data-num">{t('list.amount')}</span>
+              <span>{t('list.method')}</span>
+              <span>{t('list.paidAt')}</span>
+              <span>{t('list.status')}</span>
+              <span />
+            </li>
             {filteredInvoices.map((invoice) => (
               <li key={invoice.id} className="pet-list-item">
                 {verifyingId === invoice.id ? (
@@ -566,21 +574,21 @@ function PaymentsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="pet-row">
-                    <div>
-                      <strong>{invoice.pets?.name ?? '—'}</strong>{' '}
+                  <div className="pet-row data-row">
+                    <strong className="data-cell-wide data-strong">{invoice.pets?.name ?? '—'}</strong>
+                    <span className="data-num data-strong">
+                      <Ltr>{formatMoney(invoice.amount_total)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
+                    </span>
+                    <span className="data-muted">{t(METHOD_LABEL_KEYS[invoice.method as PaymentMethod])}</span>
+                    <span className="data-muted">
+                      <Ltr>{formatDateTime(invoice.paid_at)}</Ltr>
+                    </span>
+                    <span>
                       <span className={`status-badge status-${invoice.status === 'verified' ? 'completed' : 'requested'}`}>
                         {t(invoice.status === 'verified' ? 'payments.statusVerified' : 'payments.statusRecorded')}
                       </span>
-                      <div className="pet-owner">
-                        <Ltr>{formatMoney(invoice.amount_total)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
-                        {' · '}
-                        {t(METHOD_LABEL_KEYS[invoice.method as PaymentMethod])}
-                        {' · '}
-                        <Ltr>{formatDateTime(invoice.paid_at)}</Ltr>
-                      </div>
-                    </div>
-                    <div className="record-actions">
+                    </span>
+                    <div className="record-actions data-end">
                       {invoice.status === 'recorded' && (
                         <>
                           <button type="button" className="secondary-button" onClick={() => startVerify(invoice)}>
