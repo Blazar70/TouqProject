@@ -22,11 +22,12 @@ Isolation between clinics is enforced by RLS through one helper, `current_user_c
 - `current_user_clinic_id()` returns null when the clinic is disabled. `0031_clinic_disable_and_trash.sql`
 - A vet can still read their own clinic when disabled, so the app can explain why it is empty. `0031` policy `clinics_select_own_vet_regardless_disabled`
 - Vets may update their own clinic (0021). Before 0021 the write was silently blocked.
+- `timezone` (0044), default `Asia/Riyadh`. Every clinic has one main [branch](branches.md), created by trigger `clinics_create_main_branch` on insert.
 - Per-clinic totals (pets, appointments, staff) for the admin page come from SQL function `admin_clinic_counts()` (0038), not from counting rows in the browser.
 
 ## Connected to
 
-- **owns:** profiles (vets), caregivers, pets, appointments, medical_records, services, invoices, payments, admin_audit_log.clinic_id
+- **owns:** profiles (vets), branches (cascade), caregivers, pets, appointments, medical_records, services, invoices, payments, admin_audit_log.clinic_id
 - **owned-by:** none
 - **looks-like-but-is-not:** a row in `payments` is the clinic paying Touq, keyed by clinic_id.
 

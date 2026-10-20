@@ -5,6 +5,7 @@ First-order only. Open the card; its "If you change this" has the detail.
 | Changing | Open |
 |---|---|
 | a role, `clinic_id`, or `disabled` logic | [profiles](../objects/people/profiles.md), [auth-and-role-gate](../processes/auth-and-role-gate.md) |
+| branches, `clinic_role`, or a branch column | [branches](../objects/people/branches.md), [profiles](../objects/people/profiles.md) |
 | anything clinic-scoped, or an RLS helper function | [clinics](../objects/people/clinics.md), then every `*_all_vet` policy |
 | a new table with a `clinic_id` | [clinic-lifecycle](../processes/clinic-lifecycle.md) (purge list), [trash-and-purge](../processes/trash-and-purge.md) |
 | appointment statuses | [appointments](../objects/care/appointments.md), [push-notifications](../processes/push-notifications.md) |

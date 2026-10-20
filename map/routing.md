@@ -19,7 +19,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 | Routes and role gate | `src/App.tsx` (admin vs clinic route sets) |
 | Pages | `src/pages/` |
 | Business rules | `src/lib/` (cancellation, vaccination, appointmentConflicts, ...) |
-| DB schema | `supabase/migrations/` (0001-0043, applied in order) |
+| DB schema | `supabase/migrations/` (0001-0046, applied in order; rollbacks in `supabase/rollbacks/`) |
 | Generated DB types | `src/lib/database.types.ts` |
 | Edge functions | `supabase/functions/` |
 
@@ -28,6 +28,8 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 - **Staff** = table `caregivers` (0010). Not `profiles`. Staff have no login.
 - **Payments page** (clinic side) = table `invoices`. Table `payments` is the clinic paying Touq (admin only).
 - **Vet** = `user_role = 'vet'`. Roles are `vet`, `owner`, `admin`. Owner accounts are effectively unused.
+- **Clinic role** = `profiles.clinic_role` (0045): manager / doctor / nurse / receptionist, inside a `vet` account. No policy uses it yet.
+- **Branch** = table `branches` (0044), a location of a clinic. Not a data wall: isolation is still by `clinic_id`.
 - **Pet owner** in the UI = text fields on `pets`, not a profile.
 - **Vaccination** = columns on `pets`, not a table.
 - **Trash** = soft delete (`deleted_at`), 7 days, UI-filtered for pets and staff.

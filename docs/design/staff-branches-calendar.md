@@ -125,6 +125,8 @@ Built in 0045 by replacing every `*_all_vet` policy with per-command policies in
 
 ## 5. Migrations (rollback SQL kept in `supabase/rollbacks/`, rehearsed on staging)
 
+Numbers below are the original plan. Phase 1 was built as **0044-0046** (0041-0043 were taken); later rows shift by three.
+
 | # | Contents | Additive | Rollback |
 |---|---|---|---|
 | 0041 | branches, staff_branches, clinics.timezone, backfill | yes | drop |

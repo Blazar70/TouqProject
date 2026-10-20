@@ -19,6 +19,7 @@ Status is `text` plus a check constraint, not an enum, so a new status is a cons
 - `status` check: requested, confirmed, completed, cancelled. `0002_status_columns_to_text.sql`, mirrored in `src/lib/appointmentStatus.ts:3`
 - `cancellation_reason` (0008, free text), `cancellation_category` (0026, groupable). Categories live only in code: `src/lib/cancellation.ts:6`; the DB has no check on it.
 - `assigned_staff_id` nullable FK to caregivers (0011).
+- `branch_id` not null (0046); filled with the clinic's main branch by trigger `fill_default_branch()` when not sent. Index `(branch_id, scheduled_at)`. See [branches](../people/branches.md).
 - Conflict rule: same pet or same staff within 30 minutes, ignoring cancelled; a warning, not a block. `src/lib/appointmentConflicts.ts:6`
 
 ## Connected to
