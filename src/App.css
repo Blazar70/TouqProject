@@ -2441,6 +2441,12 @@
   color: var(--accent);
 }
 
+/* Grouped buttons overlap by 1px; lift the highlighted one so its whole gold border shows. */
+.appointments-calendar .rbc-toolbar button:is(:hover, :focus-visible, .rbc-active) {
+  position: relative;
+  z-index: 1;
+}
+
 .appointments-calendar .rbc-toolbar button.rbc-active {
   border-color: var(--accent);
   background: var(--bg-tint-hover);
