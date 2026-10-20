@@ -37,3 +37,6 @@ dev-dist
 # Local agent tool output: Chisel test-impact DB, playwright-cli snapshots/traces
 .chisel/
 .playwright-cli/
+
+# Reticle trial: local runtime data (flows, pairing token); never commit
+.reticle/
