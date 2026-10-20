@@ -29,6 +29,7 @@ export const translations = {
     'calendar.slotHint': 'Tip: click an empty time in the calendar to fill in the time and doctor.',
     'session.title': 'Session in progress',
     'session.start': 'Start session',
+    'session.resume': 'Resume session',
     'session.finish': 'Finish session',
     'session.elapsed': 'Time elapsed',
     'session.backToAppointments': 'Back to appointments',
@@ -298,6 +299,7 @@ export const translations = {
     'status.confirmed': 'Confirmed',
     'status.completed': 'Completed',
     'status.cancelled': 'Cancelled',
+    'status.in_session': 'In session',
 
     // Payments
     'payments.title': 'Payments',
@@ -648,6 +650,7 @@ export const translations = {
     'calendar.slotHint': 'تلميح: انقر على وقت فارغ في التقويم لتعبئة الوقت والطبيب.',
     'session.title': 'جلسة جارية',
     'session.start': 'بدء الجلسة',
+    'session.resume': 'متابعة الجلسة',
     'session.finish': 'إنهاء الجلسة',
     'session.elapsed': 'الوقت المنقضي',
     'session.backToAppointments': 'العودة إلى المواعيد',
@@ -907,6 +910,7 @@ export const translations = {
     'status.confirmed': 'مؤكد',
     'status.completed': 'مكتمل',
     'status.cancelled': 'ملغى',
+    'status.in_session': 'قيد المعاينة',
 
     'payments.title': 'المدفوعات',
     'payments.priceLookup': 'البحث عن سعر',

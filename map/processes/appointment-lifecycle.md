@@ -7,7 +7,7 @@ produces: [appointments, medical-records]
 
 # appointment-lifecycle
 
-An appointment is requested, confirmed, then completed (writing a medical record) or cancelled (with a category).
+An appointment is requested, confirmed, in session (once the session page opens), then completed (writing a medical record) or cancelled (with a category).
 
 ## Input → Movement → Output
 
@@ -23,6 +23,7 @@ Conflicts only warn, because back-to-back and same-day visits are legitimate. Co
 2. Status update. `src/pages/AppointmentsPage.tsx:404`
 3. Complete: update status, then insert a medical record, optional photo. `src/pages/AppointmentsPage.tsx:536-577`
 4. Cancel: set status, `cancellation_category`, `cancellation_reason`. `src/pages/AppointmentsPage.tsx:462`
+6. Start session: opening `/appointments/:id/session` sets `in_session` + `started_at` (only from requested/confirmed); it stays in session until Finish, and the dialog offers Resume. `src/pages/SessionPage.tsx`
 5. Fire `notify-status-change`, best-effort. `src/pages/AppointmentsPage.tsx:418`
 
 ## If you change this

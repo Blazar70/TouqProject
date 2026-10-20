@@ -108,6 +108,7 @@ export type Database = {
           pet_id: string
           reason: string | null
           scheduled_at: string
+          started_at: string | null
           status: string
         }
         Insert: {
@@ -122,6 +123,7 @@ export type Database = {
           pet_id: string
           reason?: string | null
           scheduled_at: string
+          started_at?: string | null
           status?: string
         }
         Update: {
@@ -136,6 +138,7 @@ export type Database = {
           pet_id?: string
           reason?: string | null
           scheduled_at?: string
+          started_at?: string | null
           status?: string
         }
         Relationships: [

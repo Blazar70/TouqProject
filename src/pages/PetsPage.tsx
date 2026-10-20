@@ -269,7 +269,7 @@ function PetsPage() {
             <span />
           </li>
           {filteredPets.map((pet) => (
-            <li key={pet.id} id={`pet-row-${pet.id}`} className="pet-list-item">
+            <li key={pet.id} id={`pet-row-${pet.id}`} className={`pet-list-item${expandedPetId === pet.id ? ' is-open' : ''}`}>
               <div className="pet-row data-row">
                 <div className="pet-row-toggle-with-avatar data-cell-wide">
                   <PetAvatar pet={pet} size={40} />

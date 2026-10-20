@@ -1796,13 +1796,14 @@ input[type='checkbox']:focus-visible {
 }
 
 .toast-success {
-  background: #dcfce7;
-  color: #15803d;
+  /* Tint over a solid panel: the dark-mode status colours are translucent and toasts float over content. */
+  background: linear-gradient(var(--status-green-bg), var(--status-green-bg)) var(--bg-raised);
+  color: var(--status-green-fg);
 }
 
 .toast-error {
-  background: #fde2e1;
-  color: #b91c1c;
+  background: linear-gradient(var(--danger-bg), var(--danger-bg)) var(--bg-raised);
+  color: var(--danger);
 }
 
 /* Skeletons */
@@ -1897,6 +1898,13 @@ input[type='checkbox']:focus-visible {
   color: var(--status-fg);
 }
 
+.status-in_session {
+  --status-bg: var(--status-red-bg);
+  --status-fg: var(--status-red-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
+}
+
 .status-completed {
   --status-bg: var(--status-green-bg);
   --status-fg: var(--status-green-fg);
@@ -1951,18 +1959,18 @@ input[type='checkbox']:focus-visible {
 }
 
 .vaccination-ok {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--status-green-bg);
+  color: var(--status-green-fg);
 }
 
 .vaccination-due-soon {
-  background: #fdf3d9;
-  color: #8a6d1a;
+  background: var(--status-amber-bg);
+  color: var(--status-amber-fg);
 }
 
 .vaccination-overdue {
-  background: #fde2e1;
-  color: #b91c1c;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .vaccination-none {
@@ -2029,11 +2037,11 @@ input[type='checkbox']:focus-visible {
 }
 
 .pet-detail {
-  margin: 0 1rem 0.85rem;
-  padding: 1.1rem;
-  background: var(--bg-tint);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  margin: 1rem 0 0;
+  padding: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
   display: grid;
   grid-template-columns: minmax(220px, 280px) 1fr;
   gap: 1.25rem;
@@ -3330,4 +3338,24 @@ input[type='checkbox']:focus-visible {
   border-inline-start: 3px solid var(--status-fg);
   border-radius: 6px;
   background: var(--status-bg);
+}
+
+/* Open pet file: tint the whole item, mark its row with a start-edge bar and
+   ring the photo, so the row reads as the header of the panel below it. */
+.pet-list-item.is-open {
+  position: relative;
+  background: var(--bg-tint);
+}
+
+.pet-list-item.is-open::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--accent);
+}
+
+.pet-list-item.is-open > .data-row :is(.pet-avatar, .pet-avatar-fallback) {
+  box-shadow: 0 0 0 2px var(--accent);
 }

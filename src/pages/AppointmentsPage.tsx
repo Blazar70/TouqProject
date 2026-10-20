@@ -462,6 +462,7 @@ function AppointmentsPage() {
 
   function renderPanel(appointment: Appointment) {
     const isActive = appointment.status === 'requested' || appointment.status === 'confirmed'
+    const inSession = appointment.status === 'in_session'
     return (
       <div className="admin-modal-backdrop" onClick={() => !savingPanel && setSelected(null)}>
         <div
@@ -676,6 +677,16 @@ function AppointmentsPage() {
                 ))}
 
               <div className="appointment-panel-actions">
+                {isVet && inSession && (
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => navigate(`/appointments/${appointment.id}/session`)}
+                    autoFocus
+                  >
+                    {t('session.resume')}
+                  </button>
+                )}
                 {isVet && isActive && (
                   <>
                     {appointment.status === 'requested' && (
@@ -754,11 +765,11 @@ function AppointmentsPage() {
       <div className="appointments-layout" dir="ltr">
       <div className="appointments-side">
         <MiniMonth value={date} onChange={setDate} />
-        {/* Cancelled appointments never show on the calendar, so three colours cover it. */}
+        {/* Cancelled appointments never show on the calendar, so these colours cover it. */}
         <div className="calendar-legend" dir={language === 'ar' ? 'rtl' : 'ltr'}>
           <h2>{t('appointments.legend')}</h2>
           <ul>
-            {(['requested', 'confirmed', 'completed'] as const).map((status) => (
+            {(['requested', 'confirmed', 'in_session', 'completed'] as const).map((status) => (
               <li key={status}>
                 <span className={`calendar-legend-swatch status-${status}`} aria-hidden />
                 {t(STATUS_LABEL_KEYS[status])}

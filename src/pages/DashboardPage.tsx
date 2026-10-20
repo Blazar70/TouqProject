@@ -119,7 +119,10 @@ function DashboardPage() {
   const done = active.filter((a) => a.status === 'completed').length
   const toConfirm = active.filter((a) => a.status === 'requested').length
   const now = Date.now()
-  const nextId = active.find((a) => a.status !== 'completed' && new Date(a.scheduled_at).getTime() >= now)?.id
+  // In-session visits are happening now, so "next" is the first one still waiting.
+  const nextId = active.find(
+    (a) => (a.status === 'requested' || a.status === 'confirmed') && new Date(a.scheduled_at).getTime() >= now,
+  )?.id
   const overdue = vaccinationsDue.filter((pet) => vaccinationStatus(pet.next_vaccination_date) === 'overdue').length
   const paymentsTotal = paymentsToday.reduce((sum, amount) => sum + amount, 0)
   // Latin digits in both languages, matching the rest of the app.

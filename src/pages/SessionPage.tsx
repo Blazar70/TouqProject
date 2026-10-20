@@ -22,21 +22,6 @@ type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
 }
 
-// shortcut: the session start lives in this browser tab only (sessionStorage), so it resets on another device; move to an appointments.started_at column with the in_session status (design doc phase 5).
-const startKey = (id: string) => `touq.session.${id}`
-
-function readStart(id: string) {
-  try {
-    const saved = Number(sessionStorage.getItem(startKey(id)))
-    if (saved > 0) return saved
-    const now = Date.now()
-    sessionStorage.setItem(startKey(id), String(now))
-    return now
-  } catch {
-    return Date.now()
-  }
-}
-
 function formatElapsed(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(total / 3600)
@@ -55,7 +40,6 @@ function SessionPage() {
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [startedAt] = useState(() => readStart(id))
   const [now, setNow] = useState(() => Date.now())
 
   const [visitType, setVisitType] = useState('')
@@ -89,12 +73,30 @@ function SessionPage() {
       .select('*, pets(name, species, breed, owner_name, owner_phone)')
       .eq('id', id)
       .maybeSingle()
-      .then(({ data, error: loadError }) => {
+      .then(async ({ data, error: loadError }) => {
         if (loadError) setError(loadError.message)
+        // Opening the session starts it: in_session (with its start time) until Finish,
+        // so everyone sees the pet is being worked on and the timer survives other devices.
+        if (data && (data.status === 'requested' || data.status === 'confirmed')) {
+          const { data: started, error: startError } = await supabase
+            .from('appointments')
+            .update({ status: 'in_session', started_at: new Date().toISOString() })
+            .eq('id', data.id)
+            .in('status', ['requested', 'confirmed'])
+            .select('*, pets(name, species, breed, owner_name, owner_phone)')
+            .maybeSingle()
+          if (startError) setError(startError.message)
+          if (started) {
+            notifyStatusChange(started.id)
+            data = started
+          }
+        }
         setAppointment(data)
         setLoading(false)
       })
   }, [id])
+
+  const startedAt = appointment?.started_at ? new Date(appointment.started_at).getTime() : now
 
   useEffect(() => () => {
     if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl)
@@ -190,11 +192,6 @@ function SessionPage() {
       }
     }
 
-    try {
-      sessionStorage.removeItem(startKey(appointment.id))
-    } catch {
-      // Nothing to clean up if storage is unavailable.
-    }
     toast.success(t('appointments.completedToast'))
     notifyStatusChange(appointment.id)
     setDone(true)
