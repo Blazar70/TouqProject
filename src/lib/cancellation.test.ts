@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cancellationCategoryLabel, groupCancellationCounts } from './cancellation'
+import { CANCELLATION_CATEGORIES, cancellationCategoryLabel, groupCancellationCounts } from './cancellation'
 
 describe('cancellationCategoryLabel', () => {
   it('translates a known category', () => {
@@ -10,6 +10,15 @@ describe('cancellationCategoryLabel', () => {
   it('falls back to "other" for an unknown/missing category', () => {
     const t = (key: string) => `translated:${key}`
     expect(cancellationCategoryLabel(t, 'something_unexpected')).toBe('translated:cancellation.other')
+  })
+})
+
+describe('CANCELLATION_CATEGORIES', () => {
+  it('no longer offers "rescheduled" but still labels and counts old rows with it', () => {
+    const t = (key: string) => `translated:${key}`
+    expect(CANCELLATION_CATEGORIES).not.toContain('rescheduled')
+    expect(cancellationCategoryLabel(t, 'rescheduled')).toBe('translated:cancellation.rescheduled')
+    expect(groupCancellationCounts(['rescheduled'])).toEqual([{ category: 'rescheduled', count: 1 }])
   })
 })
 

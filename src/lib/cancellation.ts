@@ -3,7 +3,7 @@ import type { TranslationKey } from './i18n/translations'
 // Stored in English regardless of UI language, same pattern as visit_type —
 // lets the dashboard group cancellations by category for reporting instead
 // of only having free-text reasons to sift through.
-export const CANCELLATION_CATEGORIES = [
+const ALL_CANCELLATION_CATEGORIES = [
   'owner_cancelled',
   'vet_unavailable',
   'pet_unwell',
@@ -12,7 +12,12 @@ export const CANCELLATION_CATEGORIES = [
   'other',
 ] as const
 
-export type CancellationCategory = (typeof CANCELLATION_CATEGORIES)[number]
+export type CancellationCategory = (typeof ALL_CANCELLATION_CATEGORIES)[number]
+
+// What staff can pick when cancelling. "rescheduled" is retired now that the
+// Reschedule action moves the appointment instead; it stays above so older
+// cancellations keep their label and still count.
+export const CANCELLATION_CATEGORIES = ALL_CANCELLATION_CATEGORIES.filter((c) => c !== 'rescheduled')
 
 const CANCELLATION_CATEGORY_LABEL_KEYS: Record<CancellationCategory, TranslationKey> = {
   owner_cancelled: 'cancellation.ownerCancelled',
@@ -37,7 +42,7 @@ export function groupCancellationCounts(categories: (string | null)[]): { catego
     const key = raw ?? 'other'
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
-  return CANCELLATION_CATEGORIES.filter((category) => counts.has(category)).map((category) => ({
+  return ALL_CANCELLATION_CATEGORIES.filter((category) => counts.has(category)).map((category) => ({
     category,
     count: counts.get(category)!,
   }))

@@ -20,6 +20,7 @@ import { notifyStatusChange } from '../lib/push'
 import { usePrintSummary } from '../lib/PrintContext'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import PetPicker from '../components/PetPicker'
+import MiniMonth from '../components/MiniMonth'
 import PhotoThumbnail from '../components/PhotoThumbnail'
 import Ltr from '../components/Ltr'
 import { useToast } from '../lib/ToastContext'
@@ -34,7 +35,17 @@ type Appointment = Database['public']['Tables']['appointments']['Row'] & {
 type Pet = Database['public']['Tables']['pets']['Row']
 type Caregiver = Database['public']['Tables']['caregivers']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
-type CalendarEvent = { id: string; title: string; start: Date; end: Date; resourceId: string; appointment: Appointment }
+// Day view: one event per appointment. Week view: one event per busy hour,
+// carrying only the count (appointment is null).
+type CalendarEvent = {
+  id: string
+  title: string
+  start: Date
+  end: Date
+  resourceId: string
+  appointment: Appointment | null
+  count: number
+}
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
@@ -386,25 +397,39 @@ function AppointmentsPage() {
   }, [selected, savingPanel])
 
   const staffIds = useMemo(() => new Set(staff.map((s) => s.id)), [staff])
-  const events: CalendarEvent[] = useMemo(
-    () =>
-      appointments
-        .filter((a) => a.status !== 'cancelled')
-        .map((a) => {
-          const start = new Date(a.scheduled_at)
-          return {
-            id: a.id,
-            title: a.pets?.name ?? t('dashboard.unknownPet'),
-            start,
-            end: new Date(start.getTime() + SLOT_MS),
-            // Unassigned also catches appointments whose staff member was removed.
-            resourceId: a.assigned_staff_id && staffIds.has(a.assigned_staff_id) ? a.assigned_staff_id : UNASSIGNED,
-            appointment: a,
-          }
-        }),
-    [appointments, staffIds, t],
-  )
-  const hasUnassigned = events.some((e) => e.resourceId === UNASSIGNED)
+  const events: CalendarEvent[] = useMemo(() => {
+    const visible = appointments.filter((a) => a.status !== 'cancelled')
+    if (view === 'week') {
+      const byHour = new Map<number, number>()
+      for (const a of visible) {
+        const hour = dayjs(a.scheduled_at).startOf('hour').valueOf()
+        byHour.set(hour, (byHour.get(hour) ?? 0) + 1)
+      }
+      return Array.from(byHour, ([hour, count]) => ({
+        id: `hour-${hour}`,
+        title: String(count),
+        start: new Date(hour),
+        end: new Date(hour + 60 * 60_000),
+        resourceId: UNASSIGNED,
+        appointment: null,
+        count,
+      }))
+    }
+    return visible.map((a) => {
+      const start = new Date(a.scheduled_at)
+      return {
+        id: a.id,
+        title: a.pets?.name ?? t('dashboard.unknownPet'),
+        start,
+        end: new Date(start.getTime() + SLOT_MS),
+        // Unassigned also catches appointments whose staff member was removed.
+        resourceId: a.assigned_staff_id && staffIds.has(a.assigned_staff_id) ? a.assigned_staff_id : UNASSIGNED,
+        appointment: a,
+        count: 1,
+      }
+    })
+  }, [appointments, staffIds, t, view])
+  const hasUnassigned = view === 'day' && events.some((e) => e.resourceId === UNASSIGNED)
   // Opens at 8 AM, or earlier if the first visible appointment is before that.
   const eightAm = dayjs(date).startOf('day').add(8, 'hour')
   const firstStart = events.reduce<Date | null>((min, e) => (!min || e.start < min ? e.start : min), null)
@@ -709,6 +734,9 @@ function AppointmentsPage() {
       </div>
 
       {/* Fixed left-to-right in both languages so time stays on the left. */}
+      {/* LTR so the month picker stays on the left in both languages, like the calendar. */}
+      <div className="appointments-layout" dir="ltr">
+      <MiniMonth value={date} onChange={setDate} />
       {/* --now-cols centres the "Now" pill across all doctor columns (see App.css). */}
       <div
         className="appointments-calendar"
@@ -737,16 +765,28 @@ function AppointmentsPage() {
           scrollToTime={scrollTo}
           selectable={isVet}
           onSelectSlot={handleSelectSlot}
-          onSelectEvent={(event) => openAppointment(event.appointment)}
-          eventPropGetter={(event) => ({ className: `calendar-event status-${event.appointment.status}` })}
+          onSelectEvent={(event) => {
+            if (event.appointment) return openAppointment(event.appointment)
+            // A week-view hour box opens that day with the individual appointments.
+            setDate(event.start)
+            setView('day')
+          }}
+          eventPropGetter={(event) => ({
+            className: event.appointment ? `calendar-event status-${event.appointment.status}` : 'calendar-hour-count',
+          })}
           components={{
-            event: ({ event }) => (
-              <span className="calendar-event-content">
-                <strong>{event.title}</strong>
-                {event.appointment.reason && <span>{event.appointment.reason}</span>}
-                {view === 'week' && event.appointment.caregivers && <span>{event.appointment.caregivers.name}</span>}
-              </span>
-            ),
+            event: ({ event }) =>
+              event.appointment ? (
+                <span className="calendar-event-content">
+                  <strong>{event.title}</strong>
+                  {event.appointment.reason && <span>{event.appointment.reason}</span>}
+                </span>
+              ) : (
+                <span className="calendar-hour-count-content">
+                  <strong>{event.count}</strong>
+                  <span>{t(event.count === 1 ? 'calendar.appointmentOne' : 'calendar.appointmentMany')}</span>
+                </span>
+              ),
             resourceHeader: ({ resource }) => (
               <span className="calendar-resource-header">
                 <strong>{resource.title}</strong>
@@ -762,6 +802,7 @@ function AppointmentsPage() {
             week: t('calendar.week'),
           }}
         />
+      </div>
       </div>
 
       {selected && renderPanel(selected)}

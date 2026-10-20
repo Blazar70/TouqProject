@@ -2257,6 +2257,112 @@
   }
 }
 
+/* Month picker beside the calendar on PC, above it on smaller screens. */
+.appointments-layout {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .appointments-layout {
+    grid-template-columns: 15rem minmax(0, 1fr);
+  }
+}
+
+.mini-month {
+  padding: 0.75rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.mini-month-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-h);
+}
+
+.mini-month-header strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.mini-month-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.mini-month-header button:hover {
+  background: var(--bg-tint);
+  color: var(--accent);
+}
+
+.mini-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem 0;
+  text-align: center;
+}
+
+.mini-month-weekday {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.mini-month-day {
+  justify-self: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.mini-month-day:hover {
+  background: var(--bg-tint);
+}
+
+.mini-month-day.is-other-month {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.mini-month-day.is-today {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mini-month-day.is-selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.mini-month :is(button):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Appointments calendar (react-big-calendar), themed with the app tokens so
    it follows light/dark. The wrapper is dir="ltr" in both languages. */
 .appointments-calendar {
@@ -2417,6 +2523,28 @@
 /* The time axis already shows the time; the block shows name and reason. */
 .appointments-calendar .rbc-event-label {
   display: none;
+}
+
+/* Week view: one neutral box per busy hour with the appointment count. */
+.appointments-calendar .rbc-event.calendar-hour-count {
+  --status-bg: var(--bg-tint-hover);
+  --status-fg: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-hour-count-content {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-hour-count-content strong {
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .calendar-event-content {
