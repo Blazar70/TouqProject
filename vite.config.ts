@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { reticle } from '@reticlehq/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    // Trial (branch try/reticle): dev-only bridge for in-app verification; absent from production builds.
+    reticle(),
     react(),
     VitePWA({
       // 'prompt': a new version waits for the user to click Reload (UpdatePrompt.tsx).
