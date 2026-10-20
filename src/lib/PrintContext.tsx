@@ -6,6 +6,7 @@ import { useAuth } from './AuthContext'
 import { visitRecordFields } from './clinicalFields'
 import { signPhotoUrl } from './photoUrl'
 import type { VisitRecordFields } from './clinicalFields'
+import { formatDate, formatDateTime } from './format'
 
 export type VisitSummary = {
   date: string
@@ -109,7 +110,7 @@ function buildDocument(
           (visit) => `
             <div class="print-history-entry">
               <div class="print-history-entry-header">
-                <span class="print-history-date">${escapeHtml(new Date(visit.date).toLocaleDateString())}</span>
+                <span class="print-history-date">${escapeHtml(formatDate(visit.date))}</span>
                 ${visit.visitType ? `<span class="print-badge">${escapeHtml(visit.visitType)}</span>` : ''}
               </div>
               ${fieldsHtml(t, visit)}
@@ -122,7 +123,7 @@ function buildDocument(
         ${fieldsHtml(t, visits[0])}
       `
 
-  const heroDate = !isHistory ? `<div class="print-hero-date">${escapeHtml(new Date(visits[0].date).toLocaleDateString())}</div>` : ''
+  const heroDate = !isHistory ? `<div class="print-hero-date">${escapeHtml(formatDate(visits[0].date))}</div>` : ''
 
   return `<!doctype html>
 <html>
@@ -138,7 +139,7 @@ function buildDocument(
         ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
         <p>${escapeHtml(title)}</p>
       </div>
-      <div class="print-printed-at">${escapeHtml(t('printSummary.printedOn'))} ${escapeHtml(new Date().toLocaleString())}</div>
+      <div class="print-printed-at">${escapeHtml(t('printSummary.printedOn'))} ${escapeHtml(formatDateTime(new Date()))}</div>
     </header>
     <div class="print-hero">
       <div class="print-hero-name">${escapeHtml(petName)}</div>

@@ -5,11 +5,12 @@ declare const self: ServiceWorkerGlobalScope
 
 precacheAndRoute(self.__WB_MANIFEST)
 
-// Without these, a newly deployed service worker sits in "waiting" state
-// until every open tab for the site is fully closed — so code changes here
-// (like the notification icon fallback below) silently don't apply to
-// already-open tabs even after a fresh deploy.
-self.skipWaiting()
+// A new version waits until the user clicks Reload in UpdatePrompt, which
+// sends SKIP_WAITING; the page then reloads onto the new code. Taking over
+// silently would leave open tabs running old code against a new backend.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim())
 })

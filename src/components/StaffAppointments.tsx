@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types'
 import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import Ltr from './Ltr'
 import { ListSkeleton } from './Skeleton'
+import { formatDateTime } from '../lib/format'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string } | null
@@ -52,7 +53,7 @@ function StaffAppointments({ staffId }: { staffId: string }) {
               <div className="record-row">
                 <div>
                   <strong>{a.pets?.name ?? t('dashboard.unknownPet')}</strong> —{' '}
-                  <Ltr>{new Date(a.scheduled_at).toLocaleString()}</Ltr>
+                  <Ltr>{formatDateTime(a.scheduled_at)}</Ltr>
                 </div>
                 <span className={`status-badge status-${a.status}`}>{t(STATUS_LABEL_KEYS[a.status])}</span>
               </div>
@@ -73,7 +74,7 @@ function StaffAppointments({ staffId }: { staffId: string }) {
                   <div className="record-row">
                     <div>
                       <strong>{a.pets?.name ?? t('dashboard.unknownPet')}</strong> —{' '}
-                      <Ltr>{new Date(a.scheduled_at).toLocaleString()}</Ltr>
+                      <Ltr>{formatDateTime(a.scheduled_at)}</Ltr>
                     </div>
                     <span className={`status-badge status-${a.status}`}>{t(STATUS_LABEL_KEYS[a.status])}</span>
                   </div>

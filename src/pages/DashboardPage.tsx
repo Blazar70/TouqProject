@@ -11,6 +11,7 @@ import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import VaccinationBadge from '../components/VaccinationBadge'
 import RefreshButton from '../components/RefreshButton'
+import { formatDate } from '../lib/format'
 
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & {
   pets: { name: string } | null
@@ -120,7 +121,7 @@ function DashboardPage() {
                 <Link to="/pets" className="pet-row-toggle">
                   <strong>{pet.name}</strong>
                   {' — '}
-                  <Ltr>{new Date(pet.next_vaccination_date!).toLocaleDateString()}</Ltr>
+                  <Ltr>{formatDate(pet.next_vaccination_date!)}</Ltr>
                 </Link>
                 <VaccinationBadge nextDate={pet.next_vaccination_date} />
               </div>
@@ -153,7 +154,7 @@ function DashboardPage() {
               <Link to={`/pets?highlight=${record.pet_id}`} className="pet-row-toggle">
                 <strong>{record.pets?.name ?? t('dashboard.unknownPet')}</strong>
                 {' — '}
-                <Ltr>{new Date(record.visit_date).toLocaleDateString()}</Ltr>
+                <Ltr>{formatDate(record.visit_date)}</Ltr>
                 {record.visit_type && ` · ${visitTypeLabel(t, record.visit_type)}`}
                 {record.diagnosis && <div className="pet-owner">{record.diagnosis}</div>}
               </Link>

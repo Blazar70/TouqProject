@@ -27,6 +27,7 @@ import { useToast } from '../lib/ToastContext'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
+import { formatDateTime } from '../lib/format'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_phone: string | null } | null
@@ -431,9 +432,15 @@ function AppointmentsPage() {
   }, [appointments, staffIds, t, view])
   const hasUnassigned = view === 'day' && events.some((e) => e.resourceId === UNASSIGNED)
   // Opens at 8 AM, or earlier if the first visible appointment is before that.
+  // Only events inside the shown range count: right after navigating, the
+  // previous range's events are still loaded for a moment.
   const eightAm = dayjs(date).startOf('day').add(8, 'hour')
-  const firstStart = events.reduce<Date | null>((min, e) => (!min || e.start < min ? e.start : min), null)
+  const firstStart = events
+    .filter((e) => e.start >= rangeStart && e.start < rangeEnd)
+    .reduce<Date | null>((min, e) => (!min || e.start < min ? e.start : min), null)
   const scrollTo = firstStart && dayjs(firstStart).hour() < 8 ? firstStart : eightAm.toDate()
+  // Time of day only; the library applies scrollToTime on mount, so a new target remounts it.
+  const scrollKey = dayjs(scrollTo).format('HH:mm')
   const resources: CalendarResource[] = [
     ...staff.map((s) => ({ id: s.id, title: s.name, subtitle: s.title })),
     ...(hasUnassigned || staff.length === 0 ? [{ id: UNASSIGNED, title: t('calendar.unassigned'), subtitle: null }] : []),
@@ -459,7 +466,7 @@ function AppointmentsPage() {
             <div>
               <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
               <p className="pet-owner">
-                <Ltr>{new Date(appointment.scheduled_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Ltr>
+                <Ltr>{formatDateTime(appointment.scheduled_at)}</Ltr>
                 {appointment.caregivers && ` · ${appointment.caregivers.name}`}
               </p>
               {appointment.reason && (
@@ -585,7 +592,7 @@ function AppointmentsPage() {
                   <ul>
                     {rescheduleConflicts.map((c) => (
                       <li key={c.id}>
-                        {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{new Date(c.scheduled_at).toLocaleString()}</Ltr>
+                        {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{formatDateTime(c.scheduled_at)}</Ltr>
                         {c.caregivers?.name ? ` (${c.caregivers.name})` : ''}
                       </li>
                     ))}
@@ -722,7 +729,7 @@ function AppointmentsPage() {
                 <li key={a.id}>
                   <button type="button" onClick={() => jumpTo(a)}>
                     <strong>{a.pets?.name ?? t('dashboard.unknownPet')}</strong>
-                    <Ltr>{new Date(a.scheduled_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Ltr>
+                    <Ltr>{formatDateTime(a.scheduled_at)}</Ltr>
                     {a.caregivers && <span>{a.caregivers.name}</span>}
                     <span className={`status-badge status-${a.status}`}>{t(STATUS_LABEL_KEYS[a.status])}</span>
                   </button>
@@ -749,6 +756,7 @@ function AppointmentsPage() {
         }
       >
         <Calendar<CalendarEvent, CalendarResource>
+          key={scrollKey}
           localizer={localizer}
           events={events}
           date={date}
@@ -877,7 +885,7 @@ function AppointmentsPage() {
               <ul>
                 {conflicts.map((c) => (
                   <li key={c.id}>
-                    {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{new Date(c.scheduled_at).toLocaleString()}</Ltr>
+                    {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{formatDateTime(c.scheduled_at)}</Ltr>
                     {c.caregivers?.name ? ` (${c.caregivers.name})` : ''}
                   </li>
                 ))}

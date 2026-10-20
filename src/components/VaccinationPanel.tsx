@@ -8,6 +8,7 @@ import VaccinationBadge from './VaccinationBadge'
 import { REPEAT_INTERVAL_OPTIONS, vaccinationStatus, nextVaccinationDateAfterDose } from '../lib/vaccination'
 import Ltr from './Ltr'
 import { useToast } from '../lib/ToastContext'
+import { formatDate } from '../lib/format'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -124,7 +125,7 @@ function VaccinationPanel({ pet, onUpdated }: { pet: Pet; onUpdated: (pet: Pet) 
       <VaccinationBadge nextDate={pet.next_vaccination_date} />
       {pet.next_vaccination_date && (
         <p className="pet-owner">
-          {t('vaccination.nextDue')}: <Ltr>{new Date(pet.next_vaccination_date).toLocaleDateString()}</Ltr>
+          {t('vaccination.nextDue')}: <Ltr>{formatDate(pet.next_vaccination_date)}</Ltr>
         </p>
       )}
 
