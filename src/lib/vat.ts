@@ -17,22 +17,16 @@ export function priceWithoutVat(postVat: number, vatRate: number): number {
   return Math.round((postVat / (1 + vatRate / 100) + Number.EPSILON) * 10000) / 10000
 }
 
-// The three price inputs on a service form, kept as the raw strings the
-// user typed. Editing pre-VAT or the rate recalculates post-VAT; editing
-// post-VAT recalculates pre-VAT. A field that can't be computed yet
-// (empty/invalid input) is cleared rather than left stale.
+// The price fields on a service form, kept as the raw strings the user typed.
+// Staff type what the customer pays (post-VAT) and the rate; pre-VAT is only
+// derived, and cleared rather than left stale when it can't be computed.
 export type VatFields = { pre: string; rate: string; post: string }
 
-export function updateVatFields(fields: VatFields, field: keyof VatFields, value: string): VatFields {
+export function updateVatFields(fields: VatFields, field: 'rate' | 'post', value: string): VatFields {
   const next = { ...fields, [field]: value }
   const rate = parseFloat(next.rate)
-  const rateOk = !Number.isNaN(rate) && rate >= 0 && rate <= 100
-  if (field === 'post') {
-    const post = parseFloat(next.post)
-    next.pre = rateOk && !Number.isNaN(post) ? priceWithoutVat(post, rate).toFixed(2) : ''
-  } else {
-    const pre = parseFloat(next.pre)
-    next.post = rateOk && !Number.isNaN(pre) ? priceWithVat(pre, rate).toFixed(2) : ''
-  }
+  const post = parseFloat(next.post)
+  const ok = !Number.isNaN(rate) && rate >= 0 && rate <= 100 && !Number.isNaN(post)
+  next.pre = ok ? priceWithoutVat(post, rate).toFixed(2) : ''
   return next
 }

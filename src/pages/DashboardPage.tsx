@@ -7,21 +7,31 @@ import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
 import { DUE_SOON_WINDOW_DAYS, nextVaccinationDateAfterDose, vaccinationStatus } from '../lib/vaccination'
 import { cancellationCategoryLabel, groupCancellationCounts } from '../lib/cancellation'
+import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import VaccinationBadge from '../components/VaccinationBadge'
 import RefreshButton from '../components/RefreshButton'
-import { formatDate } from '../lib/format'
+import { formatDate, formatMoney, formatTime } from '../lib/format'
 
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & {
   pets: { name: string } | null
 }
 type Pet = Database['public']['Tables']['pets']['Row']
+type TodayAppointment = {
+  id: string
+  scheduled_at: string
+  status: string
+  reason: string | null
+  pets: { name: string; owner_name: string } | null
+  doctor: { full_name: string } | null
+}
 
 function DashboardPage() {
   const { profile } = useAuth()
-  const { t } = useLanguage()
-  const [upcomingCount, setUpcomingCount] = useState(0)
+  const { t, language } = useLanguage()
+  const [today, setToday] = useState<TodayAppointment[]>([])
+  const [paymentsToday, setPaymentsToday] = useState<number[]>([])
   const [recentRecords, setRecentRecords] = useState<MedicalRecord[]>([])
   const [vaccinationsDue, setVaccinationsDue] = useState<Pet[]>([])
   const [cancellationCounts, setCancellationCounts] = useState<{ category: string; count: number }[]>([])
@@ -29,15 +39,25 @@ function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
-    const monthStart = new Date()
+    const dayStart = new Date()
+    dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    const monthStart = new Date(dayStart)
     monthStart.setDate(1)
-    monthStart.setHours(0, 0, 0, 0)
 
-    const [upcomingRes, recordsRes, petsRes, cancellationsRes] = await Promise.all([
+    const [todayRes, paymentsRes, recordsRes, petsRes, cancellationsRes] = await Promise.all([
       supabase
         .from('appointments')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['requested', 'confirmed']),
+        .select('id, scheduled_at, status, reason, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
+        .gte('scheduled_at', dayStart.toISOString())
+        .lt('scheduled_at', dayEnd.toISOString())
+        .order('scheduled_at', { ascending: true }),
+      supabase
+        .from('invoices')
+        .select('amount_total')
+        .gte('paid_at', dayStart.toISOString())
+        .lt('paid_at', dayEnd.toISOString()),
       supabase
         .from('medical_records')
         .select('*, pets(name)')
@@ -57,7 +77,8 @@ function DashboardPage() {
         .eq('status', 'cancelled')
         .gte('scheduled_at', monthStart.toISOString()),
     ])
-    setUpcomingCount(upcomingRes.count ?? 0)
+    setToday(todayRes.data ?? [])
+    setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount_total))
     setRecentRecords(recordsRes.data ?? [])
     setVaccinationsDue(
       (petsRes.data ?? []).filter((pet) => {
@@ -94,44 +115,161 @@ function DashboardPage() {
     )
   }
 
+  const active = today.filter((a) => a.status !== 'cancelled')
+  const done = active.filter((a) => a.status === 'completed').length
+  const toConfirm = active.filter((a) => a.status === 'requested').length
+  const now = Date.now()
+  const nextId = active.find((a) => a.status !== 'completed' && new Date(a.scheduled_at).getTime() >= now)?.id
+  const overdue = vaccinationsDue.filter((pet) => vaccinationStatus(pet.next_vaccination_date) === 'overdue').length
+  const paymentsTotal = paymentsToday.reduce((sum, amount) => sum + amount, 0)
+  // Latin digits in both languages, matching the rest of the app.
+  const todayLabel = new Date().toLocaleDateString(language === 'ar' ? 'ar-u-nu-latn' : 'en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
   return (
-    <div>
+    <div className="dashboard">
       <div className="page-header">
-        <h1>{t('dashboard.title')}</h1>
+        <div>
+          <h1>{t('dashboard.title')}</h1>
+          <p className="page-subtitle">{todayLabel}</p>
+        </div>
         <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
       </div>
 
-      <div className="stat-row">
+      <div className="dash-stats">
         <Link to="/appointments" className="stat-tile stat-tile-link">
+          <div className="stat-label">{t('dashboard.todayAppointments')}</div>
           <div className="stat-number" dir="ltr">
-            {upcomingCount}
+            {active.length}
           </div>
-          <div className="stat-label">{t('dashboard.upcomingAppointments')}</div>
+          <div className="stat-meta">{t('dashboard.doneLeft', { done: String(done), left: String(active.length - done) })}</div>
+        </Link>
+        <Link to="/appointments" className="stat-tile stat-tile-link">
+          <div className="stat-label">{t('dashboard.toConfirm')}</div>
+          <div className="stat-number" dir="ltr">
+            {toConfirm}
+          </div>
+          <div className="stat-meta">{t('dashboard.toConfirmHint')}</div>
+        </Link>
+        <Link to="/pets" className="stat-tile stat-tile-link">
+          <div className="stat-label">{t('dashboard.vaccinationsDue')}</div>
+          <div className="stat-number" dir="ltr">
+            {vaccinationsDue.length}
+          </div>
+          <div className={`stat-meta${overdue > 0 ? ' stat-meta-danger' : ''}`}>
+            {overdue > 0 ? t('dashboard.overdueCount', { count: String(overdue) }) : t('dashboard.noneOverdue')}
+          </div>
+        </Link>
+        <Link to="/payments" className="stat-tile stat-tile-link">
+          <div className="stat-label">{t('dashboard.todayPayments', { currency: t('common.currency') })}</div>
+          <div className="stat-number" dir="ltr">
+            {formatMoney(paymentsTotal)}
+          </div>
+          <div className="stat-meta">{t('dashboard.paymentCount', { count: String(paymentsToday.length) })}</div>
         </Link>
       </div>
 
-      <h2>{t('dashboard.vaccinationsDue')}</h2>
-      {vaccinationsDue.length === 0 ? (
-        <p>{t('dashboard.noneDue')}</p>
-      ) : (
-        <ul className="pet-list">
-          {vaccinationsDue.map((pet) => (
-            <li key={pet.id} className="pet-list-item">
-              <div className="pet-row">
-                <Link to="/pets" className="pet-row-toggle">
-                  <strong>{pet.name}</strong>
-                  {' — '}
-                  <Ltr>{formatDate(pet.next_vaccination_date!)}</Ltr>
-                </Link>
-                <VaccinationBadge nextDate={pet.next_vaccination_date} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="dash-columns">
+        <section className="dash-panel">
+          <div className="dash-panel-header">
+            <h2>{t('dashboard.todaySchedule')}</h2>
+            <Link to="/appointments" className="dash-panel-link">
+              {t('dashboard.openCalendar')}
+            </Link>
+          </div>
+          {today.length === 0 ? (
+            <p className="dash-empty">{t('dashboard.noAppointmentsToday')}</p>
+          ) : (
+            <ul className="dash-list">
+              {today.map((appt) => (
+                <li key={appt.id}>
+                  <Link
+                    to="/appointments"
+                    className={`dash-row today-row${appt.id === nextId ? ' is-next' : ''}${
+                      appt.status === 'completed' || appt.status === 'cancelled' ? ' is-past' : ''
+                    }`}
+                  >
+                    <span className="today-time">
+                      <Ltr>{formatTime(appt.scheduled_at)}</Ltr>
+                      {appt.id === nextId && <span className="today-next">{t('dashboard.next')}</span>}
+                    </span>
+                    <span className="dash-row-main">
+                      <strong>{appt.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                      <span className="dash-row-sub">
+                        {[appt.pets?.owner_name, appt.reason].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    <span className="today-doctor">{appt.doctor?.full_name ?? t('calendar.unassigned')}</span>
+                    <span className={`status-badge status-${appt.status}`}>
+                      {STATUS_LABEL_KEYS[appt.status] ? t(STATUS_LABEL_KEYS[appt.status]) : appt.status}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <div className="dash-side">
+          <section className="dash-panel">
+            <div className="dash-panel-header">
+              <h2>{t('dashboard.vaccinationsDue')}</h2>
+            </div>
+            {vaccinationsDue.length === 0 ? (
+              <p className="dash-empty">{t('dashboard.noneDue')}</p>
+            ) : (
+              <ul className="dash-list">
+                {vaccinationsDue.map((pet) => (
+                  <li key={pet.id}>
+                    <Link to={`/pets?highlight=${pet.id}`} className="dash-row">
+                      <span className="dash-row-main">
+                        <strong>{pet.name}</strong>
+                        <span className="dash-row-sub">
+                          {pet.owner_name} · <Ltr>{formatDate(pet.next_vaccination_date!)}</Ltr>
+                        </span>
+                      </span>
+                      <VaccinationBadge nextDate={pet.next_vaccination_date} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="dash-panel">
+            <div className="dash-panel-header">
+              <h2>{t('dashboard.recentMedicalRecords')}</h2>
+            </div>
+            {recentRecords.length === 0 ? (
+              <p className="dash-empty">{t('dashboard.noMedicalRecords')}</p>
+            ) : (
+              <ul className="dash-list">
+                {recentRecords.map((record) => (
+                  <li key={record.id}>
+                    <Link to={`/pets?highlight=${record.pet_id}`} className="dash-row">
+                      <span className="dash-row-main">
+                        <strong>{record.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                        <span className="dash-row-sub">
+                          {record.visit_type && `${visitTypeLabel(t, record.visit_type)} · `}
+                          <Ltr>{formatDate(record.visit_date)}</Ltr>
+                          {record.diagnosis && ` · ${record.diagnosis}`}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
 
       {cancellationCounts.length > 0 && (
-        <>
+        <section className="dash-footer">
           <h2>{t('dashboard.cancellationsThisMonth')}</h2>
           <ul className="cancellation-counts">
             {cancellationCounts.map(({ category, count }) => (
@@ -141,26 +279,7 @@ function DashboardPage() {
               </li>
             ))}
           </ul>
-        </>
-      )}
-
-      <h2>{t('dashboard.recentMedicalRecords')}</h2>
-      {recentRecords.length === 0 ? (
-        <p>{t('dashboard.noMedicalRecords')}</p>
-      ) : (
-        <ul className="pet-list">
-          {recentRecords.map((record) => (
-            <li key={record.id} className="pet-list-item">
-              <Link to={`/pets?highlight=${record.pet_id}`} className="pet-row-toggle">
-                <strong>{record.pets?.name ?? t('dashboard.unknownPet')}</strong>
-                {' — '}
-                <Ltr>{formatDate(record.visit_date)}</Ltr>
-                {record.visit_type && ` · ${visitTypeLabel(t, record.visit_type)}`}
-                {record.diagnosis && <div className="pet-owner">{record.diagnosis}</div>}
-              </Link>
-            </li>
-          ))}
-        </ul>
+        </section>
       )}
     </div>
   )

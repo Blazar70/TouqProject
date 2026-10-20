@@ -17,6 +17,8 @@ function toDate(value: string | Date): Date {
 
 export const formatDate = (value: string | Date) => toDate(value).toLocaleDateString('en-US', DATE)
 
+export const formatTime = (value: string | Date) => toDate(value).toLocaleTimeString('en-US', TIME)
+
 export const formatDateTime = (value: string | Date) => toDate(value).toLocaleString('en-US', { ...DATE, ...TIME })
 
 // yyyy-mm-dd for CSV exports, which spreadsheets read reliably.

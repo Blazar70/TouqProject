@@ -748,7 +748,7 @@
 }
 
 .stat-tile {
-  padding: 1.1rem 1.5rem;
+  padding: 1rem 1.5rem;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -771,8 +771,10 @@
 
 .stat-number {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--text-h);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
@@ -1026,6 +1028,22 @@
   border-radius: 0;
   flex: 1;
   background: transparent;
+}
+
+/* Base look for every field outside the forms below (filters, inline edits).
+   :where() keeps it at zero specificity so any component rule still wins. */
+:where(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), select, textarea) {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font: inherit;
+  color: var(--text-h);
+  background: var(--bg-raised);
+}
+
+:where(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
 }
 
 .login-form input,
@@ -2884,4 +2902,286 @@
 .admin-branch-picker > p {
   flex-basis: 100%;
   margin: 0;
+}
+
+/* ---- Dashboard (DashboardPage.tsx): today first ---- */
+.page-subtitle {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dash-stats .stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.dash-stats .stat-number {
+  margin-top: 0.25rem;
+}
+
+.stat-meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.stat-meta-danger {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.dash-columns {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.dash-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.dash-panel {
+  min-width: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dash-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-main .dash-panel-header h2,
+.app-main .dash-footer h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.app-main .dash-footer h2 {
+  margin-bottom: 0.75rem;
+}
+
+.dash-panel-link {
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.dash-panel-link:hover {
+  text-decoration: underline;
+}
+
+.dash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dash-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.dash-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.75rem 1.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-row:hover {
+  background: var(--bg-tint);
+}
+
+.dash-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dash-row .vaccination-badge {
+  flex: none;
+  white-space: nowrap;
+}
+
+.dash-row-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-row-main strong {
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.dash-row-sub {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.today-row {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) 10rem 6.5rem;
+}
+
+/* Fixed badge column so the doctor column lines up whatever the status. */
+.today-row .status-badge {
+  justify-self: end;
+}
+
+.today-time {
+  display: flex;
+  flex-direction: column;
+  color: var(--text-h);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.today-next {
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.today-doctor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+/* Next appointment: tint + a bar on the start edge (not colour alone). */
+.today-row.is-next {
+  background: var(--bg-tint);
+}
+
+.today-row.is-next::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--accent);
+}
+
+.today-row.is-past :is(.today-time, .dash-row-main strong, .today-doctor) {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.dash-empty {
+  padding: 1rem 1.5rem;
+  color: var(--text-muted);
+}
+
+.dash-footer {
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .dash-columns {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .dash-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dash-stats {
+    gap: 0.75rem;
+  }
+
+  .dash-stats .stat-tile {
+    padding: 1rem;
+  }
+
+  .dash-row {
+    padding-inline: 1rem;
+  }
+
+  .today-row {
+    grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+  }
+
+  .today-doctor {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+/* Payments price lookup + Settings service prices: the price with VAT leads. */
+.price-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.price-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+}
+
+.price-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.price-list span {
+  color: var(--text-h);
+}
+
+.price-list strong,
+.service-price {
+  color: var(--text-h);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.price-lookup-empty,
+.price-lookup-note,
+.vat-derived {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.price-lookup-empty {
+  margin-bottom: 0.75rem;
 }

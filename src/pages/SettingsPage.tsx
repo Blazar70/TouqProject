@@ -9,6 +9,7 @@ import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidClinicPhone, isV
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
+import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
 
@@ -177,9 +178,10 @@ function SettingsPage() {
     setSavingServiceId(null)
   }
 
-  // Pre-VAT, VAT %, post-VAT inputs shared by the add and edit service forms.
+  // Price with VAT (what the customer pays) + VAT %, shared by the add and edit
+  // service forms; the pre-VAT price is shown, not typed.
   function renderServicePriceInputs(fields: VatFields, setFields: (fields: VatFields) => void) {
-    const input = (field: keyof VatFields, max?: string) => (
+    const input = (field: 'rate' | 'post', max?: string) => (
       <input
         type="number"
         inputMode="decimal"
@@ -190,23 +192,22 @@ function SettingsPage() {
         step="0.01"
         value={fields[field]}
         onChange={(e) => setFields(updateVatFields(fields, field, e.target.value))}
-        required={field !== 'post'}
+        required
       />
     )
     return (
       <>
         <label>
-          {t('settings.priceBeforeVat')}
-          {input('pre')}
+          {t('settings.priceAfterVat')}
+          {input('post')}
         </label>
         <label>
           {t('settings.vatRate')}
           {input('rate', '100')}
         </label>
-        <label>
-          {t('settings.priceAfterVat')}
-          {input('post')}
-        </label>
+        <p className="vat-derived">
+          {t('settings.priceBeforeVat')}: <Ltr>{fields.pre || '—'}</Ltr>
+        </p>
       </>
     )
   }
@@ -411,12 +412,13 @@ function SettingsPage() {
                         {!service.active && (
                           <span className="status-badge status-cancelled">{t('settings.serviceInactive')}</span>
                         )}
+                        <div className="service-price">
+                          <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
+                        </div>
                         <div className="pet-owner">
-                          {t('settings.priceBeforeVat')}: <Ltr>{service.price.toFixed(2)}</Ltr>
+                          {t('settings.priceBeforeVat')}: <Ltr>{formatMoney(service.price)}</Ltr>
                           {' · '}
                           {t('settings.vatShort')}: <Ltr>{`${service.vat_rate}%`}</Ltr>
-                          {' · '}
-                          {t('settings.priceAfterVat')}: <Ltr>{priceWithVat(service.price, service.vat_rate).toFixed(2)}</Ltr>
                         </div>
                       </div>
                       <div className="record-actions">

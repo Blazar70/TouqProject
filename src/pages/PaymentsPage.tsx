@@ -55,6 +55,7 @@ function PaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [pets, setPets] = useState<Pet[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [priceQuery, setPriceQuery] = useState('')
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [petAppointments, setPetAppointments] = useState<Appointment[]>([])
 
@@ -309,6 +310,8 @@ function PaymentsPage() {
 
   if (loading) return <LoadingScreen />
 
+  const priceMatches = services.filter((s) => s.name.toLowerCase().includes(priceQuery.trim().toLowerCase()))
+
   return (
     <div>
       <h1>{t('payments.title')}</h1>
@@ -338,6 +341,35 @@ function PaymentsPage() {
           </div>
           <div className="stat-label">{t('payments.unverifiedCount')}</div>
         </div>
+      </div>
+
+      {/* Front desk quotes prices from here; Settings may become manager-only. */}
+      <div className="settings-section">
+        <h2>{t('payments.priceLookup')}</h2>
+        <input
+          type="search"
+          className="search-input"
+          placeholder={t('payments.priceLookupPlaceholder')}
+          aria-label={t('payments.priceLookup')}
+          value={priceQuery}
+          onChange={(e) => setPriceQuery(e.target.value)}
+        />
+        {priceQuery.trim() &&
+          (priceMatches.length === 0 ? (
+            <p className="price-lookup-empty">{t('payments.noServiceMatch')}</p>
+          ) : (
+            <ul className="price-list">
+              {priceMatches.map((service) => (
+                <li key={service.id}>
+                  <span>{service.name}</span>
+                  <strong>
+                    <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          ))}
+        <p className="price-lookup-note">{t('payments.pricesIncludeVat')}</p>
       </div>
 
       <div className="settings-section">

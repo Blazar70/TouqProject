@@ -36,21 +36,17 @@ describe('priceWithVat / priceWithoutVat', () => {
 describe('updateVatFields', () => {
   const empty = { pre: '', rate: '15', post: '' }
 
-  it('editing pre-VAT fills post-VAT', () => {
-    expect(updateVatFields(empty, 'pre', '100')).toEqual({ pre: '100', rate: '15', post: '115.00' })
-  })
-
   it('editing post-VAT fills pre-VAT', () => {
     expect(updateVatFields(empty, 'post', '115')).toEqual({ pre: '100.00', rate: '15', post: '115' })
   })
 
-  it('editing the rate recalculates post-VAT from pre-VAT', () => {
-    const fields = { pre: '100', rate: '15', post: '115.00' }
-    expect(updateVatFields(fields, 'rate', '5')).toEqual({ pre: '100', rate: '5', post: '105.00' })
+  it('editing the rate keeps the price customers pay and recalculates pre-VAT', () => {
+    const fields = { pre: '100.00', rate: '15', post: '115' }
+    expect(updateVatFields(fields, 'rate', '5')).toEqual({ pre: '109.52', rate: '5', post: '115' })
   })
 
-  it('clears the computed field when input is empty or invalid', () => {
-    expect(updateVatFields({ pre: '100', rate: '15', post: '115.00' }, 'pre', '').post).toBe('')
-    expect(updateVatFields({ pre: '100', rate: '15', post: '115.00' }, 'rate', '150').post).toBe('')
+  it('clears pre-VAT when input is empty or invalid', () => {
+    expect(updateVatFields({ pre: '100.00', rate: '15', post: '115' }, 'post', '').pre).toBe('')
+    expect(updateVatFields({ pre: '100.00', rate: '15', post: '115' }, 'rate', '150').pre).toBe('')
   })
 })
