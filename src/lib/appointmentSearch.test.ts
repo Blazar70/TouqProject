@@ -30,6 +30,10 @@ describe('matchesAppointmentSearch', () => {
     expect(matchesAppointmentSearch(appointment, '2026-07-23')).toBe(true)
   })
 
+  it('matches the date as the app displays it', () => {
+    expect(matchesAppointmentSearch(appointment, 'jul 23')).toBe(true)
+  })
+
   it('does not match an unrelated query', () => {
     expect(matchesAppointmentSearch(appointment, 'nonexistent')).toBe(false)
   })

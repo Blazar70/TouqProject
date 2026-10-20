@@ -22,6 +22,7 @@ import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import { ListSkeleton } from './Skeleton'
 import RequiredMark from './RequiredMark'
 import PhotoThumbnail from './PhotoThumbnail'
+import { formatDate } from '../lib/format'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
@@ -487,7 +488,7 @@ function PetDetail({
                       aria-expanded={expandedRecordId === record.id}
                     >
                       <span className="record-date">
-                        <Ltr>{new Date(record.visit_date).toLocaleDateString()}</Ltr>
+                        <Ltr>{formatDate(record.visit_date)}</Ltr>
                         {record.visit_type && ` · ${visitTypeLabel(t, record.visit_type)}`}
                       </span>
                       <ChevronDown

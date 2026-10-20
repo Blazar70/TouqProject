@@ -15,6 +15,7 @@ import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import { vaccinationStatus, nextVaccinationDateAfterDose } from '../lib/vaccination'
+import { formatDate } from '../lib/format'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -332,7 +333,7 @@ function PetsPage() {
                         <div>
                           <strong>{pet.name}</strong>
                           <div className="pet-owner">
-                            {t('trash.trashedOn')}: <Ltr>{deletedAt.toLocaleDateString()}</Ltr> ·{' '}
+                            {t('trash.trashedOn')}: <Ltr>{formatDate(deletedAt)}</Ltr> ·{' '}
                             {t('trash.daysUntilPurge', { count: String(daysLeft) })}
                           </div>
                         </div>

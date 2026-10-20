@@ -17,6 +17,7 @@ import RequiredMark from '../components/RequiredMark'
 import LoadingScreen from '../components/LoadingScreen'
 import SimpleBarChart from '../components/SimpleBarChart'
 import Ltr from '../components/Ltr'
+import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -233,7 +234,7 @@ function AdminPage() {
       const start = new Date(end)
       start.setDate(start.getDate() - 7)
       weeks.push({
-        label: start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         value: 0,
         start: start.getTime(),
         end: end.getTime(),
@@ -727,7 +728,7 @@ function AdminPage() {
         staffCounts[c.id] ?? 0,
         petCounts[c.id] ?? 0,
         appointmentCounts[c.id] ?? 0,
-        new Date(c.created_at).toLocaleDateString(),
+        formatIsoDate(c.created_at),
       ]),
     )
   }
@@ -1109,7 +1110,7 @@ function AdminPage() {
                     ) : (
                       <div className="panel-header">
                         <p className="pet-owner">
-                          {t('admin.createdOn')}: <Ltr>{new Date(clinic.created_at).toLocaleDateString()}</Ltr>
+                          {t('admin.createdOn')}: <Ltr>{formatDate(clinic.created_at)}</Ltr>
                           {clinic.disabled && <span className="status-badge status-cancelled"> {t('admin.disabledBadge')}</span>}
                         </p>
                         <div className="page-header-actions">
@@ -1239,7 +1240,7 @@ function AdminPage() {
                     {petModalData.date_of_birth && (
                       <p>
                         <strong>{t('registerPet.dateOfBirth')}:</strong>{' '}
-                        <Ltr>{new Date(petModalData.date_of_birth).toLocaleDateString()}</Ltr>
+                        <Ltr>{formatDate(petModalData.date_of_birth)}</Ltr>
                       </p>
                     )}
                     <p>
@@ -1258,7 +1259,7 @@ function AdminPage() {
                     {petModalData.next_vaccination_date && (
                       <p>
                         <strong>{t('vaccination.nextDue')}:</strong>{' '}
-                        <Ltr>{new Date(petModalData.next_vaccination_date).toLocaleDateString()}</Ltr>
+                        <Ltr>{formatDate(petModalData.next_vaccination_date)}</Ltr>
                       </p>
                     )}
                     <p>
@@ -1370,7 +1371,7 @@ function AdminPage() {
                         )}
                         <p>
                           <strong>{t('admin.memberSince')}:</strong>{' '}
-                          <Ltr>{new Date(userModalProfile.created_at).toLocaleDateString()}</Ltr>
+                          <Ltr>{formatDate(userModalProfile.created_at)}</Ltr>
                         </p>
                         {userModalLoading ? (
                           <p>{t('common.loading')}</p>
@@ -1538,7 +1539,7 @@ function AdminPage() {
                         <div>
                           <strong>{clinic.name}</strong>
                           <div className="pet-owner">
-                            {t('admin.trashedOn')}: <Ltr>{deletedAt.toLocaleDateString()}</Ltr> ·{' '}
+                            {t('admin.trashedOn')}: <Ltr>{formatDate(deletedAt)}</Ltr> ·{' '}
                             {t('admin.daysUntilPurge', { count: String(daysLeft) })}
                           </div>
                         </div>
@@ -1592,7 +1593,7 @@ function AdminPage() {
                     <strong>{entry.actor_name}</strong> {auditActionLabel(entry.action)}
                     {entry.target_label ? ` — ${entry.target_label}` : ''}
                     <div className="record-date">
-                      <Ltr>{new Date(entry.created_at).toLocaleString()}</Ltr>
+                      <Ltr>{formatDateTime(entry.created_at)}</Ltr>
                     </div>
                   </li>
                 ))}

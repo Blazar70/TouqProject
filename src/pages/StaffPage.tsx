@@ -15,6 +15,7 @@ import PhoneInput from '../components/PhoneInput'
 import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
+import { formatDate } from '../lib/format'
 
 type Caregiver = Database['public']['Tables']['caregivers']['Row']
 
@@ -359,7 +360,7 @@ function StaffPage() {
                         <div>
                           <strong>{member.name}</strong>
                           <div className="pet-owner">
-                            {t('trash.trashedOn')}: <Ltr>{deletedAt.toLocaleDateString()}</Ltr> ·{' '}
+                            {t('trash.trashedOn')}: <Ltr>{formatDate(deletedAt)}</Ltr> ·{' '}
                             {t('trash.daysUntilPurge', { count: String(daysLeft) })}
                           </div>
                         </div>

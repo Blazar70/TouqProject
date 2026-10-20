@@ -11,6 +11,7 @@ import RequiredMark from '../components/RequiredMark'
 import LoadingScreen from '../components/LoadingScreen'
 import Ltr from '../components/Ltr'
 import ClinicPicker from '../components/ClinicPicker'
+import { formatDate, formatIsoDate, formatMoney } from '../lib/format'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
 type Payment = Database['public']['Tables']['payments']['Row']
@@ -210,9 +211,9 @@ function AdminBillingPage() {
         clinicNameById[p.clinic_id] ?? '',
         p.amount,
         p.status,
-        p.due_date ? new Date(p.due_date).toLocaleDateString() : '',
-        p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '',
-        new Date(p.created_at).toLocaleDateString(),
+        p.due_date ? formatIsoDate(p.due_date) : '',
+        p.paid_at ? formatIsoDate(p.paid_at) : '',
+        formatIsoDate(p.created_at),
       ]),
     )
   }
@@ -307,17 +308,17 @@ function AdminBillingPage() {
                     {payment.status}
                   </span>
                   <div className="pet-owner">
-                    <Ltr>{payment.amount.toFixed(2)}</Ltr>
+                    <Ltr>{formatMoney(payment.amount)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
                     {payment.due_date && (
                       <>
                         {' · '}
-                        {t('admin.paymentDueDate')}: <Ltr>{new Date(payment.due_date).toLocaleDateString()}</Ltr>
+                        {t('admin.paymentDueDate')}: <Ltr>{formatDate(payment.due_date)}</Ltr>
                       </>
                     )}
                     {payment.paid_at && (
                       <>
                         {' · '}
-                        {t('admin.paymentPaidOn')}: <Ltr>{new Date(payment.paid_at).toLocaleDateString()}</Ltr>
+                        {t('admin.paymentPaidOn')}: <Ltr>{formatDate(payment.paid_at)}</Ltr>
                       </>
                     )}
                   </div>

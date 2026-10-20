@@ -13,6 +13,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
+import { formatDateTime, formatMoney } from '../lib/format'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
@@ -314,19 +315,19 @@ function PaymentsPage() {
       <div className="stat-row">
         <div className="stat-tile">
           <div className="stat-number" dir="ltr">
-            <Ltr>{todayTotals.total.toFixed(2)}</Ltr>
+            <Ltr>{formatMoney(todayTotals.total)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
           </div>
           <div className="stat-label">{t('payments.todayTotal')}</div>
         </div>
         <div className="stat-tile">
           <div className="stat-number" dir="ltr">
-            <Ltr>{todayTotals.cash.toFixed(2)}</Ltr>
+            <Ltr>{formatMoney(todayTotals.cash)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
           </div>
           <div className="stat-label">{t('payments.todayCash')}</div>
         </div>
         <div className="stat-tile">
           <div className="stat-number" dir="ltr">
-            <Ltr>{todayTotals.nonCash.toFixed(2)}</Ltr>
+            <Ltr>{formatMoney(todayTotals.nonCash)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
           </div>
           <div className="stat-label">{t('payments.todayNonCash')}</div>
         </div>
@@ -356,7 +357,7 @@ function PaymentsPage() {
                 <option value="">{t('payments.noAppointment')}</option>
                 {petAppointments.map((appt) => (
                   <option key={appt.id} value={appt.id}>
-                    {new Date(appt.scheduled_at).toLocaleString()}
+                    {formatDateTime(appt.scheduled_at)}
                     {appt.reason ? ` — ${appt.reason}` : ''}
                   </option>
                 ))}
@@ -372,7 +373,7 @@ function PaymentsPage() {
                   <option value="">{t('payments.customItem')}</option>
                   {services.map((service) => (
                     <option key={service.id} value={service.id}>
-                      {service.name} — {priceWithVat(service.price, service.vat_rate).toFixed(2)}
+                      {service.name} — {formatMoney(priceWithVat(service.price, service.vat_rate))} {t('common.currency')}
                     </option>
                   ))}
                 </select>
@@ -446,7 +447,7 @@ function PaymentsPage() {
           </label>
 
           <p className="invoice-total">
-            {t('payments.total')}: <Ltr>{amountTotal.toFixed(2)}</Ltr>
+            {t('payments.total')}: <Ltr>{formatMoney(amountTotal)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
           </p>
 
           <button type="submit" className="primary-button" disabled={saving}>
@@ -539,11 +540,11 @@ function PaymentsPage() {
                         {t(invoice.status === 'verified' ? 'payments.statusVerified' : 'payments.statusRecorded')}
                       </span>
                       <div className="pet-owner">
-                        <Ltr>{invoice.amount_total.toFixed(2)}</Ltr>
+                        <Ltr>{formatMoney(invoice.amount_total)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
                         {' · '}
                         {t(METHOD_LABEL_KEYS[invoice.method as PaymentMethod])}
                         {' · '}
-                        <Ltr>{new Date(invoice.paid_at).toLocaleString()}</Ltr>
+                        <Ltr>{formatDateTime(invoice.paid_at)}</Ltr>
                       </div>
                     </div>
                     <div className="record-actions">

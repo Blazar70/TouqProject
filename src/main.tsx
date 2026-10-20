@@ -10,6 +10,7 @@ import { ConfirmProvider } from './lib/ConfirmContext'
 import { ToastProvider } from './lib/ToastContext'
 import { PrintProvider } from './lib/PrintContext'
 import OfflineBanner from './components/OfflineBanner'
+import UpdatePrompt from './components/UpdatePrompt'
 
 // A data router (rather than plain BrowserRouter) is required for
 // useBlocker — the hook that lets a dirty form stop in-app navigation
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       <ThemeProvider>
         <LanguageProvider>
           <OfflineBanner />
+          <UpdatePrompt />
           <AuthProvider>
             <ToastProvider>
               <ConfirmProvider>

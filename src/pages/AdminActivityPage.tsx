@@ -5,6 +5,7 @@ import type { Database } from '../lib/database.types'
 import { auditActionLabelKey } from '../lib/adminAudit'
 import LoadingScreen from '../components/LoadingScreen'
 import Ltr from '../components/Ltr'
+import { formatDateTime } from '../lib/format'
 
 type AuditLogEntry = Database['public']['Tables']['admin_audit_log']['Row']
 
@@ -47,7 +48,7 @@ function AdminActivityPage() {
               <strong>{entry.actor_name}</strong> {auditActionLabel(entry.action)}
               {entry.target_label ? ` — ${entry.target_label}` : ''}
               <div className="record-date">
-                <Ltr>{new Date(entry.created_at).toLocaleString()}</Ltr>
+                <Ltr>{formatDateTime(entry.created_at)}</Ltr>
               </div>
             </li>
           ))}
