@@ -65,9 +65,8 @@
 
 .app-brand-group {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.6rem;
+  flex-direction: column;
+  gap: 0.25rem;
   min-width: 0;
 }
 
@@ -214,9 +213,55 @@
   background: rgba(0, 0, 0, 0.45);
 }
 
-/* Portrait tablet: icon rail. Labels stay in the DOM (accessible names) and
-   show as tooltips on hover; the toggle expands the rail to full width. */
-@media (min-width: 768px) and (max-width: 1023.98px) {
+/* Desktop with a mouse: an icon rail that widens over the content while
+   hovered or keyboard-focused, and closes when the pointer leaves. The negative
+   margin keeps the page from moving; icons stay put and labels fade in. */
+@media (min-width: 1024px) and (hover: hover) {
+  .app-sidebar {
+    flex-basis: 72px;
+    width: 72px;
+    overflow-x: hidden;
+    transition:
+      flex-basis 0.18s ease 0.15s,
+      width 0.18s ease 0.15s,
+      margin 0.18s ease 0.15s,
+      box-shadow 0.18s ease 0.15s;
+  }
+
+  .app-sidebar:is(:hover, :has(:focus-visible)) {
+    flex-basis: 240px;
+    width: 240px;
+    margin-inline-end: -168px;
+    box-shadow: var(--shadow);
+    transition-delay: 0.05s;
+  }
+
+  .app-sidebar:not(:hover, :has(:focus-visible)) {
+    scrollbar-width: none;
+  }
+
+  .app-sidebar .nav-item-label {
+    white-space: nowrap;
+  }
+
+  .app-sidebar :is(.app-brand-group, .nav-section-title, .nav-item-label, .app-clinic-name, .app-sidebar-footer) {
+    transition: opacity 0.15s ease 0.15s;
+  }
+
+  .app-sidebar:not(:hover, :has(:focus-visible))
+    :is(.app-brand-group, .nav-section-title, .nav-item-label, .app-clinic-name, .app-sidebar-footer) {
+    opacity: 0;
+    transition-delay: 0s;
+  }
+}
+
+/* Tablets (touch, either orientation): icon rail. Labels stay in the DOM
+   (accessible names); tapping the rail or the toggle expands it to full width. */
+@media (min-width: 768px) and (max-width: 1023.98px), (min-width: 1024px) and (hover: none) {
+  .app-sidebar:not(.is-open) {
+    scrollbar-width: none;
+  }
+
   .app-sidebar {
     flex-basis: 72px;
     width: 72px;
@@ -236,12 +281,12 @@
     display: none;
   }
 
-  .app-sidebar:not(.is-open) .nav-item {
+  .app-sidebar:not(.is-open) :is(.nav-item, .app-clinic) {
     justify-content: center;
     padding-inline: 0;
   }
 
-  .app-sidebar:not(.is-open) :is(.nav-item-label, .nav-section-title) {
+  .app-sidebar:not(.is-open) :is(.nav-item-label, .nav-section-title, .app-clinic-name) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -321,7 +366,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-sidebar,
-  .app-sidebar.is-open {
+  .app-sidebar.is-open,
+  .app-sidebar * {
     transition: none;
   }
 }
@@ -333,14 +379,46 @@
   letter-spacing: -0.01em;
 }
 
-.app-clinic-name {
-  padding: 0.3rem 0.75rem;
-  background: var(--bg-tint);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
+/* Clinic identity: initials badge + name. In the rail only the badge shows. */
+.app-clinic {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.app-clinic-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--bg-tint-hover);
   color: var(--accent);
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.app-clinic-name {
+  min-width: 0;
+  color: var(--text-h);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.app-topbar .app-clinic-name {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .app-loading-screen {
@@ -1654,38 +1732,52 @@
 }
 
 .status-requested {
-  background: #fdf3d9;
-  color: #8a6d1a;
+  --status-bg: var(--status-amber-bg);
+  --status-fg: var(--status-amber-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .status-confirmed {
-  background: #dbeafe;
-  color: #1d4ed8;
+  --status-bg: var(--status-blue-bg);
+  --status-fg: var(--status-blue-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .status-completed {
-  background: #dcfce7;
-  color: #15803d;
+  --status-bg: var(--status-green-bg);
+  --status-fg: var(--status-green-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .status-cancelled {
-  background: #fde2e1;
-  color: #b91c1c;
+  --status-bg: var(--danger-bg);
+  --status-fg: var(--danger);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .status-active {
-  background: #dcfce7;
-  color: #15803d;
+  --status-bg: var(--status-green-bg);
+  --status-fg: var(--status-green-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .status-trial {
-  background: #dbeafe;
-  color: #1d4ed8;
+  --status-bg: var(--status-blue-bg);
+  --status-fg: var(--status-blue-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .status-overdue {
-  background: #fdf3d9;
-  color: #8a6d1a;
+  --status-bg: var(--status-amber-bg);
+  --status-fg: var(--status-amber-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
 }
 
 .vaccination-badge {
@@ -2163,4 +2255,335 @@
   .pet-form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Appointments calendar (react-big-calendar), themed with the app tokens so
+   it follows light/dark. The wrapper is dir="ltr" in both languages. */
+.appointments-calendar {
+  height: min(78dvh, 920px);
+  min-height: 520px;
+  padding: 0.75rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.appointments-calendar .rbc-toolbar {
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.appointments-calendar .rbc-toolbar-label {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.appointments-calendar .rbc-toolbar button {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-tint);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.appointments-calendar .rbc-toolbar button:hover,
+.appointments-calendar .rbc-toolbar button:focus-visible {
+  border-color: var(--accent);
+  background: var(--bg-tint-hover);
+  color: var(--accent);
+}
+
+.appointments-calendar .rbc-toolbar button.rbc-active {
+  border-color: var(--accent);
+  background: var(--bg-tint-hover);
+  color: var(--accent);
+  box-shadow: none;
+}
+
+/* Every library border takes the theme colour (the event rule below re-sets its own). */
+.appointments-calendar :is([class^='rbc-'], [class*=' rbc-']) {
+  border-color: var(--border);
+}
+
+.appointments-calendar :is(.rbc-time-gutter, .rbc-time-header-gutter) {
+  background: var(--bg-raised);
+}
+
+.appointments-calendar .rbc-time-header-content > .rbc-row-resource {
+  flex: 1; /* every doctor's header fills the row, with or without a job title */
+  border-bottom-color: var(--border);
+}
+
+/* Day view with doctor columns repeats the date under each doctor; the toolbar already shows it. */
+.appointments-calendar .rbc-time-view-resources .rbc-time-header-cell {
+  display: none;
+}
+
+/* Taller hours so a 30-minute appointment fits its name and reason. */
+.appointments-calendar .rbc-timeslot-group {
+  min-height: 88px;
+}
+
+.appointments-calendar .rbc-time-view {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* Appointments are never all-day, so the empty all-day strip goes. */
+.appointments-calendar .rbc-allday-cell {
+  display: none;
+}
+
+.appointments-calendar .rbc-header {
+  padding: 0.5rem;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.appointments-calendar .rbc-day-slot .rbc-time-slot {
+  border-top-color: color-mix(in srgb, var(--border) 45%, transparent);
+}
+
+.appointments-calendar .rbc-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.appointments-calendar .rbc-today {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.appointments-calendar .rbc-current-time-indicator {
+  height: 2px;
+  background: var(--accent);
+}
+
+/* "Now" pill drawn on the current-time line itself, so it scrolls with it. The
+   library draws that line once per doctor column (equal widths), so only the
+   first segment gets the pill, shifted to the middle of the whole line. */
+.appointments-calendar .rbc-current-time-indicator::after {
+  content: var(--now-label);
+  position: absolute;
+  top: 50%;
+  inset-inline-start: calc(var(--now-cols, 1) * 50%);
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+  box-shadow: var(--shadow);
+}
+
+.appointments-calendar .rbc-time-view-resources .rbc-day-slot ~ .rbc-day-slot .rbc-current-time-indicator::after {
+  display: none;
+}
+
+/* The pill's segment sits one layer up, or the next column's line paints across its text. */
+.appointments-calendar .rbc-time-view-resources .rbc-time-gutter + .rbc-day-slot .rbc-current-time-indicator {
+  z-index: 4;
+}
+
+.appointments-calendar .rbc-slot-selection {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  color: var(--text-h);
+}
+
+.appointments-calendar .rbc-event {
+  padding: 0.25rem 0.5rem;
+  border: none;
+  border-inline-start: 3px solid currentColor;
+  border-radius: 6px;
+  /* The status tint layered on the panel colour, so grid lines don't show through in dark mode. */
+  background: linear-gradient(var(--status-bg), var(--status-bg)) var(--bg-raised);
+  color: var(--status-fg);
+  font-size: 0.78rem;
+}
+
+.appointments-calendar .rbc-event.rbc-selected,
+.appointments-calendar .rbc-event:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The time axis already shows the time; the block shows name and reason. */
+.appointments-calendar .rbc-event-label {
+  display: none;
+}
+
+.calendar-event-content {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.calendar-event-content > * {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar-resource-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 2.5rem; /* same height with or without a job title */
+  padding-block: 0.25rem;
+}
+
+.calendar-resource-header span {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.appointment-schedule-hint {
+  grid-column: 1 / -1;
+  margin: -0.5rem 0 0;
+}
+
+/* Search: results drop down under the box; picking one jumps the calendar there. */
+.appointment-search {
+  position: relative;
+}
+
+.appointment-search-results {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% - 1rem);
+  z-index: 30;
+  max-height: 320px;
+  margin: 0;
+  padding: 0.25rem;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.appointment-search-results li.pet-owner {
+  padding: 0.5rem 0.75rem;
+}
+
+.appointment-search-results button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  text-align: start;
+  cursor: pointer;
+}
+
+.appointment-search-results button:hover,
+.appointment-search-results button:focus-visible {
+  background: var(--bg-tint);
+}
+
+.appointment-search-results .status-badge {
+  margin-inline-start: auto;
+}
+
+/* Appointment dialog opened from the calendar. */
+.appointment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.appointment-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.appointment-panel-header h2 {
+  margin: 0 0 0.25rem;
+}
+
+.appointment-panel-header p {
+  margin: 0.25rem 0;
+}
+
+.appointment-panel-record {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.appointment-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.appointment-panel-actions .cancel-button {
+  margin-inline-start: auto;
+}
+
+/* Session page: header (with the running timer) stays visible while scrolling the form. */
+.session-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-block: 0.75rem;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.session-header h1 {
+  margin: 0 0 0.25rem;
+}
+
+.session-header p {
+  margin: 0.25rem 0;
+}
+
+.session-eyebrow {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.session-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--bg-tint-hover);
+  color: var(--accent);
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.session-form {
+  max-width: 760px;
 }

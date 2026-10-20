@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Calendar, dayjsLocalizer } from 'react-big-calendar'
+import type { View } from 'react-big-calendar'
+import dayjs from 'dayjs'
+import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
-import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
+import { visitTypeLabel } from '../lib/visitTypes'
 import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { matchesAppointmentSearch } from '../lib/appointmentSearch'
 import { CONFLICT_WINDOW_MS, findAppointmentConflicts } from '../lib/appointmentConflicts'
 import type { ConflictCandidate } from '../lib/appointmentConflicts'
 import { CANCELLATION_CATEGORIES, cancellationCategoryLabel } from '../lib/cancellation'
-import { parseVitals, visitRecordFields } from '../lib/clinicalFields'
-import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
-import { usePasteImage } from '../lib/usePasteImage'
-import { useDropImage } from '../lib/useDropImage'
+import { visitRecordFields } from '../lib/clinicalFields'
+import { notifyStatusChange } from '../lib/push'
 import { usePrintSummary } from '../lib/PrintContext'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import PetPicker from '../components/PetPicker'
@@ -31,29 +34,23 @@ type Appointment = Database['public']['Tables']['appointments']['Row'] & {
 type Pet = Database['public']['Tables']['pets']['Row']
 type Caregiver = Database['public']['Tables']['caregivers']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
+type CalendarEvent = { id: string; title: string; start: Date; end: Date; resourceId: string; appointment: Appointment }
+type CalendarResource = { id: string; title: string; subtitle: string | null }
 
-const ARCHIVED_STATUSES = new Set(['completed', 'cancelled'])
-
-type PendingAction = { appointmentId: string; kind: 'cancel' | 'complete' | 'reschedule' }
-
-const PAST_PAGE_SIZE = 10
-const ACTIVE_STATUSES = ['requested', 'confirmed']
+const localizer = dayjsLocalizer(dayjs)
 const APPOINTMENT_SELECT = '*, pets(name, owner_phone), caregivers(name)'
+const UNASSIGNED = 'unassigned'
+// shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
+const SLOT_MS = 30 * 60_000
+// shortcut: search scans the latest 500 appointments in the browser; move to a server-side search when a clinic outgrows that.
+const SEARCH_POOL_SIZE = 500
+
+type PanelMode = 'details' | 'cancel' | 'reschedule'
 
 function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {
   const map = new Map(current.map((row) => [row.id, row]))
   for (const row of incoming) map.set(row.id, row)
   return Array.from(map.values())
-}
-
-// Midnight today through `days` days out — the active list loads one day
-// at a time rather than every future appointment ever scheduled.
-function activeWindow(days: number) {
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(start)
-  end.setDate(end.getDate() + days)
-  return { start, end }
 }
 
 // The form's 12-hour picker (hour, minute, AM/PM) as a UTC ISO timestamp.
@@ -63,9 +60,19 @@ function toScheduledAt(date: string, hour: string, minute: string, period: strin
   return new Date(`${date}T${String(hour24).padStart(2, '0')}:${minute}`).toISOString()
 }
 
-// A dedicated query, not the loaded `appointments` state — that only holds
-// the currently-paginated window, which could easily miss a real conflict
-// sitting outside it (e.g. days ahead of what's loaded).
+// A date as the 12-hour picker's fields.
+function toPickerFields(date: Date) {
+  const hour24 = date.getHours()
+  return {
+    date: date.toLocaleDateString('en-CA'), // yyyy-mm-dd, matches <input type="date">
+    hour: String(hour24 % 12 || 12),
+    minute: String(Math.floor(date.getMinutes() / 15) * 15).padStart(2, '0'),
+    period: (hour24 >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
+  }
+}
+
+// A dedicated query, not the loaded calendar range — that only holds the
+// visible day or week and could miss a real conflict just outside it.
 async function fetchConflicts(candidate: ConflictCandidate) {
   const time = new Date(candidate.scheduledAt).getTime()
   const { data: nearby } = await supabase
@@ -77,10 +84,17 @@ async function fetchConflicts(candidate: ConflictCandidate) {
   return findAppointmentConflicts(nearby ?? [], candidate)
 }
 
+function visibleRange(date: Date, view: View) {
+  const unit = view === 'week' ? 'week' : 'day'
+  const start = dayjs(date).startOf(unit)
+  return { start: start.toDate(), end: start.add(1, unit).toDate() }
+}
+
 function AppointmentsPage() {
   const { profile } = useAuth()
   const { t } = useLanguage()
   const toast = useToast()
+  const navigate = useNavigate()
   const { printSummary } = usePrintSummary()
   const isVet = profile?.role === 'vet'
 
@@ -89,19 +103,26 @@ function AppointmentsPage() {
   const [staff, setStaff] = useState<Caregiver[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showArchive, setShowArchive] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [date, setDate] = useState(() => new Date())
+  const [view, setView] = useState<View>('day')
+
   const [search, setSearch] = useState('')
-  const [activeDays, setActiveDays] = useState(1)
-  const [hasMoreActive, setHasMoreActive] = useState(false)
-  const [loadingMoreActive, setLoadingMoreActive] = useState(false)
-  const [pastLimit, setPastLimit] = useState(PAST_PAGE_SIZE)
-  const [pastTotal, setPastTotal] = useState(0)
-  const [hasMorePast, setHasMorePast] = useState(false)
-  const [loadingMorePast, setLoadingMorePast] = useState(false)
-  const [expandedAppointmentId, setExpandedAppointmentId] = useState<string | null>(null)
-  const [recordsByAppointment, setRecordsByAppointment] = useState<Record<string, MedicalRecord | null>>({})
-  const [loadingRecordId, setLoadingRecordId] = useState<string | null>(null)
-  const [includePhotoByRecord, setIncludePhotoByRecord] = useState<Record<string, boolean>>({})
+  const [searchPool, setSearchPool] = useState<Appointment[] | null>(null)
+
+  const [selected, setSelected] = useState<Appointment | null>(null)
+  const [panelMode, setPanelMode] = useState<PanelMode>('details')
+  const [record, setRecord] = useState<MedicalRecord | null | undefined>(undefined)
+  const [includePhoto, setIncludePhoto] = useState(true)
+  const [cancelCategory, setCancelCategory] = useState('')
+  const [cancelReason, setCancelReason] = useState('')
+  const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleHour, setRescheduleHour] = useState('')
+  const [rescheduleMinute, setRescheduleMinute] = useState('')
+  const [reschedulePeriod, setReschedulePeriod] = useState<'AM' | 'PM'>('AM')
+  const [rescheduleConflicts, setRescheduleConflicts] = useState<Appointment[]>([])
+  const [savingPanel, setSavingPanel] = useState(false)
+  const [panelError, setPanelError] = useState<string | null>(null)
 
   const [petId, setPetId] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
@@ -115,141 +136,160 @@ function AppointmentsPage() {
   const [conflictAcknowledged, setConflictAcknowledged] = useState(false)
   const scheduleFormRef = useRef<HTMLFormElement>(null)
 
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
-  const [cancelCategory, setCancelCategory] = useState('')
-  const [cancelReason, setCancelReason] = useState('')
-  const [completionVisitType, setCompletionVisitType] = useState('')
-  const [completionComplaint, setCompletionComplaint] = useState('')
-  const [completionWeight, setCompletionWeight] = useState('')
-  const [completionTemperature, setCompletionTemperature] = useState('')
-  const [completionHeartRate, setCompletionHeartRate] = useState('')
-  const [completionPhysicalExam, setCompletionPhysicalExam] = useState('')
-  const [completionDiagnosis, setCompletionDiagnosis] = useState('')
-  const [completionDiagnosticPlan, setCompletionDiagnosticPlan] = useState('')
-  const [completionTreatment, setCompletionTreatment] = useState('')
-  const [completionRemarks, setCompletionRemarks] = useState('')
-  const [completionPhotoFile, setCompletionPhotoFile] = useState<File | null>(null)
-  const [completionPhotoPreviewUrl, setCompletionPhotoPreviewUrl] = useState<string | null>(null)
-  const [savingPending, setSavingPending] = useState(false)
-  const [rescheduleDate, setRescheduleDate] = useState('')
-  const [rescheduleHour, setRescheduleHour] = useState('')
-  const [rescheduleMinute, setRescheduleMinute] = useState('')
-  const [reschedulePeriod, setReschedulePeriod] = useState<'AM' | 'PM'>('AM')
-  const [rescheduleConflicts, setRescheduleConflicts] = useState<Appointment[]>([])
-  const [rescheduleConflictAcknowledged, setRescheduleConflictAcknowledged] = useState(false)
+  useUnsavedChangesWarning(Boolean(petId || scheduledDate || reason) || (selected !== null && panelMode !== 'details'))
 
-  // Also guards the inline cancel/complete/reschedule panels above — opening
-  // one is a deliberate, stateful action, so leaving it open while
-  // navigating away is worth a confirm just like an unsaved form field.
-  useUnsavedChangesWarning(Boolean(petId || scheduledDate || reason) || pendingAction !== null)
+  const { start: rangeStart, end: rangeEnd } = visibleRange(date, view)
+  const rangeKey = `${rangeStart.getTime()}-${rangeEnd.getTime()}`
 
-  // Rows that just changed status/time get a brief highlight so the change
-  // is easy to spot in a list that can otherwise silently re-sort under you.
-  const [recentlyUpdatedIds, setRecentlyUpdatedIds] = useState<Set<string>>(new Set())
-  function flashUpdated(id: string) {
-    setRecentlyUpdatedIds((current) => new Set(current).add(id))
-    setTimeout(() => {
-      setRecentlyUpdatedIds((current) => {
-        const next = new Set(current)
-        next.delete(id)
-        return next
-      })
-    }, 2000)
-  }
-
-  async function loadActive(days: number) {
-    const { start, end } = activeWindow(days)
-    const { data, error: activeError } = await supabase
+  async function loadRange() {
+    const { data, error: loadError } = await supabase
       .from('appointments')
       .select(APPOINTMENT_SELECT)
-      .in('status', ACTIVE_STATUSES)
-      .gte('scheduled_at', start.toISOString())
-      .lt('scheduled_at', end.toISOString())
+      .gte('scheduled_at', rangeStart.toISOString())
+      .lt('scheduled_at', rangeEnd.toISOString())
       .order('scheduled_at', { ascending: true })
-    if (activeError) {
-      setError(activeError.message)
-      return
-    }
-    setAppointments((current) => mergeById(current, data ?? []))
-
-    // Only checks the immediate next day, not "anything further in the
-    // future" — so the button reflects whether clicking it will actually
-    // surface something, rather than staying lit for days on an appointment
-    // that's still a week out.
-    const nextDayEnd = new Date(end)
-    nextDayEnd.setDate(nextDayEnd.getDate() + 1)
-    const { count } = await supabase
-      .from('appointments')
-      .select('id', { count: 'exact', head: true })
-      .in('status', ACTIVE_STATUSES)
-      .gte('scheduled_at', end.toISOString())
-      .lt('scheduled_at', nextDayEnd.toISOString())
-    setHasMoreActive((count ?? 0) > 0)
-  }
-
-  async function loadPast(limit: number) {
-    const { data, error: pastError } = await supabase
-      .from('appointments')
-      .select(APPOINTMENT_SELECT)
-      .in('status', Array.from(ARCHIVED_STATUSES))
-      .order('scheduled_at', { ascending: false })
-      .range(0, limit - 1)
-    if (pastError) {
-      setError(pastError.message)
-      return
-    }
-    setAppointments((current) => mergeById(current, data ?? []))
-
-    const { count } = await supabase
-      .from('appointments')
-      .select('id', { count: 'exact', head: true })
-      .in('status', Array.from(ARCHIVED_STATUSES))
-    setPastTotal(count ?? 0)
-    setHasMorePast((count ?? 0) > limit)
-  }
-
-  async function loadData() {
-    setLoading(true)
-    const [petsRes, staffRes] = await Promise.all([
-      supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
-      supabase.from('caregivers').select('*').is('deleted_at', null).order('name', { ascending: true }),
-      loadActive(activeDays),
-      loadPast(pastLimit),
-    ])
-    setPets(petsRes.data ?? [])
-    setStaff(staffRes.data ?? [])
-    setLoading(false)
-  }
-
-  // Re-fetches at whatever pagination depth is currently loaded, without the
-  // full-page LoadingScreen — for catching up on changes another staff
-  // member made while this tab sat open.
-  const [refreshing, setRefreshing] = useState(false)
-  async function handleRefresh() {
-    setRefreshing(true)
-    await Promise.all([loadActive(activeDays), loadPast(pastLimit)])
-    setRefreshing(false)
+    if (loadError) setError(loadError.message)
+    else setAppointments(data ?? [])
   }
 
   useEffect(() => {
-    loadData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    Promise.all([
+      supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
+      supabase.from('caregivers').select('*').is('deleted_at', null).order('name', { ascending: true }),
+    ]).then(([petsRes, staffRes]) => {
+      setPets(petsRes.data ?? [])
+      setStaff(staffRes.data ?? [])
+    })
   }, [])
 
-  async function handleLoadMoreActive() {
-    setLoadingMoreActive(true)
-    const nextDays = activeDays + 1
-    await loadActive(nextDays)
-    setActiveDays(nextDays)
-    setLoadingMoreActive(false)
+  useEffect(() => {
+    loadRange().then(() => setLoading(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeKey])
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    setSearchPool(null)
+    await loadRange()
+    setRefreshing(false)
   }
 
-  async function handleLoadMorePast() {
-    setLoadingMorePast(true)
-    const nextLimit = pastLimit + PAST_PAGE_SIZE
-    await loadPast(nextLimit)
-    setPastLimit(nextLimit)
-    setLoadingMorePast(false)
+  // Any change makes the cached search results stale.
+  function applyUpdate(updated: Appointment) {
+    setAppointments((current) => mergeById(current, [updated]))
+    setSearchPool(null)
+    setSelected(null)
+  }
+
+  async function ensureSearchPool() {
+    if (searchPool) return
+    const { data, error: searchError } = await supabase
+      .from('appointments')
+      .select(APPOINTMENT_SELECT)
+      .order('scheduled_at', { ascending: false })
+      .limit(SEARCH_POOL_SIZE)
+    if (searchError) setError(searchError.message)
+    else setSearchPool(data ?? [])
+  }
+
+  function openAppointment(appointment: Appointment) {
+    setSelected(appointment)
+    setPanelMode('details')
+    setPanelError(null)
+    setCancelCategory('')
+    setCancelReason('')
+    setRescheduleConflicts([])
+    setRecord(undefined)
+    setIncludePhoto(true)
+    if (appointment.status === 'completed') {
+      supabase
+        .from('medical_records')
+        .select('*')
+        .eq('appointment_id', appointment.id)
+        .maybeSingle()
+        .then(({ data }) => setRecord(data ?? null))
+    }
+  }
+
+  function jumpTo(appointment: Appointment) {
+    setDate(new Date(appointment.scheduled_at))
+    setView('day')
+    setSearch('')
+    openAppointment(appointment)
+  }
+
+  function startReschedule(appointment: Appointment) {
+    const fields = toPickerFields(new Date(appointment.scheduled_at))
+    setRescheduleDate(fields.date)
+    setRescheduleHour(fields.hour)
+    setRescheduleMinute(fields.minute)
+    setReschedulePeriod(fields.period)
+    setRescheduleConflicts([])
+    setPanelError(null)
+    setPanelMode('reschedule')
+  }
+
+  async function handleConfirm(appointment: Appointment) {
+    const { error: updateError } = await supabase.from('appointments').update({ status: 'confirmed' }).eq('id', appointment.id)
+    if (updateError) {
+      toast.error(updateError.message)
+      return
+    }
+    applyUpdate({ ...appointment, status: 'confirmed' })
+    toast.success(t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS.confirmed) }))
+    notifyStatusChange(appointment.id)
+  }
+
+  async function handleCancel(appointment: Appointment) {
+    if (!cancelCategory) {
+      setPanelError(t('appointments.chooseCancelReason'))
+      return
+    }
+    setSavingPanel(true)
+    const changes = { status: 'cancelled', cancellation_category: cancelCategory, cancellation_reason: cancelReason || null }
+    const { error: updateError } = await supabase.from('appointments').update(changes).eq('id', appointment.id)
+    setSavingPanel(false)
+    if (updateError) {
+      setPanelError(updateError.message)
+      return
+    }
+    applyUpdate({ ...appointment, ...changes })
+    toast.success(t('appointments.cancelledToast'))
+    notifyStatusChange(appointment.id)
+  }
+
+  async function handleReschedule(appointment: Appointment, acknowledged = false) {
+    if (!rescheduleDate || !rescheduleHour || !rescheduleMinute) {
+      setPanelError(t('appointments.chooseDateTime'))
+      return
+    }
+    const newScheduledAt = toScheduledAt(rescheduleDate, rescheduleHour, rescheduleMinute, reschedulePeriod)
+    setSavingPanel(true)
+    if (!acknowledged) {
+      const found = await fetchConflicts({
+        petId: appointment.pet_id,
+        assignedStaffId: appointment.assigned_staff_id ?? '',
+        scheduledAt: newScheduledAt,
+        excludeAppointmentId: appointment.id,
+      })
+      if (found.length > 0) {
+        setRescheduleConflicts(found)
+        setSavingPanel(false)
+        return
+      }
+    }
+    const { error: updateError } = await supabase
+      .from('appointments')
+      .update({ scheduled_at: newScheduledAt })
+      .eq('id', appointment.id)
+    setSavingPanel(false)
+    if (updateError) {
+      setPanelError(updateError.message)
+      return
+    }
+    applyUpdate({ ...appointment, scheduled_at: newScheduledAt })
+    toast.success(t('appointments.rescheduledToast'))
+    notifyStatusChange(appointment.id)
   }
 
   useEffect(() => {
@@ -289,7 +329,7 @@ function AppointmentsPage() {
     }
 
     setSubmitting(true)
-    const { data: newAppointment, error } = await supabase
+    const { data: newAppointment, error: insertError } = await supabase
       .from('appointments')
       .insert({
         pet_id: petId,
@@ -302,8 +342,8 @@ function AppointmentsPage() {
       .select(APPOINTMENT_SELECT)
       .single()
 
-    if (error) {
-      setError(error.message)
+    if (insertError) {
+      setError(insertError.message)
       setSubmitting(false)
       return
     }
@@ -319,378 +359,238 @@ function AppointmentsPage() {
     setConflictAcknowledged(false)
     setSubmitting(false)
     toast.success(t('appointments.scheduled'))
-    // Merged in directly rather than re-querying the active window — the
-    // appointment the user just created should show up immediately even if
-    // it falls outside however many days are currently paginated in.
     setAppointments((current) => mergeById(current, [newAppointment]))
+    setSearchPool(null)
+    setDate(new Date(newAppointment.scheduled_at))
     notifyStatusChange(newAppointment.id)
   }
 
-  function clearCompletionPhoto() {
-    setCompletionPhotoFile(null)
-    setCompletionPhotoPreviewUrl((url) => {
-      if (url) URL.revokeObjectURL(url)
-      return null
-    })
+  // Clicking an empty slot pre-fills the schedule form with that time and doctor.
+  function handleSelectSlot({ start, resourceId }: { start: Date; resourceId?: string | number }) {
+    const fields = toPickerFields(start)
+    setScheduledDate(fields.date)
+    setScheduledHour(fields.hour)
+    setScheduledMinute(fields.minute)
+    setScheduledPeriod(fields.period)
+    if (resourceId && resourceId !== UNASSIGNED) setAssignedStaffId(String(resourceId))
+    scheduleFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const processCompletionPhotoFile = useCallback(
-    (file: File) => {
-      const validationError = validateImageFile(file)
-      if (validationError) {
-        setError(validationError === 'notImage' ? t('petDetail.imageOnly') : t('petDetail.imageTooLarge'))
-        return
-      }
+  useEffect(() => {
+    if (!selected) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !savingPanel) setSelected(null)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [selected, savingPanel])
 
-      setError(null)
-      setCompletionPhotoPreviewUrl((current) => {
-        if (current) URL.revokeObjectURL(current)
-        return URL.createObjectURL(file)
-      })
-      setCompletionPhotoFile(file)
-    },
-    [t],
+  const staffIds = useMemo(() => new Set(staff.map((s) => s.id)), [staff])
+  const events: CalendarEvent[] = useMemo(
+    () =>
+      appointments
+        .filter((a) => a.status !== 'cancelled')
+        .map((a) => {
+          const start = new Date(a.scheduled_at)
+          return {
+            id: a.id,
+            title: a.pets?.name ?? t('dashboard.unknownPet'),
+            start,
+            end: new Date(start.getTime() + SLOT_MS),
+            // Unassigned also catches appointments whose staff member was removed.
+            resourceId: a.assigned_staff_id && staffIds.has(a.assigned_staff_id) ? a.assigned_staff_id : UNASSIGNED,
+            appointment: a,
+          }
+        }),
+    [appointments, staffIds, t],
   )
+  const hasUnassigned = events.some((e) => e.resourceId === UNASSIGNED)
+  // Opens at 8 AM, or earlier if the first visible appointment is before that.
+  const eightAm = dayjs(date).startOf('day').add(8, 'hour')
+  const firstStart = events.reduce<Date | null>((min, e) => (!min || e.start < min ? e.start : min), null)
+  const scrollTo = firstStart && dayjs(firstStart).hour() < 8 ? firstStart : eightAm.toDate()
+  const resources: CalendarResource[] = [
+    ...staff.map((s) => ({ id: s.id, title: s.name, subtitle: s.title })),
+    ...(hasUnassigned || staff.length === 0 ? [{ id: UNASSIGNED, title: t('calendar.unassigned'), subtitle: null }] : []),
+  ]
 
-  function handleCompletionPhotoChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = ''
-    if (file) processCompletionPhotoFile(file)
-  }
+  const query = search.trim()
+  const searchResults = query && searchPool ? searchPool.filter((a) => matchesAppointmentSearch(a, query)).slice(0, 8) : []
 
-  // Pasting a screenshot/copied image (Ctrl+V) works the same as picking a
-  // file — only while the completion form is actually open.
-  usePasteImage(processCompletionPhotoFile, pendingAction?.kind === 'complete')
-  const { dragActive: completionPhotoDragActive, dragHandlers: completionPhotoDragHandlers } = useDropImage(
-    processCompletionPhotoFile,
-    pendingAction?.kind === 'complete',
-  )
+  if (loading) return <LoadingScreen />
 
-  function resetCompletionFields() {
-    setCompletionVisitType('')
-    setCompletionComplaint('')
-    setCompletionWeight('')
-    setCompletionTemperature('')
-    setCompletionHeartRate('')
-    setCompletionPhysicalExam('')
-    setCompletionDiagnosis('')
-    setCompletionDiagnosticPlan('')
-    setCompletionTreatment('')
-    setCompletionRemarks('')
-    clearCompletionPhoto()
-  }
-
-  function resetPendingFields() {
-    setCancelCategory('')
-    setCancelReason('')
-    resetCompletionFields()
-    setRescheduleDate('')
-    setRescheduleHour('')
-    setRescheduleMinute('')
-    setReschedulePeriod('AM')
-    setRescheduleConflicts([])
-    setRescheduleConflictAcknowledged(false)
-  }
-
-  function startReschedule(appointment: Appointment) {
-    const current = new Date(appointment.scheduled_at)
-    const hour24 = current.getHours()
-    setRescheduleDate(current.toLocaleDateString('en-CA')) // yyyy-mm-dd, matches <input type="date">
-    setRescheduleHour(String(hour24 % 12 || 12))
-    setRescheduleMinute(String(current.getMinutes()).padStart(2, '0'))
-    setReschedulePeriod(hour24 >= 12 ? 'PM' : 'AM')
-    setRescheduleConflicts([])
-    setRescheduleConflictAcknowledged(false)
-    setPendingAction({ appointmentId: appointment.id, kind: 'reschedule' })
-    setCancelCategory('')
-    setCancelReason('')
-    resetCompletionFields()
-  }
-
-  async function handleStatusChange(appointment: Appointment, status: string) {
-    if (status === 'completed' || status === 'cancelled') {
-      setPendingAction({ appointmentId: appointment.id, kind: status === 'completed' ? 'complete' : 'cancel' })
-      resetPendingFields()
-      return
-    }
-
-    const { error } = await supabase.from('appointments').update({ status }).eq('id', appointment.id)
-    if (error) {
-      toast.error(error.message)
-      return
-    }
-    setAppointments((current) => current.map((a) => (a.id === appointment.id ? { ...a, status } : a)))
-    toast.success(t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS[status]) }))
-    flashUpdated(appointment.id)
-    notifyStatusChange(appointment.id)
-  }
-
-  // Best-effort — a failed push notification shouldn't surface as an error
-  // to the person who just successfully updated the appointment.
-  function notifyStatusChange(appointmentId: string) {
-    supabase.functions.invoke('notify-status-change', { body: { appointmentId } }).catch(() => {})
-  }
-
-  function startCancel(appointment: Appointment) {
-    setPendingAction({ appointmentId: appointment.id, kind: 'cancel' })
-    resetPendingFields()
-  }
-
-  async function toggleDetails(appointment: Appointment) {
-    if (expandedAppointmentId === appointment.id) {
-      setExpandedAppointmentId(null)
-      return
-    }
-    setExpandedAppointmentId(appointment.id)
-    if (appointment.status !== 'completed' || appointment.id in recordsByAppointment) return
-
-    setLoadingRecordId(appointment.id)
-    const { data } = await supabase
-      .from('medical_records')
-      .select('*')
-      .eq('appointment_id', appointment.id)
-      .maybeSingle()
-    setRecordsByAppointment((current) => ({ ...current, [appointment.id]: data ?? null }))
-    setLoadingRecordId(null)
-  }
-
-  async function confirmPendingAction(forceRescheduleAcknowledged = false) {
-    if (!pendingAction) return
-    const appointment = appointments.find((a) => a.id === pendingAction.appointmentId)
-    if (!appointment) return
-
-    setSavingPending(true)
-    setError(null)
-
-    if (pendingAction.kind === 'cancel') {
-      if (!cancelCategory) {
-        setError(t('appointments.chooseCancelReason'))
-        setSavingPending(false)
-        return
-      }
-
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          status: 'cancelled',
-          cancellation_category: cancelCategory,
-          cancellation_reason: cancelReason || null,
-        })
-        .eq('id', appointment.id)
-
-      if (error) {
-        setError(error.message)
-        setSavingPending(false)
-        return
-      }
-      setAppointments((current) =>
-        current.map((a) =>
-          a.id === appointment.id
-            ? { ...a, status: 'cancelled', cancellation_category: cancelCategory, cancellation_reason: cancelReason || null }
-            : a,
-        ),
-      )
-      toast.success(t('appointments.cancelledToast'))
-      flashUpdated(appointment.id)
-      notifyStatusChange(appointment.id)
-    } else if (pendingAction.kind === 'reschedule') {
-      if (!rescheduleDate || !rescheduleHour || !rescheduleMinute) {
-        setError(t('appointments.chooseDateTime'))
-        setSavingPending(false)
-        return
-      }
-
-      const newScheduledAt = toScheduledAt(rescheduleDate, rescheduleHour, rescheduleMinute, reschedulePeriod)
-
-      if (!rescheduleConflictAcknowledged && !forceRescheduleAcknowledged) {
-        const found = await fetchConflicts({
-          petId: appointment.pet_id,
-          assignedStaffId: appointment.assigned_staff_id ?? '',
-          scheduledAt: newScheduledAt,
-          excludeAppointmentId: appointment.id,
-        })
-        if (found.length > 0) {
-          setRescheduleConflicts(found)
-          setSavingPending(false)
-          return
-        }
-      }
-
-      const { error } = await supabase
-        .from('appointments')
-        .update({ scheduled_at: newScheduledAt })
-        .eq('id', appointment.id)
-
-      if (error) {
-        setError(error.message)
-        setSavingPending(false)
-        return
-      }
-      setAppointments((current) =>
-        current.map((a) => (a.id === appointment.id ? { ...a, scheduled_at: newScheduledAt } : a)),
-      )
-      toast.success(t('appointments.rescheduledToast'))
-      flashUpdated(appointment.id)
-      notifyStatusChange(appointment.id)
-    } else {
-      if (!profile?.clinic_id) {
-        setError(t('appointments.onlyStaffComplete'))
-        setSavingPending(false)
-        return
-      }
-      if (!completionVisitType || !completionDiagnosis || !completionTreatment) {
-        setError(t('appointments.completionRequired'))
-        setSavingPending(false)
-        return
-      }
-      // Checked before the status update so a typo in a vital can be fixed
-      // without leaving a completed appointment with no record.
-      const vitalsResult = parseVitals({
-        weight: completionWeight,
-        temperature: completionTemperature,
-        heartRate: completionHeartRate,
-      })
-      if (!vitalsResult.ok) {
-        setError(t(vitalsResult.errorKey))
-        setSavingPending(false)
-        return
-      }
-
-      const { error: appointmentError } = await supabase
-        .from('appointments')
-        .update({ status: 'completed' })
-        .eq('id', appointment.id)
-
-      if (appointmentError) {
-        setError(appointmentError.message)
-        setSavingPending(false)
-        return
-      }
-
-      const { data: newRecord, error: recordError } = await supabase
-        .from('medical_records')
-        .insert({
-          pet_id: appointment.pet_id,
-          clinic_id: profile.clinic_id,
-          vet_id: profile.id,
-          appointment_id: appointment.id,
-          visit_type: completionVisitType,
-          presenting_complaint: completionComplaint.trim() || null,
-          ...vitalsResult.vitals,
-          physical_exam: completionPhysicalExam.trim() || null,
-          diagnosis: completionDiagnosis,
-          diagnostic_plan: completionDiagnosticPlan.trim() || null,
-          treatment: completionTreatment,
-          remarks: completionRemarks.trim() || null,
-        })
-        .select()
-        .single()
-      if (recordError || !newRecord) {
-        setError(t('appointments.recordFailed', { error: recordError?.message ?? '' }))
-        setSavingPending(false)
-        return
-      }
-
-      // The record's already saved at this point — a photo upload failure
-      // is worth surfacing but shouldn't undo the completion.
-      if (completionPhotoFile) {
-        const upload = await uploadPhoto(`${profile.clinic_id}/records/${newRecord.id}`, completionPhotoFile)
-        if (upload.error !== null) {
-          toast.error(t('common.couldNotSavePhoto'))
-        } else {
-          await supabase.from('medical_records').update({ photo_url: upload.path }).eq('id', newRecord.id)
-        }
-      }
-
-      setAppointments((current) => current.map((a) => (a.id === appointment.id ? { ...a, status: 'completed' } : a)))
-      toast.success(t('appointments.completedToast'))
-      flashUpdated(appointment.id)
-      notifyStatusChange(appointment.id)
-    }
-
-    setPendingAction(null)
-    resetPendingFields()
-    setSavingPending(false)
-  }
-
-  function renderAppointment(appointment: Appointment) {
-    const isFinal = ARCHIVED_STATUSES.has(appointment.status)
-    const isPending = pendingAction?.appointmentId === appointment.id
-
-    const justUpdated = recentlyUpdatedIds.has(appointment.id)
-
+  function renderPanel(appointment: Appointment) {
+    const isActive = appointment.status === 'requested' || appointment.status === 'confirmed'
     return (
-      <li key={appointment.id} className={`pet-list-item${justUpdated ? ' just-updated' : ''}`}>
-        <div className="pet-row">
-          <div>
-            <strong>{appointment.pets?.name ?? t('dashboard.unknownPet')}</strong>
-            {' — '}
-            <Ltr>{new Date(appointment.scheduled_at).toLocaleString()}</Ltr>
-            {appointment.reason && (
-              <div className="pet-owner">
-                {t('appointments.reasonLabel')}: {appointment.reason}
-              </div>
-            )}
-            {appointment.caregivers && (
-              <div className="pet-owner">
-                {t('appointments.staffLabel')}: {appointment.caregivers.name}
-              </div>
-            )}
-            {appointment.status === 'cancelled' && (appointment.cancellation_category || appointment.cancellation_reason) && (
-              <div className="pet-owner">
-                {t('appointments.cancelledLabel')}:{' '}
-                {appointment.cancellation_category ? cancellationCategoryLabel(t, appointment.cancellation_category) : ''}
-                {appointment.cancellation_category && appointment.cancellation_reason ? ' — ' : ''}
-                {appointment.cancellation_reason ?? ''}
-              </div>
-            )}
-          </div>
-          {isVet && !isFinal ? (
-            <div className="record-actions">
-              <span className={`status-badge status-${appointment.status}`}>
-                {t(STATUS_LABEL_KEYS[appointment.status])}
-              </span>
-              {appointment.status === 'requested' && (
-                <button type="button" className="secondary-button" onClick={() => handleStatusChange(appointment, 'confirmed')}>
-                  {t('appointments.confirmAppointment')}
-                </button>
+      <div className="admin-modal-backdrop" onClick={() => !savingPanel && setSelected(null)}>
+        <div
+          className="admin-modal-card appointment-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="appointment-panel-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="appointment-panel-header">
+            <div>
+              <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
+              <p className="pet-owner">
+                <Ltr>{new Date(appointment.scheduled_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Ltr>
+                {appointment.caregivers && ` · ${appointment.caregivers.name}`}
+              </p>
+              {appointment.reason && (
+                <p className="pet-owner">
+                  {t('appointments.reasonLabel')}: {appointment.reason}
+                </p>
               )}
-              {(appointment.status === 'confirmed' || appointment.status === 'requested') && (
-                <button type="button" className="secondary-button" onClick={() => handleStatusChange(appointment, 'completed')}>
-                  {t('appointments.markCompleted')}
-                </button>
+              {appointment.status === 'cancelled' && (appointment.cancellation_category || appointment.cancellation_reason) && (
+                <p className="pet-owner">
+                  {t('appointments.cancelledLabel')}:{' '}
+                  {appointment.cancellation_category ? cancellationCategoryLabel(t, appointment.cancellation_category) : ''}
+                  {appointment.cancellation_category && appointment.cancellation_reason ? ' — ' : ''}
+                  {appointment.cancellation_reason ?? ''}
+                </p>
               )}
-              <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
-                {t('appointments.reschedule')}
-              </button>
-              <button type="button" className="delete-button" onClick={() => startCancel(appointment)}>
-                {t('appointments.cancel')}
-              </button>
             </div>
-          ) : appointment.status === 'completed' ? (
-            <div className="record-actions">
-              <span className={`status-badge status-${appointment.status}`}>
-                {t(STATUS_LABEL_KEYS[appointment.status])}
-              </span>
-              <button type="button" className="secondary-button" onClick={() => toggleDetails(appointment)}>
-                {expandedAppointmentId === appointment.id ? t('appointments.hideDetails') : t('appointments.viewDetails')}
-              </button>
-            </div>
-          ) : (
             <span className={`status-badge status-${appointment.status}`}>{t(STATUS_LABEL_KEYS[appointment.status])}</span>
-          )}
-        </div>
+          </div>
 
-        {expandedAppointmentId === appointment.id &&
-          appointment.status === 'completed' &&
-          (() => {
-            const record = recordsByAppointment[appointment.id]
-            return (
-              <div className="pending-action">
-                {loadingRecordId === appointment.id ? (
+          {panelError && <p className="form-error">{panelError}</p>}
+
+          {panelMode === 'cancel' ? (
+            <>
+              <label>
+                {t('appointments.cancelReasonLabel')}
+                <RequiredMark />
+                <select value={cancelCategory} onChange={(e) => setCancelCategory(e.target.value)} required autoFocus>
+                  <option value="" disabled>
+                    {t('appointments.selectCancelReason')}
+                  </option>
+                  {CANCELLATION_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {cancellationCategoryLabel(t, category)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {cancelCategory === 'other' && (
+                <label>
+                  {t('appointments.cancelReasonDetail')}
+                  <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={2} />
+                </label>
+              )}
+              <div className="record-edit-actions">
+                <button type="button" className="delete-button" onClick={() => handleCancel(appointment)} disabled={savingPanel}>
+                  {savingPanel ? t('common.saving') : t('appointments.confirmCancellation')}
+                </button>
+                <button type="button" className="cancel-button" onClick={() => setPanelMode('details')} disabled={savingPanel}>
+                  {t('appointments.confirmBack')}
+                </button>
+              </div>
+            </>
+          ) : panelMode === 'reschedule' ? (
+            <>
+              <label>
+                {t('appointments.date')}
+                <RequiredMark />
+                <input
+                  type="date"
+                  dir="ltr"
+                  value={rescheduleDate}
+                  onChange={(e) => {
+                    setRescheduleDate(e.target.value)
+                    setRescheduleConflicts([])
+                  }}
+                  required
+                />
+              </label>
+              <label>
+                {t('appointments.time')}
+                <RequiredMark />
+                <div className="time-select" dir="ltr">
+                  <select
+                    value={rescheduleHour}
+                    onChange={(e) => {
+                      setRescheduleHour(e.target.value)
+                      setRescheduleConflicts([])
+                    }}
+                    required
+                  >
+                    <option value="" disabled>
+                      {t('appointments.hour')}
+                    </option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+                      <option key={h} value={h}>
+                        {h}
+                      </option>
+                    ))}
+                  </select>
+                  <span>:</span>
+                  <select
+                    value={rescheduleMinute}
+                    onChange={(e) => {
+                      setRescheduleMinute(e.target.value)
+                      setRescheduleConflicts([])
+                    }}
+                    required
+                  >
+                    <option value="" disabled>
+                      {t('appointments.min')}
+                    </option>
+                    {['00', '15', '30', '45'].map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={reschedulePeriod}
+                    onChange={(e) => {
+                      setReschedulePeriod(e.target.value as 'AM' | 'PM')
+                      setRescheduleConflicts([])
+                    }}
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </label>
+              {rescheduleConflicts.length > 0 && (
+                <div className="form-warning">
+                  <p>{t('appointments.conflictWarning', { count: String(rescheduleConflicts.length) })}</p>
+                  <ul>
+                    {rescheduleConflicts.map((c) => (
+                      <li key={c.id}>
+                        {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{new Date(c.scheduled_at).toLocaleString()}</Ltr>
+                        {c.caregivers?.name ? ` (${c.caregivers.name})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                  <button type="button" className="secondary-button" onClick={() => handleReschedule(appointment, true)}>
+                    {t('appointments.scheduleAnyway')}
+                  </button>
+                </div>
+              )}
+              <div className="record-edit-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => handleReschedule(appointment)}
+                  disabled={savingPanel}
+                >
+                  {savingPanel ? t('common.saving') : t('appointments.confirmReschedule')}
+                </button>
+                <button type="button" className="cancel-button" onClick={() => setPanelMode('details')} disabled={savingPanel}>
+                  {t('appointments.confirmBack')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {appointment.status === 'completed' &&
+                (record === undefined ? (
                   <p className="pet-owner">{t('common.loading')}</p>
                 ) : record ? (
-                  <>
+                  <div className="appointment-panel-record">
                     <p className="pending-action-title">{t('appointments.visitDetailsTitle')}</p>
                     {record.visit_type && (
                       <p className="pet-owner">
@@ -710,13 +610,7 @@ function AppointmentsPage() {
                     <div className="record-actions">
                       {record.photo_url && (
                         <label className="include-photo-toggle">
-                          <input
-                            type="checkbox"
-                            checked={includePhotoByRecord[record.id] ?? true}
-                            onChange={(e) =>
-                              setIncludePhotoByRecord((current) => ({ ...current, [record.id]: e.target.checked }))
-                            }
-                          />
+                          <input type="checkbox" checked={includePhoto} onChange={(e) => setIncludePhoto(e.target.checked)} />
                           {t('petDetail.includePhoto')}
                         </label>
                       )}
@@ -728,272 +622,51 @@ function AppointmentsPage() {
                             date: record.visit_date,
                             visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
                             record,
-                            photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,
+                            photoUrl: includePhoto ? record.photo_url : null,
                           })
                         }
                       >
                         {t('common.print')}
                       </button>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <p className="pet-owner">{t('appointments.noRecord')}</p>
-                )}
-              </div>
-            )
-          })()}
+                ))}
 
-        {isPending && pendingAction && (
-          <div className="pending-action">
-            {pendingAction.kind === 'cancel' ? (
-              <>
-                <label>
-                  {t('appointments.cancelReasonLabel')}
-                  <RequiredMark />
-                  <select value={cancelCategory} onChange={(e) => setCancelCategory(e.target.value)} required autoFocus>
-                    <option value="" disabled>
-                      {t('appointments.selectCancelReason')}
-                    </option>
-                    {CANCELLATION_CATEGORIES.map((category) => (
-                      <option key={category} value={category}>
-                        {cancellationCategoryLabel(t, category)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {cancelCategory === 'other' && (
-                  <label>
-                    {t('appointments.cancelReasonDetail')}
-                    <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={2} />
-                  </label>
-                )}
-              </>
-            ) : pendingAction.kind === 'reschedule' ? (
-              <>
-                <p className="pending-action-title">{t('appointments.reschedule')}</p>
-                <label>
-                  {t('appointments.date')}
-                  <RequiredMark />
-                  <input
-                    type="date"
-                    dir="ltr"
-                    value={rescheduleDate}
-                    onChange={(e) => {
-                      setRescheduleDate(e.target.value)
-                      setRescheduleConflicts([])
-                      setRescheduleConflictAcknowledged(false)
-                    }}
-                    required
-                  />
-                </label>
-                <label>
-                  {t('appointments.time')}
-                  <RequiredMark />
-                  <div className="time-select" dir="ltr">
-                    <select
-                      value={rescheduleHour}
-                      onChange={(e) => {
-                        setRescheduleHour(e.target.value)
-                        setRescheduleConflicts([])
-                        setRescheduleConflictAcknowledged(false)
-                      }}
-                      required
-                    >
-                      <option value="" disabled>
-                        {t('appointments.hour')}
-                      </option>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-                        <option key={h} value={h}>
-                          {h}
-                        </option>
-                      ))}
-                    </select>
-                    <span>:</span>
-                    <select
-                      value={rescheduleMinute}
-                      onChange={(e) => {
-                        setRescheduleMinute(e.target.value)
-                        setRescheduleConflicts([])
-                        setRescheduleConflictAcknowledged(false)
-                      }}
-                      required
-                    >
-                      <option value="" disabled>
-                        {t('appointments.min')}
-                      </option>
-                      {['00', '15', '30', '45'].map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={reschedulePeriod}
-                      onChange={(e) => {
-                        setReschedulePeriod(e.target.value as 'AM' | 'PM')
-                        setRescheduleConflicts([])
-                        setRescheduleConflictAcknowledged(false)
-                      }}
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
-                    </select>
-                  </div>
-                </label>
-                {rescheduleConflicts.length > 0 && (
-                  <div className="form-warning">
-                    <p>{t('appointments.conflictWarning', { count: String(rescheduleConflicts.length) })}</p>
-                    <ul>
-                      {rescheduleConflicts.map((c) => (
-                        <li key={c.id}>
-                          {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{new Date(c.scheduled_at).toLocaleString()}</Ltr>
-                          {c.caregivers?.name ? ` (${c.caregivers.name})` : ''}
-                        </li>
-                      ))}
-                    </ul>
+              <div className="appointment-panel-actions">
+                {isVet && isActive && (
+                  <>
+                    {appointment.status === 'requested' && (
+                      <button type="button" className="secondary-button" onClick={() => handleConfirm(appointment)} autoFocus>
+                        {t('appointments.confirmAppointment')}
+                      </button>
+                    )}
                     <button
                       type="button"
-                      className="secondary-button"
-                      onClick={() => {
-                        setRescheduleConflictAcknowledged(true)
-                        confirmPendingAction(true)
-                      }}
+                      className="primary-button"
+                      onClick={() => navigate(`/appointments/${appointment.id}/session`)}
                     >
-                      {t('appointments.scheduleAnyway')}
+                      {t('session.start')}
                     </button>
-                  </div>
+                    <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
+                      {t('appointments.reschedule')}
+                    </button>
+                    <button type="button" className="delete-button" onClick={() => setPanelMode('cancel')}>
+                      {t('appointments.cancel')}
+                    </button>
+                  </>
                 )}
-              </>
-            ) : (
-              <>
-                <p className="pending-action-title">{t('appointments.visitDetailsTitle')}</p>
-                <label>
-                  {t('petDetail.visitType')}
-                  <RequiredMark />
-                  <select value={completionVisitType} onChange={(e) => setCompletionVisitType(e.target.value)} required>
-                    <option value="" disabled>
-                      {t('appointments.selectVisitType')}
-                    </option>
-                    {VISIT_TYPES.map((vt) => (
-                      <option key={vt} value={vt}>
-                        {visitTypeLabel(t, vt)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  {t('clinical.presentingComplaint')}
-                  <textarea value={completionComplaint} onChange={(e) => setCompletionComplaint(e.target.value)} rows={2} />
-                </label>
-                {/* Numbers read left-to-right even in Arabic, hence dir="ltr" on the inputs only. */}
-                <div className="vitals-row">
-                  <label>
-                    {t('clinical.weightKg')}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      value={completionWeight}
-                      onChange={(e) => setCompletionWeight(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    {t('clinical.temperatureC')}
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      value={completionTemperature}
-                      onChange={(e) => setCompletionTemperature(e.target.value)}
-                    />
-                  </label>
-                  <label>
-                    {t('clinical.heartRateBpm')}
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      dir="ltr"
-                      value={completionHeartRate}
-                      onChange={(e) => setCompletionHeartRate(e.target.value)}
-                    />
-                  </label>
-                </div>
-                <label>
-                  {t('clinical.physicalExam')}
-                  <textarea value={completionPhysicalExam} onChange={(e) => setCompletionPhysicalExam(e.target.value)} rows={3} />
-                </label>
-                <label>
-                  {t('petDetail.diagnosis')}
-                  <RequiredMark />
-                  <input value={completionDiagnosis} onChange={(e) => setCompletionDiagnosis(e.target.value)} required />
-                </label>
-                <label>
-                  {t('clinical.diagnosticPlan')}
-                  <textarea
-                    value={completionDiagnosticPlan}
-                    onChange={(e) => setCompletionDiagnosticPlan(e.target.value)}
-                    rows={2}
-                  />
-                </label>
-                <label>
-                  {t('petDetail.treatment')}
-                  <RequiredMark />
-                  <input value={completionTreatment} onChange={(e) => setCompletionTreatment(e.target.value)} required />
-                </label>
-                <label>
-                  {t('clinical.remarks')}
-                  <textarea value={completionRemarks} onChange={(e) => setCompletionRemarks(e.target.value)} rows={2} />
-                </label>
-                <div
-                  className={`pet-photo-row${completionPhotoDragActive ? ' pet-photo-row-drag-active' : ''}`}
-                  {...completionPhotoDragHandlers}
-                >
-                  {completionPhotoPreviewUrl && (
-                    <img src={completionPhotoPreviewUrl} alt="" className="pet-avatar" style={{ width: 56, height: 56 }} />
-                  )}
-                  <div>
-                    <div className="pet-photo-actions">
-                      <label className="secondary-button pet-photo-upload">
-                        {completionPhotoFile ? t('petDetail.changePhoto') : t('appointments.addPhotoOptional')}
-                        <input type="file" accept="image/*" onChange={handleCompletionPhotoChange} hidden />
-                      </label>
-                    </div>
-                    <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
-                  </div>
-                </div>
-              </>
-            )}
-            <div className="record-edit-actions">
-              <button type="button" className="primary-button" onClick={() => confirmPendingAction()} disabled={savingPending}>
-                {savingPending
-                  ? t('common.saving')
-                  : pendingAction.kind === 'cancel'
-                    ? t('appointments.confirmCancellation')
-                    : pendingAction.kind === 'reschedule'
-                      ? t('appointments.confirmReschedule')
-                      : t('appointments.confirmCompletion')}
-              </button>
-              <button
-                type="button"
-                className="cancel-button"
-                onClick={() => setPendingAction(null)}
-                disabled={savingPending}
-              >
-                {t('appointments.confirmBack')}
-              </button>
-            </div>
-          </div>
-        )}
-      </li>
+                <button type="button" className="cancel-button" onClick={() => setSelected(null)}>
+                  {t('common.close')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     )
   }
-
-  if (loading) return <LoadingScreen />
-
-  const query = search.trim().toLowerCase()
-  const matchingAppointments = appointments.filter((a) => matchesAppointmentSearch(a, query))
-  const activeAppointments = matchingAppointments.filter((a) => !ARCHIVED_STATUSES.has(a.status))
-  const archivedAppointments = matchingAppointments.filter((a) => ARCHIVED_STATUSES.has(a.status))
 
   return (
     <div>
@@ -1004,57 +677,99 @@ function AppointmentsPage() {
 
       {error && <p className="form-error">{error}</p>}
 
-      <input
-        type="search"
-        className="search-input"
-        placeholder={t('appointments.searchPlaceholder')}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      {query && (
-        <p className="search-result-count">
-          {t('appointments.resultCount', { count: String(matchingAppointments.length), total: String(appointments.length) })}
-        </p>
-      )}
-      {query && matchingAppointments.length === 0 && (hasMoreActive || hasMorePast) && (
-        <p className="search-result-count">{t('appointments.searchLoadMoreHint')}</p>
-      )}
+      <div className="appointment-search">
+        <input
+          type="search"
+          className="search-input"
+          placeholder={t('appointments.searchPlaceholder')}
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value)
+            if (e.target.value.trim()) ensureSearchPool()
+          }}
+        />
+        {query && searchPool && (
+          <ul className="appointment-search-results">
+            {searchResults.length === 0 ? (
+              <li className="pet-owner">{t('appointments.searchNoMatch', { query })}</li>
+            ) : (
+              searchResults.map((a) => (
+                <li key={a.id}>
+                  <button type="button" onClick={() => jumpTo(a)}>
+                    <strong>{a.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                    <Ltr>{new Date(a.scheduled_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</Ltr>
+                    {a.caregivers && <span>{a.caregivers.name}</span>}
+                    <span className={`status-badge status-${a.status}`}>{t(STATUS_LABEL_KEYS[a.status])}</span>
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+      </div>
 
-      {activeAppointments.length === 0 ? (
-        <p>
-          {query ? t('appointments.searchNoMatch', { query: search.trim() }) : t('appointments.noneUpcoming')}
-          {!query && isVet && ` ${t('appointments.noneUpcomingHint')}`}
-        </p>
-      ) : (
-        <ul className="pet-list">{activeAppointments.map(renderAppointment)}</ul>
-      )}
-      {hasMoreActive && (
-        <button type="button" className="secondary-button" onClick={handleLoadMoreActive} disabled={loadingMoreActive}>
-          {loadingMoreActive ? t('common.loading') : t('appointments.loadMoreUpcoming')}
-        </button>
-      )}
+      {/* Fixed left-to-right in both languages so time stays on the left. */}
+      {/* --now-cols centres the "Now" pill across all doctor columns (see App.css). */}
+      <div
+        className="appointments-calendar"
+        dir="ltr"
+        style={
+          {
+            '--now-label': JSON.stringify(t('calendar.now')),
+            '--now-cols': view === 'day' ? resources.length : 1,
+          } as CSSProperties
+        }
+      >
+        <Calendar<CalendarEvent, CalendarResource>
+          localizer={localizer}
+          events={events}
+          date={date}
+          view={view}
+          views={['day', 'week']}
+          onNavigate={setDate}
+          onView={setView}
+          resources={view === 'day' ? resources : undefined}
+          resourceIdAccessor="id"
+          resourceTitleAccessor="title"
+          step={15}
+          dayLayoutAlgorithm="no-overlap"
+          timeslots={4}
+          scrollToTime={scrollTo}
+          selectable={isVet}
+          onSelectSlot={handleSelectSlot}
+          onSelectEvent={(event) => openAppointment(event.appointment)}
+          eventPropGetter={(event) => ({ className: `calendar-event status-${event.appointment.status}` })}
+          components={{
+            event: ({ event }) => (
+              <span className="calendar-event-content">
+                <strong>{event.title}</strong>
+                {event.appointment.reason && <span>{event.appointment.reason}</span>}
+                {view === 'week' && event.appointment.caregivers && <span>{event.appointment.caregivers.name}</span>}
+              </span>
+            ),
+            resourceHeader: ({ resource }) => (
+              <span className="calendar-resource-header">
+                <strong>{resource.title}</strong>
+                {resource.subtitle && <span>{resource.subtitle}</span>}
+              </span>
+            ),
+          }}
+          messages={{
+            today: t('calendar.today'),
+            previous: t('calendar.back'),
+            next: t('calendar.next'),
+            day: t('calendar.day'),
+            week: t('calendar.week'),
+          }}
+        />
+      </div>
 
-      {pastTotal > 0 && (
-        <div className="archive-section">
-          <button type="button" className="secondary-button" onClick={() => setShowArchive((v) => !v)}>
-            {showArchive ? t('appointments.hidePast') : t('appointments.showPast')} ({pastTotal})
-          </button>
-          {showArchive && (
-            <>
-              <ul className="pet-list">{archivedAppointments.map(renderAppointment)}</ul>
-              {hasMorePast && (
-                <button type="button" className="secondary-button" onClick={handleLoadMorePast} disabled={loadingMorePast}>
-                  {loadingMorePast ? t('common.loading') : t('appointments.loadMorePast')}
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      {selected && renderPanel(selected)}
 
       {isVet && (
         <form ref={scheduleFormRef} onSubmit={handleAddAppointment} className="pet-form pet-form-grid">
           <h2>{t('appointments.schedule')}</h2>
+          <p className="pet-owner appointment-schedule-hint">{t('calendar.slotHint')}</p>
           <label>
             {t('appointments.pet')}
             <RequiredMark />

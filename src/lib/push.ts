@@ -11,6 +11,12 @@ export const REMINDER_LEAD_OPTIONS: { labelKey: TranslationKey; minutes: number 
   { labelKey: 'settings.reminder2days', minutes: 2880 },
 ]
 
+// Best-effort — a failed push notification shouldn't surface as an error
+// to the person who just successfully updated the appointment.
+export function notifyStatusChange(appointmentId: string) {
+  supabase.functions.invoke('notify-status-change', { body: { appointmentId } }).catch(() => {})
+}
+
 export function isPushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window
 }

@@ -3,6 +3,7 @@ import DashboardPage from './pages/DashboardPage'
 import PetsPage from './pages/PetsPage'
 import RegisterPetPage from './pages/RegisterPetPage'
 import AppointmentsPage from './pages/AppointmentsPage'
+import SessionPage from './pages/SessionPage'
 import PaymentsPage from './pages/PaymentsPage'
 import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
@@ -85,6 +86,7 @@ function App() {
               <Route path="/pets" element={<PetsPage />} />
               <Route path="/pets/new" element={<RegisterPetPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
+              <Route path="/appointments/:id/session" element={<SessionPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/staff" element={<StaffPage />} />
               <Route path="/settings" element={<SettingsPage />} />

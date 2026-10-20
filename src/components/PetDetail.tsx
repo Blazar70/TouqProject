@@ -6,7 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
-import { visitRecordFields } from '../lib/clinicalFields'
+import { parseVitals, visitRecordFields } from '../lib/clinicalFields'
 import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
@@ -26,14 +26,34 @@ import PhotoThumbnail from './PhotoThumbnail'
 type Pet = Database['public']['Tables']['pets']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
 
+// The edit form's fields as typed text; vitals are parsed on save.
+function recordToEdit(record: MedicalRecord) {
+  return {
+    visitType: record.visit_type ?? '',
+    complaint: record.presenting_complaint ?? '',
+    weight: record.weight_kg?.toString() ?? '',
+    temperature: record.temperature_c?.toString() ?? '',
+    heartRate: record.heart_rate_bpm?.toString() ?? '',
+    physicalExam: record.physical_exam ?? '',
+    diagnosis: record.diagnosis ?? '',
+    diagnosticPlan: record.diagnostic_plan ?? '',
+    treatment: record.treatment ?? '',
+    notes: record.notes ?? '',
+    remarks: record.remarks ?? '',
+  }
+}
+type RecordEdit = ReturnType<typeof recordToEdit>
+
 function PetDetail({
   pet,
   onUpdated,
   onDirtyChange,
+  onDelete,
 }: {
   pet: Pet
   onUpdated: (pet: Pet) => void
   onDirtyChange?: (dirty: boolean) => void
+  onDelete: () => void
 }) {
   const { profile } = useAuth()
   const { t } = useLanguage()
@@ -56,10 +76,8 @@ function PetDetail({
 
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null)
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
-  const [editVisitType, setEditVisitType] = useState('')
-  const [editDiagnosis, setEditDiagnosis] = useState('')
-  const [editTreatment, setEditTreatment] = useState('')
-  const [editNotes, setEditNotes] = useState('')
+  const [edit, setEdit] = useState<RecordEdit | null>(null)
+  const setEditField = (field: keyof RecordEdit, value: string) => setEdit((e) => (e ? { ...e, [field]: value } : e))
   const [savingEdit, setSavingEdit] = useState(false)
 
   // Defaults to checked whenever a record has a photo — per-record for the
@@ -200,12 +218,8 @@ function PetDetail({
     // parent's dirty tracking sees this happen. Guard it here directly.
     if (editingRecordId && editingRecordId !== record.id) {
       const editingRecord = records.find((r) => r.id === editingRecordId)
-      const dirty =
-        editingRecord &&
-        (editVisitType !== (editingRecord.visit_type ?? '') ||
-          editDiagnosis !== (editingRecord.diagnosis ?? '') ||
-          editTreatment !== (editingRecord.treatment ?? '') ||
-          editNotes !== (editingRecord.notes ?? ''))
+      const original = editingRecord && recordToEdit(editingRecord)
+      const dirty = original && edit && (Object.keys(original) as (keyof RecordEdit)[]).some((k) => edit[k] !== original[k])
       if (dirty) {
         const leave = await confirm(t('common.unsavedChangesConfirm'), {
           confirmLabel: t('common.leaveWithoutSaving'),
@@ -217,10 +231,7 @@ function PetDetail({
 
     setEditingRecordId(record.id)
     setExpandedRecordId(record.id)
-    setEditVisitType(record.visit_type ?? '')
-    setEditDiagnosis(record.diagnosis ?? '')
-    setEditTreatment(record.treatment ?? '')
-    setEditNotes(record.notes ?? '')
+    setEdit(recordToEdit(record))
   }
 
   function toggleRecordExpanded(recordId: string) {
@@ -229,17 +240,27 @@ function PetDetail({
 
   async function handleSaveRecordEdit(e: FormEvent) {
     e.preventDefault()
-    if (!editingRecordId) return
+    if (!editingRecordId || !edit) return
     setRecordError(null)
+    const vitalsResult = parseVitals(edit)
+    if (!vitalsResult.ok) {
+      setRecordError(t(vitalsResult.errorKey))
+      return
+    }
     setSavingEdit(true)
 
     const { error } = await supabase
       .from('medical_records')
       .update({
-        visit_type: editVisitType || null,
-        diagnosis: editDiagnosis || null,
-        treatment: editTreatment || null,
-        notes: editNotes || null,
+        visit_type: edit.visitType || null,
+        presenting_complaint: edit.complaint.trim() || null,
+        ...vitalsResult.vitals,
+        physical_exam: edit.physicalExam.trim() || null,
+        diagnosis: edit.diagnosis || null,
+        diagnostic_plan: edit.diagnosticPlan.trim() || null,
+        treatment: edit.treatment || null,
+        notes: edit.notes || null,
+        remarks: edit.remarks.trim() || null,
       })
       .eq('id', editingRecordId)
 
@@ -308,9 +329,15 @@ function PetDetail({
           <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} disabled={!isVet} />
         </label>
         {isVet && (
-          <button type="submit" disabled={savingPet}>
-            {savingPet ? t('common.saving') : t('common.saveChanges')}
-          </button>
+          <>
+            <button type="submit" disabled={savingPet}>
+              {savingPet ? t('common.saving') : t('common.saveChanges')}
+            </button>
+            {/* Kept inside the open pet file, not on the list row, so deleting takes a deliberate extra step. */}
+            <button type="button" className="delete-button" onClick={onDelete}>
+              {t('common.delete')}
+            </button>
+          </>
         )}
       </form>
 
@@ -359,12 +386,12 @@ function PetDetail({
           ) : (
             <ul className="record-list">
               {records.map((record) =>
-                editingRecordId === record.id ? (
+                editingRecordId === record.id && edit ? (
                   <li key={record.id}>
                     <form onSubmit={handleSaveRecordEdit} className="pet-form">
                       <label>
                         {t('petDetail.visitType')}
-                        <select value={editVisitType} onChange={(e) => setEditVisitType(e.target.value)}>
+                        <select value={edit.visitType} onChange={(e) => setEditField('visitType', e.target.value)}>
                           <option value="">—</option>
                           {VISIT_TYPES.map((vt) => (
                             <option key={vt} value={vt}>
@@ -374,16 +401,72 @@ function PetDetail({
                         </select>
                       </label>
                       <label>
+                        {t('clinical.presentingComplaint')}
+                        <textarea value={edit.complaint} onChange={(e) => setEditField('complaint', e.target.value)} rows={2} />
+                      </label>
+                      {/* Numbers read left-to-right even in Arabic, hence dir="ltr" on the inputs only. */}
+                      <div className="vitals-row">
+                        <label>
+                          {t('clinical.weightKg')}
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            dir="ltr"
+                            value={edit.weight}
+                            onChange={(e) => setEditField('weight', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          {t('clinical.temperatureC')}
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            dir="ltr"
+                            value={edit.temperature}
+                            onChange={(e) => setEditField('temperature', e.target.value)}
+                          />
+                        </label>
+                        <label>
+                          {t('clinical.heartRateBpm')}
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            dir="ltr"
+                            value={edit.heartRate}
+                            onChange={(e) => setEditField('heartRate', e.target.value)}
+                          />
+                        </label>
+                      </div>
+                      <label>
+                        {t('clinical.physicalExam')}
+                        <textarea value={edit.physicalExam} onChange={(e) => setEditField('physicalExam', e.target.value)} rows={3} />
+                      </label>
+                      <label>
                         {t('petDetail.diagnosis')}
-                        <input value={editDiagnosis} onChange={(e) => setEditDiagnosis(e.target.value)} />
+                        <input value={edit.diagnosis} onChange={(e) => setEditField('diagnosis', e.target.value)} />
+                      </label>
+                      <label>
+                        {t('clinical.diagnosticPlan')}
+                        <textarea
+                          value={edit.diagnosticPlan}
+                          onChange={(e) => setEditField('diagnosticPlan', e.target.value)}
+                          rows={2}
+                        />
                       </label>
                       <label>
                         {t('petDetail.treatment')}
-                        <input value={editTreatment} onChange={(e) => setEditTreatment(e.target.value)} />
+                        <input value={edit.treatment} onChange={(e) => setEditField('treatment', e.target.value)} />
                       </label>
+                      {/* Notes is the pre-0040 field; only records that already have it show it. */}
+                      {record.notes && (
+                        <label>
+                          {t('common.notes')}
+                          <textarea value={edit.notes} onChange={(e) => setEditField('notes', e.target.value)} rows={3} />
+                        </label>
+                      )}
                       <label>
-                        {t('common.notes')}
-                        <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={3} />
+                        {t('clinical.remarks')}
+                        <textarea value={edit.remarks} onChange={(e) => setEditField('remarks', e.target.value)} rows={2} />
                       </label>
                       <div className="record-edit-actions">
                         <button type="submit" disabled={savingEdit}>

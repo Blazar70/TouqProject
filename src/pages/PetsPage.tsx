@@ -288,14 +288,14 @@ function PetsPage() {
                     {t('vaccination.markGiven')}
                   </button>
                 )}
-                {profile?.role === 'vet' && (
-                  <button type="button" className="delete-button" onClick={() => handleDeletePet(pet)}>
-                    {t('common.delete')}
-                  </button>
-                )}
               </div>
               {expandedPetId === pet.id && (
-                <PetDetail pet={pet} onUpdated={handlePetUpdated} onDirtyChange={setExpandedPetDirty} />
+                <PetDetail
+                  pet={pet}
+                  onUpdated={handlePetUpdated}
+                  onDirtyChange={setExpandedPetDirty}
+                  onDelete={() => handleDeletePet(pet)}
+                />
               )}
             </li>
           ))}

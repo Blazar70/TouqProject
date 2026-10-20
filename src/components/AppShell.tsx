@@ -57,10 +57,10 @@ const CLINIC_SECTIONS: NavSection[] = [
   { items: [{ to: '/settings', label: 'nav.settings', icon: Settings }] },
 ]
 
-// Must match the desktop breakpoint in App.css. At this width the sidebar is
-// always visible, so an "open" menu left over from a narrower width (e.g. the
-// tablet was rotated) must not make the page inert.
-const DESKTOP_QUERY = '(min-width: 1024px)'
+// Must match the hover-rail media query in App.css. There the sidebar opens on
+// hover, so an "open" menu left over from a touch layout must not make the page inert.
+const DESKTOP_QUERY = '(min-width: 1024px) and (hover: hover)'
+const RAIL_QUERY = '(min-width: 768px)'
 
 function subscribeDesktop(onChange: () => void) {
   const mql = window.matchMedia(DESKTOP_QUERY)
@@ -72,6 +72,17 @@ function getIsDesktop() {
   return window.matchMedia(DESKTOP_QUERY).matches
 }
 
+// "Al Rawda Veterinary Clinic" -> "AR"; Array.from keeps multi-byte letters whole.
+function clinicInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => Array.from(word)[0] ?? '')
+    .join('')
+    .toUpperCase()
+}
+
 type Props = {
   isAdmin: boolean
   clinicName: string | null
@@ -80,9 +91,10 @@ type Props = {
 }
 
 /**
- * Side navigation layout. Three modes, chosen purely by CSS width:
- * - >= 1024px: persistent 240px sidebar.
- * - 768-1023px: 72px icon rail; the toggle expands it over the content.
+ * Side navigation layout, chosen by CSS width and pointer type:
+ * - >= 1024px with a mouse: icon rail that expands over the content on hover or keyboard focus.
+ * - >= 768px touch (tablets, either orientation): 72px icon rail; tapping the rail or
+ *   the toggle expands it over the content.
  * - < 768px: top bar with a menu button; the sidebar opens as a drawer.
  * When expanded over content (rail or drawer) it behaves as a modal dialog.
  */
@@ -138,7 +150,13 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
 
       {overlayOpen && <div className="app-backdrop" onClick={closeMenu} aria-hidden />}
 
+      {/* Tapping empty rail space opens it on tablets; the toggle button is the keyboard path. */}
       <aside
+        onClick={(e) => {
+          if (isDesktop || overlayOpen || !window.matchMedia(RAIL_QUERY).matches) return
+          if ((e.target as Element).closest('a, button')) return
+          openMenu(e.currentTarget)
+        }}
         id="app-sidebar"
         className={`app-sidebar${overlayOpen ? ' is-open' : ''}`}
         role={overlayOpen ? 'dialog' : undefined}
@@ -159,9 +177,17 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
           </button>
           <span className="app-brand-group">
             <span className="app-brand">{t('auth.brand')}</span>
-            {clinicName && <span className="app-clinic-name">{clinicName}</span>}
           </span>
         </div>
+
+        {clinicName && (
+          <div className="app-clinic" title={clinicName}>
+            <span className="app-clinic-badge" aria-hidden>
+              {clinicInitials(clinicName)}
+            </span>
+            <span className="app-clinic-name">{clinicName}</span>
+          </div>
+        )}
 
         <nav className="app-sidebar-nav" aria-label={t('nav.main')}>
           {sections.map((section, i) => (
@@ -177,7 +203,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
                       title={t(item.label)}
                       onClick={() => setMenuOpen(false)}
                     >
-                      <item.icon className="nav-item-icon" size={22} aria-hidden />
+                      <item.icon className="nav-item-icon" size={24} aria-hidden />
                       <span className="nav-item-label">{t(item.label)}</span>
                     </NavLink>
                   </li>
