@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import LanguageToggle from '../components/LanguageToggle'
+import { usernameToEmail } from '../../supabase/functions/_shared/staffRules'
 
 function LoginPage() {
   const { t } = useLanguage()
@@ -22,8 +23,14 @@ function LoginPage() {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
+    // Staff sign in with a username; their auth email is derived from it (0047).
+    const login = email.trim()
+    const { error } = await supabase.auth.signInWithPassword({
+      email: login.includes('@') ? login : usernameToEmail(login.toLowerCase()),
+      password,
+    })
+    // Removed staff are banned in auth (clinic-manage-staff set_disabled).
+    if (error) setError(error.code === 'user_banned' ? t('admin.accountDisabledBody') : error.message)
     setSubmitting(false)
   }
 
@@ -70,8 +77,16 @@ function LoginPage() {
       ) : (
         <form onSubmit={handleLogin} className="login-form">
           <label>
-            {t('auth.email')}
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            {t('auth.usernameOrEmail')}
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              dir="ltr"
+              required
+            />
           </label>
 
           <label>
@@ -88,7 +103,7 @@ function LoginPage() {
             type="button"
             className="secondary-button"
             onClick={() => {
-              setForgotEmail(email)
+              setForgotEmail(email.includes('@') ? email : '')
               setShowForgotPassword(true)
             }}
           >

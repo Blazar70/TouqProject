@@ -43,7 +43,7 @@ function App() {
         <main className="app-main">
           <h1>{t('admin.accountDisabledTitle')}</h1>
           <p>{t('admin.accountDisabledBody')}</p>
-          <button type="button" className="secondary-button" onClick={() => supabase.auth.signOut()}>
+          <button type="button" className="secondary-button" onClick={() => supabase.auth.signOut({ scope: 'local' })}>
             {t('nav.logout')}
           </button>
         </main>
@@ -60,7 +60,7 @@ function App() {
         <main className="app-main">
           <h1>{t('admin.clinicDisabledTitle')}</h1>
           <p>{t('admin.clinicDisabledBody')}</p>
-          <button type="button" className="secondary-button" onClick={() => supabase.auth.signOut()}>
+          <button type="button" className="secondary-button" onClick={() => supabase.auth.signOut({ scope: 'local' })}>
             {t('nav.logout')}
           </button>
         </main>

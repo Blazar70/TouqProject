@@ -834,6 +834,11 @@
    after it is a bare text node, which :last-child ignores), so it's also
    caught by ".pet-form label > :last-child" above — undo that block/margin
    so it stays inline next to its text instead of dropping to its own line. */
+/* .pet-form input is width:100%, which pushed the text to the far edge. */
+.pet-form .checkbox-label > input {
+  width: auto;
+}
+
 .pet-form .checkbox-label > :last-child {
   display: inline-block;
   margin-top: 0;
@@ -1230,6 +1235,15 @@
   place-content: center;
   flex-shrink: 0;
   transition: background 0.15s, border-color 0.15s;
+}
+
+/* .pet-form input (width:100% + padding) outranks .admin-checkbox and
+   stretched it over its label in the admin branch picker. */
+.pet-form .admin-checkbox {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  flex: none;
 }
 
 .admin-checkbox::before {
@@ -2765,4 +2779,36 @@
 
 .session-form {
   max-width: 760px;
+}
+
+/* Admin staff */
+.admin-branch-picker {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  border: 0;
+  padding: 0;
+  margin: 0 0 0.75rem;
+}
+
+.admin-branch-picker > legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pet-form .admin-branch-picker > label {
+  display: flex;
+  min-height: 44px;
+}
+
+.admin-branch-picker > label > input {
+  margin-top: 0;
+}
+
+.admin-branch-picker > p {
+  flex-basis: 100%;
+  margin: 0;
 }

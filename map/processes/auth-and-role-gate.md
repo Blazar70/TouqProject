@@ -19,7 +19,7 @@ There is no public signup (0029 removed it). A disabled user can still read thei
 
 ## Steps
 
-1. `signInWithPassword` or reset email. `src/pages/LoginPage.tsx:25,35`
+1. `signInWithPassword` or reset email. `src/pages/LoginPage.tsx`. The box takes a username (turned into `<username>@staff.touq.invalid` by `usernameToEmail`) or an email. A banned (removed) account gets error code `user_banned` → `admin.accountDisabledBody`. Logout signs out this device only (`scope: 'local'`). Staff with usernames can't use the reset email; a manager or admin resets their password.
 2. `AuthContext` loads `profiles` with `clinics(name, phone, disabled)`. `src/lib/AuthContext.tsx:78`
 3. `App` checks in order: password recovery, loading, no session, `profile.disabled`, clinic disabled. `src/App.tsx:29-68`
 4. `isAdmin = profile.role === 'admin'` picks admin routes (`/`, `/billing`, `/activity`) or clinic routes (`/`, `/pets`, `/pets/new`, `/appointments`, `/payments`, `/staff`, `/settings`). `src/App.tsx:70,75-93`

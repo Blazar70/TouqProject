@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { MIN_PASSWORD_LENGTH, parseStaffLogin } from '../_shared/staffRules.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -87,7 +88,6 @@ Deno.serve(async (req) => {
     await admin.from('invoices').delete().eq('clinic_id', clinicId)
     await admin.from('services').delete().eq('clinic_id', clinicId)
     await admin.from('pets').delete().eq('clinic_id', clinicId)
-    await admin.from('caregivers').delete().eq('clinic_id', clinicId)
 
     for (const p of staffProfiles ?? []) {
       await admin.auth.admin.deleteUser(p.id)
@@ -107,20 +107,24 @@ Deno.serve(async (req) => {
 
     const clinicName = String(body.clinicName ?? '').trim()
     const vetFullName = String(body.vetFullName ?? '').trim()
-    const vetEmail = String(body.vetEmail ?? '').trim()
+    // vetUsername may also be a real email.
+    const login = parseStaffLogin(String(body.vetUsername ?? ''))
     const vetPassword = String(body.vetPassword ?? '')
     const vetPhone = body.vetPhone ? String(body.vetPhone).trim() : null
 
-    if (!clinicName || !vetFullName || !vetEmail || vetPassword.length < 6) {
+    if (!clinicName || !vetFullName || !login || vetPassword.length < MIN_PASSWORD_LENGTH) {
       return jsonError('Missing or invalid fields')
     }
 
     const { data: userData, error: userError } = await admin.auth.admin.createUser({
-      email: vetEmail,
+      email: login.email,
       password: vetPassword,
       email_confirm: true,
     })
-    if (userError || !userData.user) return jsonError(userError?.message ?? 'Could not create vet account')
+    if (userError || !userData.user) {
+      const taken = /already|exists|registered/i.test(userError?.message ?? '')
+      return jsonError(taken ? 'Username or email is taken' : (userError?.message ?? 'Could not create vet account'))
+    }
 
     const { data: clinic, error: clinicError } = await admin.from('clinics').insert({ name: clinicName }).select('id, name').single()
     if (clinicError || !clinic) {
@@ -131,6 +135,9 @@ Deno.serve(async (req) => {
     const { error: profileError } = await admin.from('profiles').insert({
       id: userData.user.id,
       role: 'vet',
+      clinic_role: 'manager',
+      username: login.username,
+      email: login.username ? null : login.email,
       full_name: vetFullName,
       phone: vetPhone,
       clinic_id: clinic.id,
@@ -141,47 +148,8 @@ Deno.serve(async (req) => {
       return jsonError(profileError.message)
     }
 
-    await logAction('clinic_created', 'clinic', `${clinic.name} (vet: ${vetFullName})`, clinic.id)
+    await logAction('clinic_created', 'clinic', `${clinic.name} (manager: ${vetFullName}, ${login.username ? '@' + login.username : login.email})`, clinic.id)
     return jsonOk({ clinicId: clinic.id, clinicName: clinic.name, vetId: userData.user.id })
-  }
-
-  if (body.action === 'add_staff') {
-    if (isTrustedCaller) return jsonError('add_staff is not available to the scheduled job', 403)
-
-    const clinicId = String(body.clinicId ?? '')
-    const fullName = String(body.fullName ?? '').trim()
-    const email = String(body.email ?? '').trim()
-    const password = String(body.password ?? '')
-    const phone = body.phone ? String(body.phone).trim() : null
-
-    if (!clinicId || !fullName || !email || password.length < 6) {
-      return jsonError('Missing or invalid fields')
-    }
-
-    const { data: clinicRow } = await admin.from('clinics').select('name').eq('id', clinicId).maybeSingle()
-    if (!clinicRow) return jsonError('Clinic not found', 404)
-
-    const { data: userData, error: userError } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    })
-    if (userError || !userData.user) return jsonError(userError?.message ?? 'Could not create user account')
-
-    const { error: profileError } = await admin.from('profiles').insert({
-      id: userData.user.id,
-      role: 'vet',
-      full_name: fullName,
-      phone,
-      clinic_id: clinicId,
-    })
-    if (profileError) {
-      await admin.auth.admin.deleteUser(userData.user.id)
-      return jsonError(profileError.message)
-    }
-
-    await logAction('staff_added', 'profile', `${fullName} (${clinicRow.name})`, clinicId)
-    return jsonOk({ userId: userData.user.id })
   }
 
   if (body.action === 'reset_password') {

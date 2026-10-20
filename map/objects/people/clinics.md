@@ -27,7 +27,7 @@ Isolation between clinics is enforced by RLS through one helper, `current_user_c
 
 ## Connected to
 
-- **owns:** profiles (vets), branches (cascade), caregivers, pets, appointments, medical_records, services, invoices, payments, admin_audit_log.clinic_id
+- **owns:** profiles (vets), branches (cascade), pets, appointments, medical_records, services, invoices, payments, admin_audit_log.clinic_id
 - **owned-by:** none
 - **looks-like-but-is-not:** a row in `payments` is the clinic paying Touq, keyed by clinic_id.
 

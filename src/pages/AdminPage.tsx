@@ -9,7 +9,7 @@ import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { speciesLabel, POPULAR_SPECIES } from '../lib/species'
-import { isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
+import { isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { downloadCsv } from '../lib/csvExport'
 import { logAdminAction, auditActionLabelKey } from '../lib/adminAudit'
 import PhoneInput from '../components/PhoneInput'
@@ -18,10 +18,13 @@ import LoadingScreen from '../components/LoadingScreen'
 import SimpleBarChart from '../components/SimpleBarChart'
 import Ltr from '../components/Ltr'
 import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
+import { CLINIC_ROLES, parseStaffLogin } from '../../supabase/functions/_shared/staffRules'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
 type Pet = Database['public']['Tables']['pets']['Row']
+type Branch = Database['public']['Tables']['branches']['Row']
+type StaffBranch = Database['public']['Tables']['staff_branches']['Row']
 type AuditLogEntry = Database['public']['Tables']['admin_audit_log']['Row']
 type AppointmentStub = { clinic_id: string; created_at: string }
 type PetStub = { id: string; name: string; owner_name: string; clinic_id: string }
@@ -35,14 +38,25 @@ const TRASH_RETENTION_DAYS = 7
 const ABUSE_SIGNAL_PETS_24H = 15
 const ABUSE_SIGNAL_APPOINTMENTS_24H = 30
 
+// Returns the error text, or null on success.
+async function invokeFn(name: string, body: Record<string, unknown>): Promise<string | null> {
+  const { data, error } = await supabase.functions.invoke(name, { body })
+  if (!error) return data?.error ?? null
+  // On a non-2xx reply the server's { error } sits in the raw Response, not in data.
+  const payload = await error.context?.json?.().catch(() => null)
+  return payload?.error ?? error.message
+}
+
 function AdminPage() {
   const { profile: currentProfile } = useAuth()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const confirm = useConfirm()
   const toast = useToast()
 
   const [clinics, setClinics] = useState<Clinic[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [staffBranches, setStaffBranches] = useState<StaffBranch[]>([])
   const [petCounts, setPetCounts] = useState<Record<string, number>>({})
   const [appointmentCounts, setAppointmentCounts] = useState<Record<string, number>>({})
   const [staffCounts, setStaffCounts] = useState<Record<string, number>>({})
@@ -59,7 +73,7 @@ function AdminPage() {
   const [showNewClinicForm, setShowNewClinicForm] = useState(false)
   const [newClinicName, setNewClinicName] = useState('')
   const [newVetFullName, setNewVetFullName] = useState('')
-  const [newVetEmail, setNewVetEmail] = useState('')
+  const [newVetUsername, setNewVetUsername] = useState('')
   const [newVetPassword, setNewVetPassword] = useState('')
   const [newVetPhone, setNewVetPhone] = useState('')
   const [creatingClinic, setCreatingClinic] = useState(false)
@@ -82,10 +96,23 @@ function AdminPage() {
 
   const [addStaffClinicId, setAddStaffClinicId] = useState<string | null>(null)
   const [addStaffFullName, setAddStaffFullName] = useState('')
-  const [addStaffEmail, setAddStaffEmail] = useState('')
+  const [addStaffUsername, setAddStaffUsername] = useState('')
+  const [addStaffRole, setAddStaffRole] = useState<string>('doctor')
+  const [addStaffBranchIds, setAddStaffBranchIds] = useState<string[]>([])
+  const [addStaffTitle, setAddStaffTitle] = useState('')
   const [addStaffPassword, setAddStaffPassword] = useState('')
   const [addStaffPhone, setAddStaffPhone] = useState('')
   const [addingStaff, setAddingStaff] = useState(false)
+
+  // One form for adding (branchId null) and editing a branch.
+  const [branchForm, setBranchForm] = useState<{ clinicId: string; branchId: string | null } | null>(null)
+  const [branchName, setBranchName] = useState('')
+  const [branchNameAr, setBranchNameAr] = useState('')
+  const [branchPhone, setBranchPhone] = useState('')
+  const [branchAddress, setBranchAddress] = useState('')
+  const [savingBranch, setSavingBranch] = useState(false)
+  const [branchError, setBranchError] = useState<string | null>(null)
+  const [busyBranchId, setBusyBranchId] = useState<string | null>(null)
   const [addStaffError, setAddStaffError] = useState<string | null>(null)
 
   const [userModalId, setUserModalId] = useState<string | null>(null)
@@ -101,9 +128,12 @@ function AdminPage() {
 
   const [editingUserFields, setEditingUserFields] = useState(false)
   const [editUserFullName, setEditUserFullName] = useState('')
+  const [editUserLogin, setEditUserLogin] = useState('')
   const [editUserPhone, setEditUserPhone] = useState('')
   const [editUserRole, setEditUserRole] = useState('vet')
   const [editUserClinicId, setEditUserClinicId] = useState('')
+  const [editUserClinicRole, setEditUserClinicRole] = useState<string>('doctor')
+  const [editUserBranchIds, setEditUserBranchIds] = useState<string[]>([])
   const [savingUserEdit, setSavingUserEdit] = useState(false)
   const [userEditError, setUserEditError] = useState<string | null>(null)
 
@@ -133,16 +163,20 @@ function AdminPage() {
     const day = 24 * 60 * 60 * 1000
     const appointmentsSince = new Date(Date.now() - Math.max(DORMANT_WINDOW_DAYS, CHART_WEEKS * 7) * day).toISOString()
     const petsSince = new Date(Date.now() - day).toISOString()
-    const [clinicsRes, profilesRes, countsRes, petsRes, appointmentsRes] = await Promise.all([
+    const [clinicsRes, profilesRes, countsRes, petsRes, appointmentsRes, branchesRes, staffBranchesRes] = await Promise.all([
       supabase.from('clinics').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.rpc('admin_clinic_counts'),
       supabase.from('pets').select('clinic_id, created_at').is('deleted_at', null).gte('created_at', petsSince),
       supabase.from('appointments').select('clinic_id, created_at').gte('created_at', appointmentsSince),
+      supabase.from('branches').select('*').order('is_main', { ascending: false }).order('name'),
+      supabase.from('staff_branches').select('*'),
     ])
     const counts = countsRes.data ?? []
     setClinics(clinicsRes.data ?? [])
     setProfiles(profilesRes.data ?? [])
+    setBranches(branchesRes.data ?? [])
+    setStaffBranches(staffBranchesRes.data ?? [])
     setPetCounts(Object.fromEntries(counts.map((c) => [c.clinic_id, c.pets])))
     setAppointmentCounts(Object.fromEntries(counts.map((c) => [c.clinic_id, c.appointments])))
     setStaffCounts(Object.fromEntries(counts.map((c) => [c.clinic_id, c.staff])))
@@ -280,31 +314,34 @@ function AdminPage() {
     }
 
     setTogglingId(p.id)
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ disabled: !p.disabled })
-      .eq('id', p.id)
-      .select()
-      .single()
+    const disabled = !p.disabled
+    let err: string | null
+    if (isClinicStaff(p)) {
+      // The function also bans sign-in and keeps the last active manager; it writes its own audit row.
+      err = await invokeFn('clinic-manage-staff', { action: 'set_disabled', clinicId: p.clinic_id, userId: p.id, disabled })
+    } else {
+      const { error } = await supabase.from('profiles').update({ disabled }).eq('id', p.id)
+      err = error?.message ?? null
+      if (!err && currentProfile) {
+        await logAdminAction(
+          currentProfile.id,
+          currentProfile.full_name,
+          disabled ? 'user_disabled' : 'user_enabled',
+          'profile',
+          p.full_name,
+          p.clinic_id,
+        )
+      }
+    }
 
-    if (error || !data) {
-      toast.error(error?.message ?? t('common.couldNotSave'))
+    if (err) {
+      toast.error(err)
       setTogglingId(null)
       return
     }
 
-    setProfiles((current) => current.map((row) => (row.id === data.id ? data : row)))
-    if (currentProfile) {
-      await logAdminAction(
-        currentProfile.id,
-        currentProfile.full_name,
-        data.disabled ? 'user_disabled' : 'user_enabled',
-        'profile',
-        data.full_name,
-        data.clinic_id,
-      )
-    }
-    toast.success(data.disabled ? t('admin.disabled', { name: data.full_name }) : t('admin.enabled', { name: data.full_name }))
+    setProfiles((current) => current.map((row) => (row.id === p.id ? { ...row, disabled } : row)))
+    toast.success(disabled ? t('admin.disabled', { name: p.full_name }) : t('admin.enabled', { name: p.full_name }))
     setTogglingId(null)
     load()
   }
@@ -313,25 +350,27 @@ function AdminPage() {
     e.preventDefault()
     setCreateError(null)
 
-    if (!newClinicName.trim() || !newVetFullName.trim() || !newVetEmail.trim() || newVetPassword.length < 6) {
+    if (!newClinicName.trim() || !newVetFullName.trim() || !newVetUsername.trim() || newVetPassword.length < 6) {
       setCreateError(t('admin.newClinicInvalid'))
+      return
+    }
+    if (!parseStaffLogin(newVetUsername)) {
+      setCreateError(t('admin.usernameInvalid'))
       return
     }
 
     setCreatingClinic(true)
-    const { data, error } = await supabase.functions.invoke('admin-manage-clinic', {
-      body: {
-        action: 'create',
-        clinicName: newClinicName.trim(),
-        vetFullName: newVetFullName.trim(),
-        vetEmail: newVetEmail.trim(),
-        vetPassword: newVetPassword,
-        vetPhone: newVetPhone ? `+966${newVetPhone}` : null,
-      },
+    const err = await invokeFn('admin-manage-clinic', {
+      action: 'create',
+      clinicName: newClinicName.trim(),
+      vetFullName: newVetFullName.trim(),
+      vetUsername: newVetUsername.trim(),
+      vetPassword: newVetPassword,
+      vetPhone: newVetPhone ? `+966${newVetPhone}` : null,
     })
 
-    if (error || data?.error) {
-      setCreateError(data?.error ?? error?.message ?? t('common.couldNotSave'))
+    if (err) {
+      setCreateError(err)
       setCreatingClinic(false)
       return
     }
@@ -339,7 +378,7 @@ function AdminPage() {
     toast.success(t('admin.clinicCreated', { name: newClinicName.trim() }))
     setNewClinicName('')
     setNewVetFullName('')
-    setNewVetEmail('')
+    setNewVetUsername('')
     setNewVetPassword('')
     setNewVetPhone('')
     setShowNewClinicForm(false)
@@ -495,12 +534,108 @@ function AdminPage() {
     setLoadingClinicActivity(false)
   }
 
+  function openBranchForm(clinicId: string, branch: Branch | null) {
+    setBranchForm({ clinicId, branchId: branch?.id ?? null })
+    setBranchName(branch?.name ?? '')
+    setBranchNameAr(branch?.name_ar ?? '')
+    setBranchPhone(branch?.phone ?? '')
+    setBranchAddress(branch?.address ?? '')
+    setBranchError(null)
+  }
+
+  async function logBranch(action: string, name: string, clinicId: string) {
+    if (currentProfile) await logAdminAction(currentProfile.id, currentProfile.full_name, action, 'branch', name, clinicId)
+  }
+
+  // Admins write branches directly (branches_all_admin, 0044); close and
+  // make-main are database functions so they can't half-finish (0048).
+  async function handleSaveBranch(e: FormEvent) {
+    e.preventDefault()
+    if (!branchForm) return
+    const name = branchName.trim()
+    if (!name) return
+    if (branchPhone.trim() && !isValidClinicPhone(branchPhone.trim())) {
+      setBranchError(t('registerPet.invalidPhone'))
+      return
+    }
+    setSavingBranch(true)
+    const fields = {
+      name,
+      name_ar: branchNameAr.trim() || null,
+      phone: branchPhone.trim() || null,
+      address: branchAddress.trim() || null,
+    }
+    const { error } = branchForm.branchId
+      ? await supabase.from('branches').update(fields).eq('id', branchForm.branchId)
+      : await supabase.from('branches').insert({ ...fields, clinic_id: branchForm.clinicId })
+    setSavingBranch(false)
+    if (error) {
+      setBranchError(error.code === '23505' ? t('admin.branchNameTaken') : error.message)
+      return
+    }
+    await logBranch(branchForm.branchId ? 'branch_updated' : 'branch_added', name, branchForm.clinicId)
+    toast.success(t(branchForm.branchId ? 'admin.branchSaved' : 'admin.branchAdded', { name }))
+    setBranchForm(null)
+    await load()
+  }
+
+  async function handleMakeMainBranch(branch: Branch) {
+    setBusyBranchId(branch.id)
+    const { error } = await supabase.rpc('admin_set_main_branch', { p_branch: branch.id })
+    setBusyBranchId(null)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    await logBranch('branch_made_main', branch.name, branch.clinic_id)
+    toast.success(t('admin.branchMadeMain', { name: branchLabel(branch) }))
+    await load()
+  }
+
+  async function handleCloseBranch(branch: Branch) {
+    // Same rule as admin_close_branch: staff with no other branch move to main.
+    const moving = staffBranches.filter(
+      (sb) => sb.branch_id === branch.id && !staffBranches.some((o) => o.profile_id === sb.profile_id && o.branch_id !== branch.id),
+    ).length
+    const ok = await confirm(t('admin.closeBranchConfirm', { name: branchLabel(branch), count: String(moving) }), {
+      danger: true,
+      confirmLabel: t('admin.closeBranch'),
+    })
+    if (!ok) return
+    setBusyBranchId(branch.id)
+    const { error } = await supabase.rpc('admin_close_branch', { p_branch: branch.id })
+    setBusyBranchId(null)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    await logBranch('branch_closed', branch.name, branch.clinic_id)
+    toast.success(t('admin.branchClosed', { name: branchLabel(branch) }))
+    await load()
+  }
+
+  async function handleReopenBranch(branch: Branch) {
+    setBusyBranchId(branch.id)
+    const { error } = await supabase.from('branches').update({ active: true }).eq('id', branch.id)
+    setBusyBranchId(null)
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+    await logBranch('branch_reopened', branch.name, branch.clinic_id)
+    toast.success(t('admin.branchReopened', { name: branchLabel(branch) }))
+    await load()
+  }
+
   function startAddStaff(clinicId: string) {
     setAddStaffClinicId(clinicId)
     setAddStaffFullName('')
-    setAddStaffEmail('')
+    setAddStaffUsername('')
     setAddStaffPassword('')
     setAddStaffPhone('')
+    setAddStaffRole('doctor')
+    setAddStaffBranchIds([])
+    setAddStaffTitle('')
     setAddStaffError(null)
   }
 
@@ -508,25 +643,34 @@ function AdminPage() {
     e.preventDefault()
     setAddStaffError(null)
 
-    if (!addStaffFullName.trim() || !addStaffEmail.trim() || addStaffPassword.length < 6) {
+    if (!addStaffFullName.trim() || !addStaffUsername.trim() || addStaffPassword.length < 6) {
       setAddStaffError(t('admin.addUserInvalid'))
+      return
+    }
+    if (!parseStaffLogin(addStaffUsername)) {
+      setAddStaffError(t('admin.usernameInvalid'))
+      return
+    }
+    if (addStaffRole !== 'manager' && addStaffBranchIds.length === 0) {
+      setAddStaffError(t('admin.branchesRequired'))
       return
     }
 
     setAddingStaff(true)
-    const { data, error } = await supabase.functions.invoke('admin-manage-clinic', {
-      body: {
-        action: 'add_staff',
-        clinicId,
-        fullName: addStaffFullName.trim(),
-        email: addStaffEmail.trim(),
-        password: addStaffPassword,
-        phone: addStaffPhone ? `+966${addStaffPhone}` : null,
-      },
+    const err = await invokeFn('clinic-manage-staff', {
+      action: 'create_staff',
+      clinicId,
+      username: addStaffUsername.trim(),
+      password: addStaffPassword,
+      fullName: addStaffFullName.trim(),
+      clinicRole: addStaffRole,
+      branchIds: addStaffBranchIds,
+      phone: addStaffPhone ? `+966${addStaffPhone}` : null,
+      title: addStaffTitle.trim() || null,
     })
 
-    if (error || data?.error) {
-      setAddStaffError(data?.error ?? error?.message ?? t('common.couldNotSave'))
+    if (err) {
+      setAddStaffError(err)
       setAddingStaff(false)
       return
     }
@@ -556,9 +700,12 @@ function AdminPage() {
 
   function startEditUserFields(p: Profile) {
     setEditUserFullName(p.full_name)
+    setEditUserLogin(p.username ?? p.email ?? '')
     setEditUserPhone(stripSaudiPrefix(p.phone))
     setEditUserRole(p.role)
     setEditUserClinicId(p.clinic_id ?? '')
+    setEditUserClinicRole(p.clinic_role ?? 'doctor')
+    setEditUserBranchIds(branchIdsOf(p.id))
     setUserEditError(null)
     setEditingUserFields(true)
   }
@@ -579,8 +726,52 @@ function AdminPage() {
       setUserEditError(t('admin.vetNeedsClinic'))
       return
     }
+    const staffAtClinic = isClinicStaff(p) && editUserRole === 'vet' && editUserClinicId === p.clinic_id
+    if (staffAtClinic && editUserClinicRole !== 'manager' && editUserBranchIds.length === 0) {
+      setUserEditError(t('admin.branchesRequired'))
+      return
+    }
+
+    const loginChanged = isClinicStaff(p) && editUserLogin.trim().toLowerCase() !== (p.username ?? p.email ?? '')
+    if (loginChanged && !parseStaffLogin(editUserLogin)) {
+      setUserEditError(t('admin.usernameInvalid'))
+      return
+    }
 
     setSavingUserEdit(true)
+    if (loginChanged) {
+      const err = await invokeFn('clinic-manage-staff', { action: 'set_login', clinicId: p.clinic_id, userId: p.id, username: editUserLogin })
+      if (err) {
+        setUserEditError(err)
+        setSavingUserEdit(false)
+        return
+      }
+    }
+    // Role and branches go through the function first: it refuses demoting the last manager.
+    if (staffAtClinic) {
+      const oldBranchIds = branchIdsOf(p.id)
+      const branchesChanged =
+        oldBranchIds.length !== editUserBranchIds.length || oldBranchIds.some((id) => !editUserBranchIds.includes(id))
+      const err =
+        (editUserClinicRole !== p.clinic_role
+          ? await invokeFn('clinic-manage-staff', { action: 'set_role', clinicId: p.clinic_id, userId: p.id, clinicRole: editUserClinicRole })
+          : null) ??
+        (branchesChanged
+          ? await invokeFn('clinic-manage-staff', { action: 'set_branches', clinicId: p.clinic_id, userId: p.id, branchIds: editUserBranchIds })
+          : null)
+      if (err) {
+        setUserEditError(err)
+        setSavingUserEdit(false)
+        await load()
+        return
+      }
+      if (branchesChanged) {
+        setStaffBranches((current) => [
+          ...current.filter((r) => r.profile_id !== p.id),
+          ...editUserBranchIds.map((branch_id) => ({ profile_id: p.id, branch_id })),
+        ])
+      }
+    }
     const { data, error } = await supabase
       .from('profiles')
       .update({
@@ -627,12 +818,10 @@ function AdminPage() {
     }
 
     setResettingPassword(true)
-    const { data, error } = await supabase.functions.invoke('admin-manage-clinic', {
-      body: { action: 'reset_password', userId, newPassword: resetPasswordValue },
-    })
+    const err = await invokeFn('admin-manage-clinic', { action: 'reset_password', userId, newPassword: resetPasswordValue })
 
-    if (error || data?.error) {
-      setResetPasswordError(data?.error ?? error?.message ?? t('common.couldNotSave'))
+    if (err) {
+      setResetPasswordError(err)
       setResettingPassword(false)
       return
     }
@@ -740,6 +929,51 @@ function AdminPage() {
 
   function roleLabel(role: string) {
     return t(`role.${role}` as TranslationKey)
+  }
+
+  function clinicRoleLabel(role: string) {
+    return t(`admin.clinicRole.${role}` as TranslationKey)
+  }
+
+  function isClinicStaff(p: Profile) {
+    return p.role === 'vet' && !!p.clinic_id
+  }
+
+  function branchIdsOf(profileId: string) {
+    return staffBranches.filter((r) => r.profile_id === profileId).map((r) => r.branch_id)
+  }
+
+  function branchLabel(b: Branch) {
+    return (language === 'ar' && b.name_ar) || b.name
+  }
+
+  // A manager with no branch rows runs the whole clinic.
+  function staffBranchesText(p: Profile) {
+    const ids = branchIdsOf(p.id)
+    const names = branches.filter((b) => ids.includes(b.id)).map(branchLabel)
+    return names.length ? names.join(language === 'ar' ? '، ' : ', ') : t('admin.wholeClinic')
+  }
+
+  function branchCheckboxes(clinicId: string, selected: string[], setSelected: (ids: string[]) => void) {
+    return (
+      <fieldset className="admin-branch-picker">
+        <legend>{t('admin.branchesField')}</legend>
+        {branches
+          .filter((b) => b.clinic_id === clinicId && b.active)
+          .map((b) => (
+            <label key={b.id} className="bulk-select-all">
+              <input
+                type="checkbox"
+                className="admin-checkbox"
+                checked={selected.includes(b.id)}
+                onChange={() => setSelected(selected.includes(b.id) ? selected.filter((id) => id !== b.id) : [...selected, b.id])}
+              />
+              {branchLabel(b)}
+            </label>
+          ))}
+        <p className="pet-owner">{t('admin.branchesHint')}</p>
+      </fieldset>
+    )
   }
 
   function billingStatusLabel(status: string) {
@@ -947,17 +1181,25 @@ function AdminPage() {
             <input value={newClinicName} onChange={(e) => setNewClinicName(e.target.value)} required />
           </label>
           <label>
-            {t('admin.vetFullName')}
+            {t('admin.managerFullName')}
             <RequiredMark />
             <input value={newVetFullName} onChange={(e) => setNewVetFullName(e.target.value)} required />
           </label>
           <label>
-            {t('admin.vetEmail')}
+            {t('admin.managerUsername')}
             <RequiredMark />
-            <input type="email" value={newVetEmail} onChange={(e) => setNewVetEmail(e.target.value)} required />
+            <input
+              value={newVetUsername}
+              onChange={(e) => setNewVetUsername(e.target.value.toLowerCase())}
+              required
+              autoCapitalize="none"
+              autoComplete="off"
+              spellCheck={false}
+              dir="ltr"
+            />
           </label>
           <label>
-            {t('admin.vetPassword')}
+            {t('admin.managerPassword')}
             <RequiredMark />
             <input
               type="password"
@@ -1065,10 +1307,10 @@ function AdminPage() {
                       )}
                       <div className="pet-owner">
                         {t('admin.clinicStats', {
-                          vets: String(clinicVets.length),
                           staff: String(staffCounts[clinic.id] ?? 0),
                           pets: String(petCounts[clinic.id] ?? 0),
                           appointments: String(appointmentCounts[clinic.id] ?? 0),
+                          branches: String(branches.filter((b) => b.clinic_id === clinic.id && b.active).length),
                         })}
                       </div>
                     </span>
@@ -1120,6 +1362,9 @@ function AdminPage() {
                           <button type="button" className="secondary-button" onClick={() => startAddStaff(clinic.id)}>
                             + {t('admin.addUser')}
                           </button>
+                          <button type="button" className="secondary-button" onClick={() => openBranchForm(clinic.id, null)}>
+                            + {t('admin.addBranch')}
+                          </button>
                           <button type="button" className="secondary-button" onClick={() => openClinicActivity(clinic.id)}>
                             {t('admin.viewActivity')}
                           </button>
@@ -1146,21 +1391,118 @@ function AdminPage() {
                         </div>
                       </div>
                     )}
+                    <h4>{t('admin.branchesField')}</h4>
+                    <ul className="record-list">
+                      {branches
+                        .filter((b) => b.clinic_id === clinic.id)
+                        .map((b) => (
+                          <li key={b.id}>
+                            <div className="record-row">
+                              <div>
+                                <strong>{b.name}</strong>
+                                {b.name_ar && <span className="pet-owner"> · {b.name_ar}</span>}
+                                {b.is_main && <>{' '}<span className="status-badge status-confirmed">{t('admin.mainBranch')}</span></>}
+                                {!b.active && <>{' '}<span className="status-badge status-cancelled">{t('admin.branchClosedBadge')}</span></>}
+                                {(b.phone || b.address) && (
+                                  <div className="pet-owner">
+                                    {b.phone && <Ltr>{b.phone}</Ltr>}
+                                    {b.phone && b.address && ' · '}
+                                    {b.address}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="record-actions">
+                                <button type="button" className="secondary-button" onClick={() => openBranchForm(clinic.id, b)}>
+                                  {t('common.edit')}
+                                </button>
+                                {b.active && !b.is_main && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="secondary-button"
+                                      onClick={() => handleMakeMainBranch(b)}
+                                      disabled={busyBranchId === b.id}
+                                    >
+                                      {t('admin.makeMainBranch')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="delete-button"
+                                      onClick={() => handleCloseBranch(b)}
+                                      disabled={busyBranchId === b.id}
+                                    >
+                                      {t('admin.closeBranch')}
+                                    </button>
+                                  </>
+                                )}
+                                {!b.active && (
+                                  <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => handleReopenBranch(b)}
+                                    disabled={busyBranchId === b.id}
+                                  >
+                                    {t('admin.reopenBranch')}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                    {branchForm?.clinicId === clinic.id && (
+                      <form onSubmit={handleSaveBranch} className="pet-form pet-form-grid">
+                        {branchError && <p className="form-error">{branchError}</p>}
+                        <label>
+                          {t('admin.branchName')}
+                          <RequiredMark />
+                          <input value={branchName} onChange={(e) => setBranchName(e.target.value)} required />
+                        </label>
+                        <label>
+                          {t('admin.branchNameAr')}
+                          <input value={branchNameAr} onChange={(e) => setBranchNameAr(e.target.value)} dir="rtl" />
+                        </label>
+                        <label>
+                          {t('common.phone')}
+                          <input value={branchPhone} onChange={(e) => setBranchPhone(e.target.value)} dir="ltr" placeholder="+966 11 234 5678" />
+                        </label>
+                        <label>
+                          {t('admin.branchAddress')}
+                          <input value={branchAddress} onChange={(e) => setBranchAddress(e.target.value)} />
+                        </label>
+                        <div className="record-edit-actions">
+                          <button type="submit" disabled={savingBranch}>
+                            {savingBranch ? t('common.saving') : branchForm.branchId ? t('common.save') : t('admin.addBranch')}
+                          </button>
+                          <button type="button" className="cancel-button" onClick={() => setBranchForm(null)}>
+                            {t('common.cancel')}
+                          </button>
+                        </div>
+                      </form>
+                    )}
                     {addStaffClinicId === clinic.id && (
                       <form onSubmit={(e) => handleAddStaff(e, clinic.id)} className="pet-form pet-form-grid">
                         {addStaffError && <p className="form-error">{addStaffError}</p>}
                         <label>
-                          {t('admin.vetFullName')}
+                          {t('common.name')}
                           <RequiredMark />
                           <input value={addStaffFullName} onChange={(e) => setAddStaffFullName(e.target.value)} required />
                         </label>
                         <label>
-                          {t('admin.vetEmail')}
+                          {t('admin.usernameField')}
                           <RequiredMark />
-                          <input type="email" value={addStaffEmail} onChange={(e) => setAddStaffEmail(e.target.value)} required />
+                          <input
+                            value={addStaffUsername}
+                            onChange={(e) => setAddStaffUsername(e.target.value.toLowerCase())}
+                            required
+                            autoCapitalize="none"
+                            autoComplete="off"
+                            spellCheck={false}
+                            dir="ltr"
+                          />
                         </label>
                         <label>
-                          {t('admin.vetPassword')}
+                          {t('admin.passwordField')}
                           <RequiredMark />
                           <input
                             type="password"
@@ -1174,6 +1516,21 @@ function AdminPage() {
                           {t('common.phone')}
                           <PhoneInput value={addStaffPhone} onChange={setAddStaffPhone} invalidMessage={t('registerPet.invalidPhone')} />
                         </label>
+                        <label>
+                          {t('admin.clinicRoleField')}
+                          <select value={addStaffRole} onChange={(e) => setAddStaffRole(e.target.value)}>
+                            {CLINIC_ROLES.map((r) => (
+                              <option key={r} value={r}>
+                                {clinicRoleLabel(r)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          {t('admin.titleField')}
+                          <input value={addStaffTitle} onChange={(e) => setAddStaffTitle(e.target.value)} />
+                        </label>
+                        {branchCheckboxes(clinic.id, addStaffBranchIds, setAddStaffBranchIds)}
                         <div className="record-edit-actions">
                           <button type="submit" disabled={addingStaff}>
                             {addingStaff ? t('common.saving') : t('admin.createUser')}
@@ -1192,8 +1549,13 @@ function AdminPage() {
                           <li key={p.id} className="pet-list-item">
                             <div className="pet-row">
                               <button type="button" className="pet-row-toggle" onClick={() => openUserModal(p.id)}>
-                                {p.full_name} — {roleLabel(p.role)}
+                                {p.full_name} — {p.clinic_role ? clinicRoleLabel(p.clinic_role) : roleLabel(p.role)}
                                 {p.disabled && <span className="status-badge status-cancelled"> {t('admin.disabledBadge')}</span>}
+                                <div className="pet-owner">
+                                  {(p.username || p.email) && <Ltr>{p.username ? `@${p.username}` : p.email}</Ltr>}
+                                  {(p.username || p.email) && ' · '}
+                                  {staffBranchesText(p)}
+                                </div>
                               </button>
                               {p.id !== currentProfile?.id && (
                                 <button
@@ -1355,7 +1717,16 @@ function AdminPage() {
                         <span className="status-badge status-cancelled">{t('admin.disabledBadge')}</span>
                       )}
                     </h2>
-                    <p className="pet-owner">{roleLabel(userModalProfile.role)}</p>
+                    <p className="pet-owner">
+                      {userModalProfile.clinic_role ? clinicRoleLabel(userModalProfile.clinic_role) : roleLabel(userModalProfile.role)}
+                      {(userModalProfile.username || userModalProfile.email) && (
+                        <>
+                          {' · '}
+                          <Ltr>{userModalProfile.username ? `@${userModalProfile.username}` : userModalProfile.email}</Ltr>
+                        </>
+                      )}
+                      {isClinicStaff(userModalProfile) && ` · ${staffBranchesText(userModalProfile)}`}
+                    </p>
 
                     {!editingUserFields && (
                       <div className="admin-pet-modal-fields">
@@ -1404,6 +1775,19 @@ function AdminPage() {
                           <RequiredMark />
                           <input value={editUserFullName} onChange={(e) => setEditUserFullName(e.target.value)} required />
                         </label>
+                        {isClinicStaff(userModalProfile) && (
+                          <label>
+                            {t('admin.usernameField')}
+                            <input
+                              value={editUserLogin}
+                              onChange={(e) => setEditUserLogin(e.target.value.toLowerCase())}
+                              autoCapitalize="none"
+                              autoComplete="off"
+                              spellCheck={false}
+                              dir="ltr"
+                            />
+                          </label>
+                        )}
                         <label>
                           {t('common.phone')}
                           <PhoneInput value={editUserPhone} onChange={setEditUserPhone} invalidMessage={t('registerPet.invalidPhone')} />
@@ -1434,6 +1818,23 @@ function AdminPage() {
                             </select>
                           </label>
                         )}
+                        {isClinicStaff(userModalProfile) &&
+                          editUserRole === 'vet' &&
+                          editUserClinicId === userModalProfile.clinic_id && (
+                            <>
+                              <label>
+                                {t('admin.clinicRoleField')}
+                                <select value={editUserClinicRole} onChange={(e) => setEditUserClinicRole(e.target.value)}>
+                                  {CLINIC_ROLES.map((r) => (
+                                    <option key={r} value={r}>
+                                      {clinicRoleLabel(r)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              {branchCheckboxes(userModalProfile.clinic_id!, editUserBranchIds, setEditUserBranchIds)}
+                            </>
+                          )}
                         <div className="record-edit-actions">
                           <button type="submit" disabled={savingUserEdit}>
                             {savingUserEdit ? t('common.saving') : t('common.save')}

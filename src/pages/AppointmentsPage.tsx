@@ -31,10 +31,10 @@ import { formatDateTime } from '../lib/format'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_phone: string | null } | null
-  caregivers: { name: string } | null
+  doctor: { full_name: string } | null
 }
 type Pet = Database['public']['Tables']['pets']['Row']
-type Caregiver = Database['public']['Tables']['caregivers']['Row']
+type Profile = Database['public']['Tables']['profiles']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
 // Day view: one event per appointment. Week view: one event per busy hour,
 // carrying only the count (appointment is null).
@@ -50,7 +50,7 @@ type CalendarEvent = {
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_phone), caregivers(name)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_phone), doctor:profiles!appointments_doctor_fkey(full_name)'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -112,7 +112,7 @@ function AppointmentsPage() {
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [pets, setPets] = useState<Pet[]>([])
-  const [staff, setStaff] = useState<Caregiver[]>([])
+  const [staff, setStaff] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -142,7 +142,7 @@ function AppointmentsPage() {
   const [scheduledMinute, setScheduledMinute] = useState('')
   const [scheduledPeriod, setScheduledPeriod] = useState<'AM' | 'PM'>('AM')
   const [reason, setReason] = useState('')
-  const [assignedStaffId, setAssignedStaffId] = useState('')
+  const [doctorId, setDoctorId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [conflicts, setConflicts] = useState<Appointment[]>([])
   const [conflictAcknowledged, setConflictAcknowledged] = useState(false)
@@ -165,14 +165,22 @@ function AppointmentsPage() {
   }
 
   useEffect(() => {
+    if (!profile?.clinic_id) return
     Promise.all([
       supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
-      supabase.from('caregivers').select('*').is('deleted_at', null).order('name', { ascending: true }),
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('clinic_id', profile.clinic_id)
+        .eq('takes_appointments', true)
+        .eq('disabled', false)
+        .order('calendar_order', { ascending: true, nullsFirst: false })
+        .order('full_name', { ascending: true }),
     ]).then(([petsRes, staffRes]) => {
       setPets(petsRes.data ?? [])
       setStaff(staffRes.data ?? [])
     })
-  }, [])
+  }, [profile?.clinic_id])
 
   useEffect(() => {
     loadRange().then(() => setLoading(false))
@@ -280,7 +288,7 @@ function AppointmentsPage() {
     if (!acknowledged) {
       const found = await fetchConflicts({
         petId: appointment.pet_id,
-        assignedStaffId: appointment.assigned_staff_id ?? '',
+        doctorId: appointment.doctor_id ?? '',
         scheduledAt: newScheduledAt,
         excludeAppointmentId: appointment.id,
       })
@@ -307,7 +315,7 @@ function AppointmentsPage() {
   useEffect(() => {
     setConflicts([])
     setConflictAcknowledged(false)
-  }, [petId, assignedStaffId, scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod])
+  }, [petId, doctorId, scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod])
 
   async function handleAddAppointment(e: FormEvent) {
     e.preventDefault()
@@ -321,7 +329,7 @@ function AppointmentsPage() {
       setError(t('appointments.choosePet'))
       return
     }
-    if (!assignedStaffId) {
+    if (!doctorId) {
       setError(t('appointments.chooseStaff'))
       return
     }
@@ -333,7 +341,7 @@ function AppointmentsPage() {
     const scheduledAt = toScheduledAt(scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod)
 
     if (!conflictAcknowledged) {
-      const found = await fetchConflicts({ petId, assignedStaffId, scheduledAt })
+      const found = await fetchConflicts({ petId, doctorId, scheduledAt })
       if (found.length > 0) {
         setConflicts(found)
         return
@@ -348,9 +356,10 @@ function AppointmentsPage() {
         clinic_id: profile.clinic_id,
         scheduled_at: scheduledAt,
         reason: reason || null,
-        assigned_staff_id: assignedStaffId || null,
+        doctor_id: doctorId || null,
         created_by: profile.id,
-      })
+        // branch_id is filled with the main branch by a DB trigger; the generated type can't know that.
+      } as Database['public']['Tables']['appointments']['Insert'])
       .select(APPOINTMENT_SELECT)
       .single()
 
@@ -366,7 +375,7 @@ function AppointmentsPage() {
     setScheduledMinute('')
     setScheduledPeriod('AM')
     setReason('')
-    setAssignedStaffId('')
+    setDoctorId('')
     setConflicts([])
     setConflictAcknowledged(false)
     setSubmitting(false)
@@ -384,7 +393,7 @@ function AppointmentsPage() {
     setScheduledHour(fields.hour)
     setScheduledMinute(fields.minute)
     setScheduledPeriod(fields.period)
-    if (resourceId && resourceId !== UNASSIGNED) setAssignedStaffId(String(resourceId))
+    if (resourceId && resourceId !== UNASSIGNED) setDoctorId(String(resourceId))
     scheduleFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -423,8 +432,8 @@ function AppointmentsPage() {
         title: a.pets?.name ?? t('dashboard.unknownPet'),
         start,
         end: new Date(start.getTime() + SLOT_MS),
-        // Unassigned also catches appointments whose staff member was removed.
-        resourceId: a.assigned_staff_id && staffIds.has(a.assigned_staff_id) ? a.assigned_staff_id : UNASSIGNED,
+        // Unassigned also catches appointments whose doctor was disabled or stopped taking appointments.
+        resourceId: a.doctor_id && staffIds.has(a.doctor_id) ? a.doctor_id : UNASSIGNED,
         appointment: a,
         count: 1,
       }
@@ -442,7 +451,7 @@ function AppointmentsPage() {
   // Time of day only; the library applies scrollToTime on mount, so a new target remounts it.
   const scrollKey = dayjs(scrollTo).format('HH:mm')
   const resources: CalendarResource[] = [
-    ...staff.map((s) => ({ id: s.id, title: s.name, subtitle: s.title })),
+    ...staff.map((s) => ({ id: s.id, title: s.full_name, subtitle: s.title })),
     ...(hasUnassigned || staff.length === 0 ? [{ id: UNASSIGNED, title: t('calendar.unassigned'), subtitle: null }] : []),
   ]
 
@@ -467,7 +476,7 @@ function AppointmentsPage() {
               <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
               <p className="pet-owner">
                 <Ltr>{formatDateTime(appointment.scheduled_at)}</Ltr>
-                {appointment.caregivers && ` · ${appointment.caregivers.name}`}
+                {appointment.doctor && ` · ${appointment.doctor.full_name}`}
               </p>
               {appointment.reason && (
                 <p className="pet-owner">
@@ -593,7 +602,7 @@ function AppointmentsPage() {
                     {rescheduleConflicts.map((c) => (
                       <li key={c.id}>
                         {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{formatDateTime(c.scheduled_at)}</Ltr>
-                        {c.caregivers?.name ? ` (${c.caregivers.name})` : ''}
+                        {c.doctor?.full_name ? ` (${c.doctor.full_name})` : ''}
                       </li>
                     ))}
                   </ul>
@@ -730,7 +739,7 @@ function AppointmentsPage() {
                   <button type="button" onClick={() => jumpTo(a)}>
                     <strong>{a.pets?.name ?? t('dashboard.unknownPet')}</strong>
                     <Ltr>{formatDateTime(a.scheduled_at)}</Ltr>
-                    {a.caregivers && <span>{a.caregivers.name}</span>}
+                    {a.doctor && <span>{a.doctor.full_name}</span>}
                     <span className={`status-badge status-${a.status}`}>{t(STATUS_LABEL_KEYS[a.status])}</span>
                   </button>
                 </li>
@@ -867,13 +876,13 @@ function AppointmentsPage() {
           <label>
             {t('appointments.staffHandling')}
             <RequiredMark />
-            <select value={assignedStaffId} onChange={(e) => setAssignedStaffId(e.target.value)} required>
+            <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} required>
               <option value="" disabled>
                 {t('appointments.selectStaffMember')}
               </option>
               {staff.map((member) => (
                 <option key={member.id} value={member.id}>
-                  {member.name}
+                  {member.full_name}
                   {member.title ? ` — ${member.title}` : ''}
                 </option>
               ))}
@@ -886,7 +895,7 @@ function AppointmentsPage() {
                 {conflicts.map((c) => (
                   <li key={c.id}>
                     {c.pets?.name ?? t('dashboard.unknownPet')} — <Ltr>{formatDateTime(c.scheduled_at)}</Ltr>
-                    {c.caregivers?.name ? ` (${c.caregivers.name})` : ''}
+                    {c.doctor?.full_name ? ` (${c.doctor.full_name})` : ''}
                   </li>
                 ))}
               </ul>

@@ -20,7 +20,6 @@ import Ltr from '../components/Ltr'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
-  caregivers: { name: string } | null
 }
 
 // shortcut: the session start lives in this browser tab only (sessionStorage), so it resets on another device; move to an appointments.started_at column with the in_session status (design doc phase 5).
@@ -87,7 +86,7 @@ function SessionPage() {
   useEffect(() => {
     supabase
       .from('appointments')
-      .select('*, pets(name, species, breed, owner_name, owner_phone), caregivers(name)')
+      .select('*, pets(name, species, breed, owner_name, owner_phone)')
       .eq('id', id)
       .maybeSingle()
       .then(({ data, error: loadError }) => {

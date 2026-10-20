@@ -3,7 +3,7 @@ import { formatDate } from './format'
 type SearchableAppointment = {
   scheduled_at: string
   pets: { name: string; owner_phone: string | null } | null
-  caregivers: { name: string } | null
+  doctor: { full_name: string } | null
 }
 
 // Matches on pet name, staff name, or owner phone (substring), or on date —
@@ -17,7 +17,7 @@ export function matchesAppointmentSearch(appointment: SearchableAppointment, que
   const scheduled = new Date(appointment.scheduled_at)
   return (
     (appointment.pets?.name ?? '').toLowerCase().includes(normalized) ||
-    (appointment.caregivers?.name ?? '').toLowerCase().includes(normalized) ||
+    (appointment.doctor?.full_name ?? '').toLowerCase().includes(normalized) ||
     (appointment.pets?.owner_phone ?? '').toLowerCase().includes(normalized) ||
     scheduled.toISOString().slice(0, 10).includes(normalized) ||
     scheduled.toLocaleDateString().toLowerCase().includes(normalized) ||

@@ -219,7 +219,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
             <ThemeToggle />
             <LanguageToggle />
           </div>
-          <button type="button" className="logout-button" onClick={() => supabase.auth.signOut()}>
+          <button type="button" className="logout-button" onClick={() => supabase.auth.signOut({ scope: 'local' })}>
             <LogOut className="nav-icon-flip" size={18} aria-hidden />
             {t('nav.logout')}
           </button>

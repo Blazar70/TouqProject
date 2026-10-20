@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.18"
   }
   public: {
     Tables: {
@@ -97,12 +97,13 @@ export type Database = {
       }
       appointments: {
         Row: {
-          assigned_staff_id: string | null
+          branch_id: string
           cancellation_category: string | null
           cancellation_reason: string | null
           clinic_id: string
           created_at: string
           created_by: string
+          doctor_id: string | null
           id: string
           pet_id: string
           reason: string | null
@@ -110,12 +111,13 @@ export type Database = {
           status: string
         }
         Insert: {
-          assigned_staff_id?: string | null
+          branch_id: string
           cancellation_category?: string | null
           cancellation_reason?: string | null
           clinic_id: string
           created_at?: string
           created_by: string
+          doctor_id?: string | null
           id?: string
           pet_id: string
           reason?: string | null
@@ -123,12 +125,13 @@ export type Database = {
           status?: string
         }
         Update: {
-          assigned_staff_id?: string | null
+          branch_id?: string
           cancellation_category?: string | null
           cancellation_reason?: string | null
           clinic_id?: string
           created_at?: string
           created_by?: string
+          doctor_id?: string | null
           id?: string
           pet_id?: string
           reason?: string | null
@@ -137,11 +140,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_assigned_staff_id_fkey"
-            columns: ["assigned_staff_id"]
+            foreignKeyName: "appointments_branch_id_clinic_id_fkey"
+            columns: ["branch_id", "clinic_id"]
             isOneToOne: false
-            referencedRelation: "caregivers"
-            referencedColumns: ["id"]
+            referencedRelation: "branches"
+            referencedColumns: ["id", "clinic_id"]
           },
           {
             foreignKeyName: "appointments_clinic_id_fkey"
@@ -158,6 +161,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "appointments_doctor_fkey"
+            columns: ["doctor_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
             foreignKeyName: "appointments_pet_id_fkey"
             columns: ["pet_id"]
             isOneToOne: false
@@ -166,37 +176,43 @@ export type Database = {
           },
         ]
       }
-      caregivers: {
+      branches: {
         Row: {
+          active: boolean
+          address: string | null
           clinic_id: string
           created_at: string
-          deleted_at: string | null
           id: string
+          is_main: boolean
           name: string
+          name_ar: string | null
           phone: string | null
-          title: string | null
         }
         Insert: {
+          active?: boolean
+          address?: string | null
           clinic_id: string
           created_at?: string
-          deleted_at?: string | null
           id?: string
+          is_main?: boolean
           name: string
+          name_ar?: string | null
           phone?: string | null
-          title?: string | null
         }
         Update: {
+          active?: boolean
+          address?: string | null
           clinic_id?: string
           created_at?: string
-          deleted_at?: string | null
           id?: string
+          is_main?: boolean
           name?: string
+          name_ar?: string | null
           phone?: string | null
-          title?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "caregivers_clinic_id_fkey"
+            foreignKeyName: "branches_clinic_id_fkey"
             columns: ["clinic_id"]
             isOneToOne: false
             referencedRelation: "clinics"
@@ -213,6 +229,7 @@ export type Database = {
           id: string
           name: string
           phone: string | null
+          timezone: string
         }
         Insert: {
           billing_status?: string
@@ -222,6 +239,7 @@ export type Database = {
           id?: string
           name: string
           phone?: string | null
+          timezone?: string
         }
         Update: {
           billing_status?: string
@@ -231,6 +249,7 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          timezone?: string
         }
         Relationships: []
       }
@@ -283,6 +302,7 @@ export type Database = {
         Row: {
           amount_total: number
           appointment_id: string | null
+          branch_id: string
           clinic_id: string
           created_at: string
           created_by: string
@@ -298,6 +318,7 @@ export type Database = {
         Insert: {
           amount_total: number
           appointment_id?: string | null
+          branch_id: string
           clinic_id: string
           created_at?: string
           created_by: string
@@ -313,6 +334,7 @@ export type Database = {
         Update: {
           amount_total?: number
           appointment_id?: string | null
+          branch_id?: string
           clinic_id?: string
           created_at?: string
           created_by?: string
@@ -332,6 +354,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_branch_id_clinic_id_fkey"
+            columns: ["branch_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id", "clinic_id"]
           },
           {
             foreignKeyName: "invoices_clinic_id_fkey"
@@ -366,6 +395,7 @@ export type Database = {
       medical_records: {
         Row: {
           appointment_id: string | null
+          branch_id: string | null
           clinic_id: string
           created_at: string
           diagnosis: string | null
@@ -387,6 +417,7 @@ export type Database = {
         }
         Insert: {
           appointment_id?: string | null
+          branch_id?: string | null
           clinic_id: string
           created_at?: string
           diagnosis?: string | null
@@ -408,6 +439,7 @@ export type Database = {
         }
         Update: {
           appointment_id?: string | null
+          branch_id?: string | null
           clinic_id?: string
           created_at?: string
           diagnosis?: string | null
@@ -434,6 +466,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_records_branch_id_clinic_id_fkey"
+            columns: ["branch_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id", "clinic_id"]
           },
           {
             foreignKeyName: "medical_records_clinic_id_fkey"
@@ -590,6 +629,7 @@ export type Database = {
           created_at: string
           date_of_birth: string | null
           deleted_at: string | null
+          home_branch_id: string | null
           id: string
           name: string
           next_vaccination_date: string | null
@@ -607,6 +647,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           deleted_at?: string | null
+          home_branch_id?: string | null
           id?: string
           name: string
           next_vaccination_date?: string | null
@@ -624,6 +665,7 @@ export type Database = {
           created_at?: string
           date_of_birth?: string | null
           deleted_at?: string | null
+          home_branch_id?: string | null
           id?: string
           name?: string
           next_vaccination_date?: string | null
@@ -644,6 +686,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pets_home_branch_id_clinic_id_fkey"
+            columns: ["home_branch_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
             foreignKeyName: "pets_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
@@ -654,37 +703,58 @@ export type Database = {
       }
       profiles: {
         Row: {
+          calendar_order: number | null
           clinic_id: string | null
+          clinic_role: string | null
           created_at: string
           disabled: boolean
+          email: string | null
           full_name: string
           id: string
+          last_branch_id: string | null
           phone: string | null
           push_notify_statuses: string[]
           push_reminder_lead_minutes: number | null
           role: Database["public"]["Enums"]["user_role"]
+          takes_appointments: boolean
+          title: string | null
+          username: string | null
         }
         Insert: {
+          calendar_order?: number | null
           clinic_id?: string | null
+          clinic_role?: string | null
           created_at?: string
           disabled?: boolean
+          email?: string | null
           full_name: string
           id: string
+          last_branch_id?: string | null
           phone?: string | null
           push_notify_statuses?: string[]
           push_reminder_lead_minutes?: number | null
           role: Database["public"]["Enums"]["user_role"]
+          takes_appointments?: boolean
+          title?: string | null
+          username?: string | null
         }
         Update: {
+          calendar_order?: number | null
           clinic_id?: string | null
+          clinic_role?: string | null
           created_at?: string
           disabled?: boolean
+          email?: string | null
           full_name?: string
           id?: string
+          last_branch_id?: string | null
           phone?: string | null
           push_notify_statuses?: string[]
           push_reminder_lead_minutes?: number | null
           role?: Database["public"]["Enums"]["user_role"]
+          takes_appointments?: boolean
+          title?: string | null
+          username?: string | null
         }
         Relationships: [
           {
@@ -692,6 +762,13 @@ export type Database = {
             columns: ["clinic_id"]
             isOneToOne: false
             referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_last_branch_id_fkey"
+            columns: ["last_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -769,6 +846,36 @@ export type Database = {
           },
         ]
       }
+      staff_branches: {
+        Row: {
+          branch_id: string
+          profile_id: string
+        }
+        Insert: {
+          branch_id: string
+          profile_id: string
+        }
+        Update: {
+          branch_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_branches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_branches_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -776,9 +883,19 @@ export type Database = {
     Functions: {
       admin_clinic_counts: {
         Args: never
-        Returns: { clinic_id: string; pets: number; appointments: number; staff: number }[]
+        Returns: {
+          appointments: number
+          clinic_id: string
+          pets: number
+          staff: number
+        }[]
       }
+      admin_close_branch: { Args: { p_branch: string }; Returns: number }
+      admin_set_main_branch: { Args: { p_branch: string }; Returns: undefined }
+      current_user_branch_ids: { Args: never; Returns: string[] }
       current_user_clinic_id: { Args: never; Returns: string }
+      current_user_clinic_role: { Args: never; Returns: string }
+      current_user_has_role: { Args: { roles: string[] }; Returns: boolean }
       current_user_id_if_active: { Args: never; Returns: string }
       current_user_is_admin: { Args: never; Returns: boolean }
     }
@@ -799,12 +916,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -828,11 +945,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -853,11 +970,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -878,11 +995,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -895,11 +1012,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

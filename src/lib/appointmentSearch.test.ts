@@ -4,7 +4,7 @@ import { matchesAppointmentSearch } from './appointmentSearch'
 const appointment = {
   scheduled_at: '2026-07-23T12:30:00.000Z',
   pets: { name: 'Rex', owner_phone: '+966512345678' },
-  caregivers: { name: 'Dr. Amal' },
+  doctor: { full_name: 'Dr. Amal' },
 }
 
 describe('matchesAppointmentSearch', () => {
@@ -39,7 +39,7 @@ describe('matchesAppointmentSearch', () => {
   })
 
   it('handles a null pet or staff gracefully', () => {
-    const bare = { scheduled_at: '2026-07-23T12:30:00.000Z', pets: null, caregivers: null }
+    const bare = { scheduled_at: '2026-07-23T12:30:00.000Z', pets: null, doctor: null }
     expect(matchesAppointmentSearch(bare, 'rex')).toBe(false)
     expect(matchesAppointmentSearch(bare, '')).toBe(true)
   })

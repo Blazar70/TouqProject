@@ -25,7 +25,7 @@ function StaffAppointments({ staffId }: { staffId: string }) {
     supabase
       .from('appointments')
       .select('*, pets(name)')
-      .eq('assigned_staff_id', staffId)
+      .eq('doctor_id', staffId)
       .order('scheduled_at', { ascending: true })
       .then(({ data }) => {
         if (cancelled) return

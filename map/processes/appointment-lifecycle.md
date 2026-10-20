@@ -19,7 +19,7 @@ Conflicts only warn, because back-to-back and same-day visits are legitimate. Co
 
 ## Steps
 
-1. Create with `assigned_staff_id`; conflicts checked first. `src/pages/AppointmentsPage.tsx:287`; conflict helper `fetchConflicts` `:68`, rule `src/lib/appointmentConflicts.ts:23`
+1. Create with `doctor_id` (a doctor login, 0047); conflicts checked first. `src/pages/AppointmentsPage.tsx:287`; conflict helper `fetchConflicts` `:68`, rule `src/lib/appointmentConflicts.ts:23`
 2. Status update. `src/pages/AppointmentsPage.tsx:404`
 3. Complete: update status, then insert a medical record, optional photo. `src/pages/AppointmentsPage.tsx:536-577`
 4. Cancel: set status, `cancellation_category`, `cancellation_reason`. `src/pages/AppointmentsPage.tsx:462`

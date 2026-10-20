@@ -92,7 +92,6 @@ async function cleanup() {
     await admin.from('pet_trusted_contacts').delete().eq('pet_id', petBId ?? '00000000-0000-0000-0000-000000000000')
     await admin.from('medical_records').delete().eq('clinic_id', clinicBId)
     await admin.from('appointments').delete().eq('clinic_id', clinicBId)
-    await admin.from('caregivers').delete().eq('clinic_id', clinicBId)
     await admin.from('pets').delete().eq('clinic_id', clinicBId)
   }
   if (createdUserIds.length) {
@@ -154,12 +153,6 @@ try {
     .select('id')
     .single()
   petBId = petB.id
-
-  await admin
-    .from('caregivers')
-    .insert({ clinic_id: clinicBId, name: 'AuditStaffB', title: 'Vet Tech' })
-    .select('id')
-    .single()
 
   const { data: appointmentB } = await admin
     .from('appointments')
@@ -251,9 +244,8 @@ try {
     check('vetB pet list contains only Clinic B rows', !leaked)
   }
   {
-    const { data } = await vetB.from('caregivers').select('id, clinic_id')
-    const leaked = (data ?? []).some((c) => c.clinic_id !== clinicBId)
-    check('vetB caregiver list contains only Clinic B rows', !leaked)
+    const { data } = await vetB.from('profiles').update({ role: 'admin', username: 'audit.hijack' }).eq('id', vetBId).select()
+    check('vetB cannot make themselves admin or change own username (trigger)', (data ?? []).length === 0)
   }
   {
     const { data } = await vetB.from('appointments').select('id, clinic_id')

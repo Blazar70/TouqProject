@@ -197,7 +197,8 @@ function PaymentsPage() {
         notes: notes.trim() || null,
         verified_by: isCash ? profile.id : null,
         verified_at: isCash ? nowIso : null,
-      })
+        // branch_id is filled with the main branch by a DB trigger; the generated type can't know that.
+      } as Database['public']['Tables']['invoices']['Insert'])
       .select('*, pets(name)')
       .single()
 

@@ -144,7 +144,7 @@ Later phases, named so nothing above blocks them: inpatient (`inpatient_stays`, 
 
 0. Prerequisites: merge the three open branches; staging project via `scripts/rebuild-db.mjs`; `scripts/seed-staging.mjs` (2 branches, one user per role); extend `scripts/rls-audit.mjs` into a role × table test.
 1. `feature/branches-roles-db`: 0041-0043. No UI; safe on live.
-2. `feature/staff-accounts`: 0044, `clinic-manage-staff`, StaffPage rewrite, admin add-staff form.
+2. `feature/staff-accounts`: 0044, `clinic-manage-staff`, StaffPage rewrite, admin add-staff form. **Built 2026-10-21 on staging as 0047-0049** (caregivers retired instead of linked; usernames or emails; admin branch management). Goes live with the rest of v2.
 3. `feature/branch-session` (parallel with 2): BranchContext, branch picker after login, branch filters, "Other branch" badges, branch management in Settings.
 4. `feature/role-permissions` (after 2 and 3): 0045, `src/lib/permissions.ts`, nav and button gating. Runs alone.
 5. `feature/calendar-states`: 0046-0047, CalendarPage, colours, push recipients narrowed. Calendar UI can be built early in new files.
