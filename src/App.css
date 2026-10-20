@@ -93,7 +93,19 @@
   align-items: center;
   gap: 0.5rem;
   min-height: 44px;
-  padding-inline: 0.5rem;
+  padding-inline: 0.25rem;
+}
+
+/* App logo; only on the PC rail, where the toggle button is hidden. */
+.app-brand-mark {
+  flex: none;
+  display: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-contrast);
 }
 
 .app-brand-group {
@@ -125,12 +137,10 @@
 }
 
 .nav-section-title {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.25rem;
   padding-inline: 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
@@ -141,7 +151,7 @@
   gap: 0.75rem;
   min-height: 48px;
   padding-inline: 0.75rem;
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text);
   text-decoration: none;
   font-size: 0.95rem;
@@ -162,7 +172,6 @@
 .nav-item.active {
   color: var(--accent);
   background: var(--bg-tint-hover);
-  font-weight: 700;
 }
 
 .nav-item.active::before {
@@ -189,10 +198,45 @@
   border-top: 1px solid var(--border);
 }
 
-.app-sidebar-footer .app-user {
-  align-self: flex-start;
-  max-width: 100%;
+/* Who is logged in: plain info, not a control. */
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem;
+  min-width: 0;
+}
+
+.app-user-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--bg-tint-hover);
+  color: var(--text-h);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.app-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.app-user-name {
+  color: var(--text-h);
+  font-size: 0.85rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.app-user-meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
 }
 
 .app-sidebar-toggles {
@@ -273,8 +317,18 @@
     scrollbar-width: none;
   }
 
-  .app-sidebar .nav-item-label {
+  /* nowrap: a title wrapping in the narrow rail would push the icons down, so they jump when it opens. */
+  .app-sidebar :is(.nav-item-label, .nav-section-title) {
     white-space: nowrap;
+  }
+
+  .app-brand-mark {
+    display: grid;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    font-size: 0.85rem;
   }
 
   .app-sidebar :is(.app-brand-group, .nav-section-title, .nav-item-label, .app-clinic-name, .app-sidebar-footer) {
@@ -565,6 +619,33 @@
   margin: 0 auto;
 }
 
+/* Signed-in pages: one solid work surface; the paw pattern only shows around it. */
+.app-content > .app-main {
+  max-width: 1600px;
+  background: color-mix(in srgb, var(--bg) 50%, transparent);
+}
+
+@media (min-width: 768px) {
+  .app-content {
+    padding: 0.75rem;
+  }
+
+  .app-content > .app-main {
+    min-height: calc(100dvh - 1.5rem);
+    padding: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .app-content > .app-main {
+    min-height: calc(100dvh - 56px);
+    padding: 1.5rem 1rem 4rem;
+  }
+}
+
 .app-main h1 {
   margin-bottom: 1.5rem;
 }
@@ -578,6 +659,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .page-header h1 {
@@ -594,8 +676,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
   background: var(--bg-tint);
   border: 1px solid var(--border-strong);
@@ -723,15 +805,6 @@
   color: var(--accent);
 }
 
-.app-user {
-  color: var(--text-h);
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: var(--bg-tint);
-}
-
 .logout-button {
   padding: 0.45rem 0.85rem;
   background: var(--bg-tint);
@@ -740,7 +813,7 @@
   border-radius: 6px;
   cursor: pointer;
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 

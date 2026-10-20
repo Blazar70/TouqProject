@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
 import LanguageToggle from './LanguageToggle'
@@ -72,11 +73,12 @@ function getIsDesktop() {
   return window.matchMedia(DESKTOP_QUERY).matches
 }
 
-// "Al Rawda Veterinary Clinic" -> "AR"; Array.from keeps multi-byte letters whole.
-function clinicInitials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
+// "Al Rawda Veterinary Clinic" -> "AR", "Dr. Sara Ali" -> "SA" (titles like "Dr." / "د." skipped);
+// Array.from keeps multi-byte letters whole.
+function initials(name: string) {
+  const words = name.trim().split(/\s+/)
+  const named = words.filter((word) => !word.endsWith('.'))
+  return (named.length > 0 ? named : words)
     .slice(0, 2)
     .map((word) => Array.from(word)[0] ?? '')
     .join('')
@@ -99,7 +101,9 @@ type Props = {
  * When expanded over content (rail or drawer) it behaves as a modal dialog.
  */
 function AppShell({ isAdmin, clinicName, userName, children }: Props) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const { profile } = useAuth()
+  const [branches, setBranches] = useState<{ name: string; name_ar: string | null }[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
   const overlayOpen = menuOpen && !isDesktop
@@ -129,7 +133,27 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [overlayOpen])
 
+  // shortcut: shows the person's member branches; switch to the branch picked at login once phase 3 adds the picker.
+  const profileId = profile?.id
+  useEffect(() => {
+    if (isAdmin || !profileId) return
+    supabase
+      .from('staff_branches')
+      .select('branches(name, name_ar, active)')
+      .eq('profile_id', profileId)
+      .then(({ data }) => setBranches((data ?? []).flatMap((row) => (row.branches?.active ? [row.branches] : []))))
+  }, [isAdmin, profileId])
+
   const sections = isAdmin ? ADMIN_SECTIONS : CLINIC_SECTIONS
+  const roleLabel = isAdmin
+    ? t('role.admin')
+    : profile?.clinic_role && t(`staff.role.${profile.clinic_role}` as TranslationKey)
+  const branchLabel = isAdmin
+    ? null
+    : branches.length > 0
+      ? branches.map((b) => (language === 'ar' && b.name_ar) || b.name).join(language === 'ar' ? '، ' : ', ')
+      : profile?.clinic_role === 'manager' && t('staff.allBranches')
+  const userMeta = [roleLabel, branchLabel].filter(Boolean).join(' · ')
 
   return (
     <div className={`app app-shell${overlayOpen ? ' menu-open' : ''}`}>
@@ -175,6 +199,9 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
           >
             {overlayOpen ? <X size={22} aria-hidden /> : <Menu size={22} aria-hidden />}
           </button>
+          <span className="app-brand-mark" aria-hidden>
+            <PawPrint size={20} />
+          </span>
           <span className="app-brand-group">
             <span className="app-brand">{t('auth.brand')}</span>
           </span>
@@ -183,7 +210,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
         {clinicName && (
           <div className="app-clinic" title={clinicName}>
             <span className="app-clinic-badge" aria-hidden>
-              {clinicInitials(clinicName)}
+              {initials(clinicName)}
             </span>
             <span className="app-clinic-name">{clinicName}</span>
           </div>
@@ -214,7 +241,15 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
         </nav>
 
         <div className="app-sidebar-footer">
-          {!clinicName && <span className="app-user">{userName}</span>}
+          <div className="app-user">
+            <span className="app-user-avatar" aria-hidden>
+              {initials(userName)}
+            </span>
+            <span className="app-user-text">
+              <span className="app-user-name">{userName}</span>
+              {userMeta && <span className="app-user-meta">{userMeta}</span>}
+            </span>
+          </div>
           <div className="app-sidebar-toggles">
             <ThemeToggle />
             <LanguageToggle />
