@@ -6,7 +6,8 @@
 
 drop policy "pet_photos_insert_test_open" on storage.objects;
 drop policy "pet_photos_update_test_open" on storage.objects;
-drop policy "debug_test_bucket_all" on storage.objects;
+-- Created by hand in the SQL editor while debugging, never by a migration.
+drop policy if exists "debug_test_bucket_all" on storage.objects;
 
 create policy "pet_photos_insert_own_clinic" on storage.objects
   for insert

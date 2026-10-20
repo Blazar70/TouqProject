@@ -2,6 +2,7 @@
 //
 //   node scripts/rebuild-db.mjs            # dry run: prints the plan only
 //   node scripts/rebuild-db.mjs --apply    # actually runs it
+//   node scripts/rebuild-db.mjs --apply --from 0002   # resume after a failed file
 //
 // Why not `supabase db push`: the CLI only recognises files named
 // <digits>_<name>.sql, so it silently skips 0004b_ and 0005b_. It also is not
@@ -22,6 +23,10 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const apply = process.argv.includes('--apply')
+// Each file runs in its own transaction, so after a failure the database sits
+// exactly after the last good file; --from resumes there.
+const fromIndex = process.argv.indexOf('--from')
+const from = fromIndex > 0 ? process.argv[fromIndex + 1] : null
 const migrationsDir = new URL('../supabase/migrations/', import.meta.url)
 
 function loadEnvLocal() {
@@ -89,18 +94,20 @@ if (probe.status !== 0) {
   console.error('\nCould not connect:\n' + probe.stderr)
   process.exit(1)
 }
-if (probe.stdout.trim() === 't') {
+if (probe.stdout.trim() === 't' && !from) {
   console.error('\npublic.profiles already exists. Migrations are not idempotent; refusing to run on a non-empty database.')
   process.exit(1)
 }
 
 for (const name of files) {
+  if (from && name < from) continue
   process.stdout.write(`applying ${name} ... `)
   const result = psql(['-q', '-1', '-f', fileURLToPath(new URL(name, migrationsDir))])
   if (result.status !== 0) {
     console.log('FAILED')
     console.error(result.stderr)
     console.error(`Stopped at ${name}. Earlier migrations were applied and are not rolled back.`)
+    console.error(`Fix it, then resume with: node scripts/rebuild-db.mjs --apply --from ${name.split('_')[0]}`)
     process.exit(1)
   }
   console.log('ok')

@@ -27,4 +27,5 @@ create policy "pet_photos_delete_own_clinic" on storage.objects
     and (storage.foldername(name))[1] = current_user_clinic_id()::text
   );
 
-alter table pets add column photo_url text;
+-- 0001_init.sql already defines photo_url on fresh databases.
+alter table pets add column if not exists photo_url text;

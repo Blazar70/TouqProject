@@ -161,6 +161,15 @@ Questions for the clinic:
 6. One price list for all branches? One VAT registration with invoice numbers per branch? ZATCA e-invoicing requirements?
 7. Appointment length: fixed 30 minutes or per service?
 
+Answers from the clinic owner (2026-10-20):
+1. **Branches are not a wall.** All staff see all patients of the clinic. Branch matters for **inpatients**: when a staff member records an update on an inpatient pet, the pet's location becomes that staff member's branch. Other branches are shown by their **name**, not as "Other branch". (Supersedes the "Other branch" wording above.)
+2. **No manager page exists yet; one is wanted** (future session, scope to be designed).
+3. **Receptionists see full visit history** (they need it to answer owners).
+4. **Nurses may write vitals and notes.** Which specific fields they must NOT write is still to be defined by the owner.
+5. **Everyone logs in with a username + password** (no staff email). **Managers are created only by admins.** Doctors, nurses, receptionists and any role below manager can be created, disabled and deleted by admins **and** managers.
+6. **One shared service/price list per clinic** across branches; per-branch prices are an edge case, not built. Invoice numbering / VAT / ZATCA: answered later with the accounting questions.
+7. **Appointment length:** realistically varies, but there is no reliable way to know it, so the calendar keeps one fixed block height. Blocks stay colour-coded (status now; attendance + payment colours from §4 when those states exist).
+
 ## 8. PWA or website
 
 Keep Touq a PWA (an installable website). On iPad and iPhone, web push only works when the site is installed to the Home Screen, and inpatient reminders need push. Don't build offline data editing: shared live data would conflict. Add an "update available, reload" prompt (switch `registerType` to `prompt`) so new permissions never meet an old open app.
