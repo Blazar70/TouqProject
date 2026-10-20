@@ -745,8 +745,15 @@
 
 .stat-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin: 0 0 2rem;
+}
+
+/* Tiles share the row and wrap two-up on phones instead of running off-screen. */
+.stat-row > .stat-tile {
+  flex: 1 1 9rem;
+  max-width: 16rem;
 }
 
 .stat-tile {
@@ -830,9 +837,36 @@
 .login-page {
   position: relative;
   z-index: 1;
-  max-width: 380px;
-  margin: 4rem auto;
-  padding: 0 1.5rem;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 1.5rem 1rem;
+}
+
+/* Sign-in card centred over the paw pattern, with the app mark on top. */
+.login-card {
+  width: min(100%, 380px);
+  padding: 2rem 1.5rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.login-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.login-form > button {
+  min-height: 2.75rem;
 }
 
 .login-page h1 {
@@ -2148,37 +2182,45 @@ input[type='checkbox']:focus-visible {
   gap: 0.5rem;
 }
 
+/* Item rows: service | quantity | price | remove, under a heading row.
+   A custom item's description sits under its service picker. */
+.invoice-item-head,
 .invoice-item-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5rem 7rem 2.75rem;
   align-items: center;
   gap: 0.5rem;
 }
 
-.invoice-item-row select,
-.invoice-item-row input {
-  flex: 1 1 8rem;
+.invoice-item-head {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.invoice-item-row :is(select, input) {
   min-width: 0;
 }
 
-.invoice-item-qty {
-  max-width: 4.5rem;
-  flex: 0 1 4.5rem;
-}
-
-.invoice-item-price {
-  max-width: 6.5rem;
-  flex: 0 1 6.5rem;
+.invoice-item-desc {
+  grid-row: 2;
+  grid-column: 1;
 }
 
 .invoice-item-remove {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.75rem;
+  height: 2.75rem;
   padding: 0;
-  flex-shrink: 0;
+}
+
+@media (max-width: 767.98px) {
+  .invoice-item-head,
+  .invoice-item-row {
+    grid-template-columns: minmax(0, 1fr) 3.5rem 5.5rem 2.75rem;
+  }
 }
 
 .invoice-total {
@@ -2224,8 +2266,17 @@ input[type='checkbox']:focus-visible {
 
 .record-edit-actions {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 0.5rem;
+}
+
+/* Save / Cancel pairs: same size, side by side. */
+.record-edit-actions > button,
+.pet-form .record-edit-actions > button {
+  min-height: 2.75rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 1rem;
 }
 
 .record-date {
@@ -2365,7 +2416,7 @@ input[type='checkbox']:focus-visible {
 }
 
 .pet-form {
-  margin: 2rem auto 0;
+  margin: 1.5rem 0 0;
   max-width: 380px;
   padding: 1.25rem;
   background: var(--bg-raised);
@@ -3358,4 +3409,97 @@ input[type='checkbox']:focus-visible {
 
 .pet-list-item.is-open > .data-row :is(.pet-avatar, .pet-avatar-fallback) {
   box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ---- Batch 4: forms ---- */
+/* Submit buttons fit their label instead of spanning the whole card. */
+.pet-form > button[type='submit'] {
+  align-self: flex-start;
+  min-height: 2.75rem;
+  padding-inline: 1.5rem;
+}
+
+.pet-form-grid > button[type='submit'] {
+  justify-self: start;
+}
+
+.pet-form-grid > .checkbox-group {
+  margin-bottom: 0.85rem;
+}
+
+.pet-form-grid > .checkbox-label {
+  align-self: end;
+  min-height: 2.75rem;
+  margin-bottom: 0.85rem;
+}
+
+/* Settings: section title + hint on the start side, its form or list beside it (PC). */
+.app-main .settings-intro h2 {
+  margin: 0 0 0.25rem;
+}
+
+.settings-intro .pet-owner {
+  margin-top: 0.25rem;
+}
+
+.settings-body > .pet-form:first-child {
+  margin-top: 0;
+}
+
+.data-services {
+  --data-cols: minmax(0, 1fr) 9rem 8rem 4.5rem 13rem;
+}
+
+@media (min-width: 1024px) {
+  .settings-page .settings-section {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 1fr);
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  .settings-intro {
+    margin-bottom: 1rem;
+  }
+}
+
+/* Payments: record form beside the price lookup on PC. */
+.payments-top {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.payments-top > .settings-section {
+  border-bottom: none;
+}
+
+@media (min-width: 1024px) {
+  .payments-top {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 2rem;
+    align-items: start;
+  }
+
+  .payments-top > .settings-section {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+}
+
+/* Unassigned column: striped and amber-headed so it never reads as a doctor's
+   column; its bookings still need someone. */
+.appointments-calendar .calendar-slot-unassigned {
+  background-image: repeating-linear-gradient(135deg, var(--status-amber-bg) 0 4px, transparent 4px 14px);
+}
+
+.appointments-calendar .rbc-header:has(.is-unassigned) {
+  background: var(--status-amber-bg);
+}
+
+.calendar-resource-header.is-unassigned strong,
+.calendar-resource-header.is-unassigned span {
+  color: var(--status-amber-fg);
 }

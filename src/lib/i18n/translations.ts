@@ -26,6 +26,7 @@ export const translations = {
     'calendar.day': 'Day',
     'calendar.week': 'Week',
     'calendar.unassigned': 'Unassigned',
+    'calendar.needsDoctor': 'Needs a doctor',
     'calendar.slotHint': 'Tip: click an empty time in the calendar to fill in the time and doctor.',
     'session.title': 'Session in progress',
     'session.start': 'Start session',
@@ -88,6 +89,7 @@ export const translations = {
 
     // Table-style list headings
     'list.pet': 'Pet',
+    'list.service': 'Service',
     'list.owner': 'Owner',
     'list.vaccination': 'Vaccination',
     'list.amount': 'Amount',
@@ -647,6 +649,7 @@ export const translations = {
     'calendar.day': 'يوم',
     'calendar.week': 'أسبوع',
     'calendar.unassigned': 'غير محدد',
+    'calendar.needsDoctor': 'بحاجة إلى طبيب',
     'calendar.slotHint': 'تلميح: انقر على وقت فارغ في التقويم لتعبئة الوقت والطبيب.',
     'session.title': 'جلسة جارية',
     'session.start': 'بدء الجلسة',
@@ -707,6 +710,7 @@ export const translations = {
 
     // Table-style list headings
     'list.pet': 'الحيوان',
+    'list.service': 'الخدمة',
     'list.owner': 'المالك',
     'list.vaccination': 'التطعيم',
     'list.amount': 'المبلغ',

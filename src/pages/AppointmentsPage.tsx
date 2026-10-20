@@ -813,6 +813,7 @@ function AppointmentsPage() {
             setDate(event.start)
             setView('day')
           }}
+          slotPropGetter={(_date, resourceId) => (resourceId === UNASSIGNED ? { className: 'calendar-slot-unassigned' } : {})}
           eventPropGetter={(event) => ({
             className: event.appointment ? `calendar-event status-${event.appointment.status}` : 'calendar-hour-count',
           })}
@@ -829,12 +830,18 @@ function AppointmentsPage() {
                   <span>{t(event.count === 1 ? 'calendar.appointmentOne' : 'calendar.appointmentMany')}</span>
                 </span>
               ),
-            resourceHeader: ({ resource }) => (
-              <span className="calendar-resource-header">
-                <strong>{resource.title}</strong>
-                {resource.subtitle && <span>{resource.subtitle}</span>}
-              </span>
-            ),
+            resourceHeader: ({ resource }) =>
+              resource.id === UNASSIGNED ? (
+                <span className="calendar-resource-header is-unassigned">
+                  <strong>{resource.title}</strong>
+                  <span>{t('calendar.needsDoctor')}</span>
+                </span>
+              ) : (
+                <span className="calendar-resource-header">
+                  <strong>{resource.title}</strong>
+                  {resource.subtitle && <span>{resource.subtitle}</span>}
+                </span>
+              ),
           }}
           messages={{
             today: t('calendar.today'),

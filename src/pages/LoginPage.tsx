@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PawPrint } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -54,6 +55,10 @@ function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-card">
+      <span className="login-brand-mark" aria-hidden>
+        <PawPrint size={26} />
+      </span>
       <div className="login-brand-row">
         <h1>{t('auth.brand')}</h1>
         <LanguageToggle />
@@ -111,6 +116,7 @@ function LoginPage() {
           </button>
         </form>
       )}
+      </div>
     </div>
   )
 }

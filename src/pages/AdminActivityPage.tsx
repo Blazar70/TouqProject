@@ -42,10 +42,10 @@ function AdminActivityPage() {
       {auditLog.length === 0 ? (
         <p>{t('admin.noActivity')}</p>
       ) : (
-        <ul className="record-list">
+        <ul className="pet-list">
           {auditLog.map((entry) => (
-            <li key={entry.id}>
-              <strong>{entry.actor_name}</strong> {auditActionLabel(entry.action)}
+            <li key={entry.id} className="pet-list-item">
+              <strong className="data-strong">{entry.actor_name}</strong> {auditActionLabel(entry.action)}
               {entry.target_label ? ` — ${entry.target_label}` : ''}
               <div className="record-date">
                 <Ltr>{formatDateTime(entry.created_at)}</Ltr>

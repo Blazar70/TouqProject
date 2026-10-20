@@ -343,35 +343,8 @@ function PaymentsPage() {
         </div>
       </div>
 
-      {/* Front desk quotes prices from here; Settings may become manager-only. */}
-      <div className="settings-section">
-        <h2>{t('payments.priceLookup')}</h2>
-        <input
-          type="search"
-          className="search-input"
-          placeholder={t('payments.priceLookupPlaceholder')}
-          aria-label={t('payments.priceLookup')}
-          value={priceQuery}
-          onChange={(e) => setPriceQuery(e.target.value)}
-        />
-        {priceQuery.trim() &&
-          (priceMatches.length === 0 ? (
-            <p className="price-lookup-empty">{t('payments.noServiceMatch')}</p>
-          ) : (
-            <ul className="price-list">
-              {priceMatches.map((service) => (
-                <li key={service.id}>
-                  <span>{service.name}</span>
-                  <strong>
-                    <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
-                  </strong>
-                </li>
-              ))}
-            </ul>
-          ))}
-        <p className="price-lookup-note">{t('payments.pricesIncludeVat')}</p>
-      </div>
-
+      {/* PC: record payment beside the price lookup; stacked on smaller screens. */}
+      <div className="payments-top">
       <div className="settings-section">
         <h2>{t('payments.recordPayment')}</h2>
         <form onSubmit={handleCreateInvoice} className="pet-form payments-record-form">
@@ -400,6 +373,12 @@ function PaymentsPage() {
 
           <div className="invoice-items">
             <span className="pet-form-file-field-label">{t('payments.items')}</span>
+            <div className="invoice-item-head" aria-hidden>
+              <span>{t('list.service')}</span>
+              <span>{t('payments.quantity')}</span>
+              <span>{t('payments.unitPrice')}</span>
+              <span />
+            </div>
             {items.map((item) => (
               <div key={item.key} className="invoice-item-row">
                 <select value={item.serviceId} onChange={(e) => handlePickService(item.key, e.target.value)}>
@@ -412,6 +391,7 @@ function PaymentsPage() {
                 </select>
                 {!item.serviceId && (
                   <input
+                    className="invoice-item-desc"
                     value={item.description}
                     onChange={(e) => updateItem(item.key, { description: e.target.value })}
                     placeholder={t('payments.itemDescription')}
@@ -487,6 +467,37 @@ function PaymentsPage() {
             {saving ? t('common.saving') : t('payments.recordPayment')}
           </button>
         </form>
+      </div>
+
+      {/* Front desk quotes prices from here; Settings may become manager-only. */}
+      <div className="settings-section">
+        <h2>{t('payments.priceLookup')}</h2>
+        <input
+          type="search"
+          className="search-input"
+          placeholder={t('payments.priceLookupPlaceholder')}
+          aria-label={t('payments.priceLookup')}
+          value={priceQuery}
+          onChange={(e) => setPriceQuery(e.target.value)}
+        />
+        {priceQuery.trim() &&
+          (priceMatches.length === 0 ? (
+            <p className="price-lookup-empty">{t('payments.noServiceMatch')}</p>
+          ) : (
+            <ul className="price-list">
+              {priceMatches.map((service) => (
+                <li key={service.id}>
+                  <span>{service.name}</span>
+                  <strong>
+                    <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          ))}
+        <p className="price-lookup-note">{t('payments.pricesIncludeVat')}</p>
+      </div>
+
       </div>
 
       <div className="settings-section">

@@ -350,12 +350,15 @@ function SettingsPage() {
   }
 
   return (
-    <div>
+    <div className="settings-page">
       <h1>{t('settings.title')}</h1>
 
       {isVet && (
         <div className="settings-section">
-          <h2>{t('settings.clinicInfo')}</h2>
+          <div className="settings-intro">
+            <h2>{t('settings.clinicInfo')}</h2>
+          </div>
+          <div className="settings-body">
           <form onSubmit={handleSaveClinic} className="pet-form">
             {clinicError && <p className="form-error">{clinicError}</p>}
             <label>
@@ -370,21 +373,32 @@ function SettingsPage() {
               {savingClinic ? t('common.saving') : t('common.saveChanges')}
             </button>
           </form>
+          </div>
         </div>
       )}
 
       {isVet && (
         <div className="settings-section">
-          <h2>{t('settings.services')}</h2>
-          <p className="pet-owner">{t('settings.servicesHint')}</p>
-          <p className="pet-owner">{t('settings.vatHint')}</p>
+          <div className="settings-intro">
+            <h2>{t('settings.services')}</h2>
+            <p className="pet-owner">{t('settings.servicesHint')}</p>
+            <p className="pet-owner">{t('settings.vatHint')}</p>
+          </div>
+          <div className="settings-body">
 
           {loadingServices ? (
             <p>{t('common.loading')}</p>
           ) : services.length === 0 ? (
             <p>{t('settings.noServices')}</p>
           ) : (
-            <ul className="pet-list">
+            <ul className="pet-list data-table data-services">
+              <li className="data-head" aria-hidden>
+                <span>{t('list.service')}</span>
+                <span className="data-num">{t('settings.priceAfterVat')}</span>
+                <span className="data-num">{t('settings.priceBeforeVat')}</span>
+                <span className="data-num">{t('settings.vatShort')}</span>
+                <span />
+              </li>
               {services.map((service) =>
                 editingServiceId === service.id ? (
                   <li key={service.id} className="pet-list-item">
@@ -406,22 +420,25 @@ function SettingsPage() {
                   </li>
                 ) : (
                   <li key={service.id} className="pet-list-item">
-                    <div className="pet-row">
-                      <div>
-                        <strong>{service.name}</strong>{' '}
+                    <div className="pet-row data-row">
+                      <div className="data-cell-wide">
+                        <strong className="data-strong">{service.name}</strong>{' '}
                         {!service.active && (
                           <span className="status-badge status-cancelled">{t('settings.serviceInactive')}</span>
                         )}
-                        <div className="service-price">
-                          <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
-                        </div>
-                        <div className="pet-owner">
-                          {t('settings.priceBeforeVat')}: <Ltr>{formatMoney(service.price)}</Ltr>
-                          {' · '}
-                          {t('settings.vatShort')}: <Ltr>{`${service.vat_rate}%`}</Ltr>
-                        </div>
                       </div>
-                      <div className="record-actions">
+                      <span className="data-num service-price">
+                        <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
+                      </span>
+                      <span className="data-num data-muted">
+                        <span className="data-label">{t('settings.priceBeforeVat')}: </span>
+                        <Ltr>{formatMoney(service.price)}</Ltr>
+                      </span>
+                      <span className="data-num data-muted">
+                        <span className="data-label">{t('settings.vatShort')}: </span>
+                        <Ltr>{`${service.vat_rate}%`}</Ltr>
+                      </span>
+                      <div className="record-actions data-end">
                         <button type="button" className="secondary-button" onClick={() => startEditService(service)}>
                           {t('common.edit')}
                         </button>
@@ -452,11 +469,15 @@ function SettingsPage() {
               {addingService ? t('common.saving') : t('settings.addService')}
             </button>
           </form>
+          </div>
         </div>
       )}
 
       <div className="settings-section">
-        <h2>{t('settings.account')}</h2>
+        <div className="settings-intro">
+          <h2>{t('settings.account')}</h2>
+        </div>
+        <div className="settings-body">
         <form onSubmit={handleSaveAccount} className="pet-form">
           {accountError && <p className="form-error">{accountError}</p>}
           <label>
@@ -499,11 +520,15 @@ function SettingsPage() {
             {savingPassword ? t('common.saving') : t('settings.changePassword')}
           </button>
         </form>
+        </div>
       </div>
 
       {isVet && (
         <div className="settings-section">
-          <h2>{t('settings.notifications')}</h2>
+          <div className="settings-intro">
+            <h2>{t('settings.notifications')}</h2>
+          </div>
+          <div className="settings-body">
           {!isPushSupported() ? (
             <p className="pet-owner">{t('settings.pushNotSupported')}</p>
           ) : (
@@ -563,6 +588,7 @@ function SettingsPage() {
               )}
             </>
           )}
+          </div>
         </div>
       )}
     </div>
