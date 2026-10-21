@@ -3859,6 +3859,30 @@ input[type='checkbox']:focus-visible {
   background-image: repeating-linear-gradient(135deg, var(--status-amber-bg) 0 4px, transparent 4px 14px);
 }
 
+/* Doctor's time off (0058): a gray background block, not clickable into an appointment. */
+.appointments-calendar .rbc-day-slot .rbc-background-event.calendar-away {
+  opacity: 1;
+  background: var(--skeleton-base);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: default;
+  font-size: 0.85rem;
+}
+
+.calendar-resource-header .calendar-away-tag {
+  align-self: center;
+  padding-inline: 0.5rem;
+  border-radius: 999px;
+  background: var(--skeleton-base);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.appointments-calendar .calendar-away .rbc-event-content {
+  padding: 0.25rem 0.5rem;
+}
+
 .appointments-calendar .rbc-header:has(.is-unassigned) {
   background: var(--status-amber-bg);
 }

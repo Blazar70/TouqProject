@@ -12,6 +12,7 @@ import type { ClinicRole, StaffChange } from '../../supabase/functions/_shared/s
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import StaffAppointments from '../components/StaffAppointments'
+import TimeOffPanel from '../components/TimeOffPanel'
 import PhoneInput from '../components/PhoneInput'
 import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
@@ -69,6 +70,7 @@ function StaffPage() {
   const [savingEdit, setSavingEdit] = useState(false)
 
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null)
+  const [timeOffId, setTimeOffId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
 
   useUnsavedChangesWarning(
@@ -120,6 +122,15 @@ function StaffPage() {
   useEffect(() => {
     if (onlyBranchId) setNewDraft((d) => (d.branchIds.length ? d : { ...d, branchIds: [onlyBranchId] }))
   }, [onlyBranchId])
+
+  // Same rule as can_manage_doctor_time_off() (0058).
+  function canSetTimeOff(member: Member) {
+    return (
+      isManager &&
+      member.takes_appointments &&
+      (!myBranchIds || member.staff_branches.some((b) => myBranchIds.includes(b.branch_id)))
+    )
+  }
 
   // Same check the edge function runs, so the page never offers what the server will refuse.
   function allowed(member: Member, change: StaffChange) {
@@ -419,6 +430,7 @@ function StaffPage() {
           {active.map((member) => {
             const isSelf = member.id === profile?.id
             const canManage = !isSelf && allowed(member, { action: 'update_staff' })
+            const canTimeOff = canSetTimeOff(member)
             return editingId === member.id ? (
               <li key={member.id} className="pet-list-item">
                 <form onSubmit={(e) => handleSaveEdit(e, member)} className="pet-form">
@@ -448,11 +460,23 @@ function StaffPage() {
                     {member.title && <div className="pet-owner">{member.title}</div>}
                   </button>
                   {renderCells(member)}
-                  {canManage || (isSelf && isManager) ? (
+                  {canManage || (isSelf && isManager) || canTimeOff ? (
                     <div className="record-actions data-end">
-                      <button type="button" className="secondary-button" onClick={() => startEditing(member)}>
-                        {t('common.edit')}
-                      </button>
+                      {canTimeOff && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          aria-expanded={timeOffId === member.id}
+                          onClick={() => setTimeOffId(timeOffId === member.id ? null : member.id)}
+                        >
+                          {t('staff.timeOff')}
+                        </button>
+                      )}
+                      {(canManage || (isSelf && isManager)) && (
+                        <button type="button" className="secondary-button" onClick={() => startEditing(member)}>
+                          {t('common.edit')}
+                        </button>
+                      )}
                       {canManage && (
                         <button
                           type="button"
@@ -468,6 +492,7 @@ function StaffPage() {
                     <span />
                   )}
                 </div>
+                {timeOffId === member.id && <TimeOffPanel doctorId={member.id} />}
                 {expandedStaffId === member.id && <StaffAppointments staffId={member.id} />}
               </li>
             )

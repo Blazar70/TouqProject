@@ -21,6 +21,7 @@ Status is `text` plus a check constraint, not an enum, so a new status is a cons
 - `cancellation_reason` (0008, free text), `cancellation_category` (0026, groupable). Categories live only in code: `src/lib/cancellation.ts:6`; the DB has no check on it.
 - `doctor_id` nullable, composite FK `(doctor_id, clinic_id) -> profiles (id, clinic_id)`, on delete set null (doctor_id) (0047; replaced `assigned_staff_id` → caregivers). Read with `doctor:profiles!appointments_doctor_fkey(full_name)`. See [staff](../people/staff.md).
 - `branch_id` not null (0046); the app sends the picked branch (phase 3, `BranchContext`); trigger `fill_default_branch()` fills the main branch only when none is sent. Calendar filters by branch; doctor pickers list only doctors who work at the branch (`worksAt`). Index `(branch_id, scheduled_at)`. See [branches](../people/branches.md).
+- Doctor time off (0058): trigger `appointments_enforce_doctor_not_away` refuses booking/moving onto a doctor whose `doctor_time_off` covers `scheduled_at` (start inclusive, end exclusive). Saving time off unassigns that doctor's requested/confirmed appointments inside it; never reassigned back. Pickers hide away doctors (`isAway`, `src/lib/timeOff.ts`); day view shows a gray Away background block. See [staff](../people/staff.md).
 - Conflict rule: same pet or same staff within 30 minutes, ignoring cancelled; a warning, not a block. `src/lib/appointmentConflicts.ts:6`
 
 ## Connected to
