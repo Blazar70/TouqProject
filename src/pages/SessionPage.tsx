@@ -18,6 +18,7 @@ import { useToast } from '../lib/ToastContext'
 import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
 import Ltr from '../components/Ltr'
+import VisitServices from '../components/VisitServices'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
@@ -251,6 +252,9 @@ function SessionPage() {
       </div>
 
       {error && <p className="form-error">{error}</p>}
+
+      {/* Outside the form: Enter in a quantity box must not finish the session. Saved as they're added. */}
+      <VisitServices appointmentId={appointment.id} locked={false} />
 
       <form onSubmit={handleSubmit} className="pet-form session-form">
         <label>

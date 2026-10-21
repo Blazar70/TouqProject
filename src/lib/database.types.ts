@@ -95,6 +95,46 @@ export type Database = {
           },
         ]
       }
+      appointment_services: {
+        Row: {
+          added_by: string | null
+          appointment_id: string
+          clinic_id: string
+          created_at: string
+          description: string
+          id: string
+          quantity: number
+          service_id: string | null
+          unit_price: number
+          vat_rate: number
+        }
+        // clinic_id, description, unit_price, vat_rate, added_by: set by the DB trigger (0059).
+        Insert: {
+          appointment_id: string
+          id?: string
+          quantity?: number
+          service_id: string
+        }
+        Update: {
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_services_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_services_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           branch_id: string
@@ -357,7 +397,7 @@ export type Database = {
           {
             foreignKeyName: "invoices_appointment_id_fkey"
             columns: ["appointment_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "appointments"
             referencedColumns: ["id"]
           },

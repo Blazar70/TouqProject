@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch, useBranchView } from '../lib/BranchContext'
@@ -17,6 +18,7 @@ import BranchFilter from '../components/BranchFilter'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
 import { formatDateTime, formatMoney } from '../lib/format'
+import { toPaymentLines } from '../lib/visitServices'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
@@ -57,6 +59,9 @@ function PaymentsPage() {
   const [viewBranch, setViewBranch] = useBranchView()
   const toast = useToast()
   const confirm = useConfirm()
+  // "Bill this visit" on the appointment dialog opens /payments?bill=<appointment id>.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const billId = searchParams.get('bill')
 
   const [loading, setLoading] = useState(true)
   const [pets, setPets] = useState<Pet[]>([])
@@ -102,11 +107,26 @@ function PaymentsPage() {
     load()
   }, [viewBranch])
 
+  // Pre-fill the form from the visit: its pet, the visit link and one line per service.
+  useEffect(() => {
+    if (!billId) return
+    Promise.all([
+      supabase.from('appointments').select('pet_id').eq('id', billId).maybeSingle(),
+      supabase.from('appointment_services').select('*').eq('appointment_id', billId).order('created_at', { ascending: true }),
+    ]).then(([apptRes, servicesRes]) => {
+      if (!apptRes.data) return
+      setPetId(apptRes.data.pet_id)
+      setAppointmentId(billId)
+      const lines = toPaymentLines(servicesRes.data ?? []).map((line) => ({ key: crypto.randomUUID(), ...line }))
+      setItems(lines.length > 0 ? lines : [newLineItem()])
+    })
+  }, [billId])
+
   // The appointment link is just a convenience for picking a recent visit
   // to attach the payment to — not every payment has one, so this stays
-  // optional and resets whenever the pet changes.
+  // optional and resets whenever the pet is picked (see PetPicker below).
+  // shortcut: only the pet's 10 latest visits are offered; a billed visit older than that shows as "no appointment" in the select but stays linked.
   useEffect(() => {
-    setAppointmentId('')
     if (!petId) {
       setPetAppointments([])
       return
@@ -209,7 +229,7 @@ function PaymentsPage() {
       .single()
 
     if (error || !invoice) {
-      setFormError(error?.message ?? t('common.couldNotSave'))
+      setFormError(error?.code === '23505' ? t('payments.alreadyBilled') : (error?.message ?? t('common.couldNotSave')))
       setSaving(false)
       return
     }
@@ -231,6 +251,8 @@ function PaymentsPage() {
     else setInvoices((current) => [invoice as Invoice, ...current])
     toast.success(t('payments.recorded'))
     setPetId('')
+    setAppointmentId('')
+    if (billId) setSearchParams({}, { replace: true })
     setItems([newLineItem()])
     setMethod('cash')
     setPaidAt(toLocalDateTimeInput(new Date().toISOString()))
@@ -363,7 +385,14 @@ function PaymentsPage() {
           <label>
             {t('payments.pet')}
             <RequiredMark />
-            <PetPicker pets={pets} value={petId} onChange={setPetId} />
+            <PetPicker
+              pets={pets}
+              value={petId}
+              onChange={(id) => {
+                setPetId(id)
+                setAppointmentId('')
+              }}
+            />
           </label>
 
           {petId && petAppointments.length > 0 && (
