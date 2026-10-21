@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { signOutThisDevice } from '../lib/push'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { clinicLogoUrl } from '../lib/imageUpload'
@@ -260,7 +261,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
             <ThemeToggle />
             <LanguageToggle />
           </div>
-          <button type="button" className="logout-button" onClick={() => supabase.auth.signOut({ scope: 'local' })}>
+          <button type="button" className="logout-button" onClick={signOutThisDevice}>
             <LogOut className="nav-icon-flip" size={18} aria-hidden />
             {t('nav.logout')}
           </button>

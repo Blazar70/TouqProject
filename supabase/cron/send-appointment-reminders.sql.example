@@ -4,9 +4,10 @@
 -- committed with real values. Copy this file, fill in the two placeholders,
 -- and run it ONCE in the Supabase SQL editor. Requires 0024 (pg_cron, pg_net).
 --
--- The function looks 15 minutes ahead per tick (see
--- supabase/functions/send-appointment-reminders/index.ts), so the interval
--- here must stay at 15 minutes or reminders will be missed or duplicated.
+-- The function sends every not-yet-sent reminder due within each person's
+-- lead time (see supabase/functions/send-appointment-reminders/index.ts), so a
+-- late or skipped tick only delays reminders. It refuses any caller that does
+-- not send the service-role key below.
 --
 -- To change or remove later:  select cron.unschedule('send-appointment-reminders');
 

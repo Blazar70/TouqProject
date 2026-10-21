@@ -12,7 +12,7 @@ Two private buckets and one public one (`clinic-logos`, 0053).
 
 ## Why this shape
 
-`pet-photos` is private since 0043 so pet and medical-record photos need a login: images load through 1-hour signed URLs (`src/lib/photoUrl.ts`), and push icons through 1-day ones (`supabase/functions/_shared/push.ts`). All access is scoped to the uploader's clinic folder (`<clinic_id>/...`). `payment-documents` is admin-only.
+`pet-photos` is private since 0043 so pet and medical-record photos need a login: images load through 1-hour signed URLs (`src/lib/photoUrl.ts`), and push icons through 1-day ones (`supabase/functions/_shared/push.ts`). All access is scoped to the uploader's clinic folder (`<clinic_id>/...`). `payment-documents` is admin-only. Since 0055 `pet-photos` and `clinic-logos` refuse files over 5 MB and anything but jpeg/png/webp/gif/heic/heif (no SVG); `validateImageFile` matches.
 
 ## Shape
 

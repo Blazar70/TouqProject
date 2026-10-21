@@ -198,6 +198,8 @@ Deno.serve(async (req) => {
     if (firstError) return fail(firstError.message)
     const secondError = (await second()).error
     if (secondError) return fail(secondError.message)
+    // Their devices must stop showing this clinic's pet names; they re-enable alerts if restored.
+    if (disabled) await admin.from('push_subscriptions').delete().eq('profile_id', t.id)
     await log(disabled ? 'staff_disabled' : 'staff_enabled', t.fullName)
     return json({ ok: true })
   }

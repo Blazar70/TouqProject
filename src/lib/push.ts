@@ -62,6 +62,22 @@ export async function unsubscribeFromPush(profileId: string) {
   if (error) throw error
 }
 
+// Logging out of a shared device must stop alerts for the person leaving.
+// Best effort: a push failure never blocks the logout itself.
+export async function signOutThisDevice() {
+  try {
+    const registration = isPushSupported() ? await navigator.serviceWorker.getRegistration() : undefined
+    const subscription = await registration?.pushManager.getSubscription()
+    if (subscription) {
+      await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint)
+      await subscription.unsubscribe()
+    }
+  } catch {
+    // ignore, see above
+  }
+  await supabase.auth.signOut({ scope: 'local' })
+}
+
 export async function hasActivePushSubscription() {
   if (!isPushSupported()) return false
   const registration = await navigator.serviceWorker.ready

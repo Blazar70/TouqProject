@@ -14,7 +14,7 @@ import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminBillingPage from './pages/AdminBillingPage'
 import AdminActivityPage from './pages/AdminActivityPage'
 import { useAuth } from './lib/AuthContext'
-import { supabase } from './lib/supabase'
+import { signOutThisDevice } from './lib/push'
 import { useLanguage } from './lib/i18n/LanguageContext'
 import AppShell from './components/AppShell'
 import LoadingScreen from './components/LoadingScreen'
@@ -44,7 +44,7 @@ function App() {
         <main className="app-main">
           <h1>{t('admin.accountDisabledTitle')}</h1>
           <p>{t('admin.accountDisabledBody')}</p>
-          <button type="button" className="secondary-button" onClick={() => supabase.auth.signOut({ scope: 'local' })}>
+          <button type="button" className="secondary-button" onClick={signOutThisDevice}>
             {t('nav.logout')}
           </button>
         </main>
@@ -61,7 +61,7 @@ function App() {
         <main className="app-main">
           <h1>{t('admin.clinicDisabledTitle')}</h1>
           <p>{t('admin.clinicDisabledBody')}</p>
-          <button type="button" className="secondary-button" onClick={() => supabase.auth.signOut({ scope: 'local' })}>
+          <button type="button" className="secondary-button" onClick={signOutThisDevice}>
             {t('nav.logout')}
           </button>
         </main>

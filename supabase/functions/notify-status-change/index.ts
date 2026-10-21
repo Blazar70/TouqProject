@@ -32,8 +32,9 @@ Deno.serve(async (req) => {
   } = await callerClient.auth.getUser()
   if (!user) return new Response('unauthorized', { status: 401, headers: corsHeaders })
 
-  const { data: callerProfile } = await admin.from('profiles').select('clinic_id').eq('id', user.id).maybeSingle()
-  if (!callerProfile || callerProfile.clinic_id !== appointment.clinic_id) {
+  // A removed (disabled) member's access token stays valid until it expires.
+  const { data: callerProfile } = await admin.from('profiles').select('clinic_id, disabled').eq('id', user.id).maybeSingle()
+  if (!callerProfile || callerProfile.disabled || callerProfile.clinic_id !== appointment.clinic_id) {
     return new Response('forbidden', { status: 403, headers: corsHeaders })
   }
 
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
     .from('profiles')
     .select('id, push_notify_statuses')
     .eq('clinic_id', appointment.clinic_id)
+    .eq('disabled', false)
 
   const recipientIds = (profiles ?? [])
     .filter((p) => (p.push_notify_statuses as string[] | null)?.includes(appointment.status))

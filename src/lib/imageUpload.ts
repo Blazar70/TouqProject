@@ -7,7 +7,8 @@ export const CLINIC_LOGOS_BUCKET = 'clinic-logos'
 export type ImageValidationError = 'notImage' | 'tooLarge'
 
 export function validateImageFile(file: File): ImageValidationError | null {
-  if (!file.type.startsWith('image/')) return 'notImage'
+  // SVG can carry script; storage refuses it too (0055).
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return 'notImage'
   if (file.size > MAX_IMAGE_BYTES) return 'tooLarge'
   return null
 }

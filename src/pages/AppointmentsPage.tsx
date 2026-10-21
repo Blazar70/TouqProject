@@ -263,6 +263,19 @@ function AppointmentsPage() {
     notifyStatusChange(appointment.id)
   }
 
+  // Undo a session started by mistake: back to confirmed, timer cleared.
+  async function handleStopSession(appointment: Appointment) {
+    const changes = { status: 'confirmed', started_at: null }
+    const { error: updateError } = await supabase.from('appointments').update(changes).eq('id', appointment.id)
+    if (updateError) {
+      toast.error(updateError.message)
+      return
+    }
+    applyUpdate({ ...appointment, ...changes })
+    toast.success(t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS.confirmed) }))
+    notifyStatusChange(appointment.id)
+  }
+
   async function handleCancel(appointment: Appointment) {
     if (!cancelCategory) {
       setPanelError(t('appointments.chooseCancelReason'))
@@ -706,6 +719,16 @@ function AppointmentsPage() {
                   >
                     {t('session.resume')}
                   </button>
+                )}
+                {isVet && inSession && (
+                  <>
+                    <button type="button" className="secondary-button" onClick={() => handleStopSession(appointment)}>
+                      {t('session.stop')}
+                    </button>
+                    <button type="button" className="delete-button" onClick={() => setPanelMode('cancel')}>
+                      {t('appointments.cancel')}
+                    </button>
+                  </>
                 )}
                 {isVet && isActive && (
                   <>
