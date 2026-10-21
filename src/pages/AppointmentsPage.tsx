@@ -517,6 +517,11 @@ function AppointmentsPage() {
           <div className="appointment-panel-header">
             <div>
               <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
+              {appointment.pets && (
+                <p className="pet-owner">
+                  {t('pets.petId')}: <Ltr>{appointment.pets.pet_number}</Ltr>
+                </p>
+              )}
               <p className="pet-owner">
                 <Ltr>{formatDateTime(appointment.scheduled_at)}</Ltr>
                 {appointment.doctor && ` · ${appointment.doctor.full_name}`}
