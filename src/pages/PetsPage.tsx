@@ -16,6 +16,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import { vaccinationStatus, nextVaccinationDateAfterDose } from '../lib/vaccination'
 import { formatDate } from '../lib/format'
+import { matchesPetSearch } from '../lib/appointmentSearch'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -211,9 +212,7 @@ function PetsPage() {
   const filteredPets = useMemo(() => {
     const query = search.trim().toLowerCase()
     if (!query) return pets
-    return pets.filter(
-      (pet) => pet.name.toLowerCase().includes(query) || (pet.owner_phone ?? '').toLowerCase().includes(query),
-    )
+    return pets.filter((pet) => matchesPetSearch(pet, query))
   }, [pets, search])
 
   if (loading) return <LoadingScreen />
@@ -264,6 +263,7 @@ function PetsPage() {
         <ul className="pet-list data-table data-pets">
           <li className="data-head" aria-hidden>
             <span>{t('list.pet')}</span>
+            <span>{t('pets.petId')}</span>
             <span>{t('list.owner')}</span>
             <span>{t('list.vaccination')}</span>
             <span />
@@ -280,6 +280,10 @@ function PetsPage() {
                       {pet.breed ? ` · ${pet.breed}` : ''}
                     </div>
                   </button>
+                </div>
+                <div className="data-muted">
+                  <span className="data-label">{t('pets.petId')}: </span>
+                  <Ltr>{pet.pet_number}</Ltr>
                 </div>
                 <div className="data-cell-wide">
                   <span className="data-label">{t('pets.owner')}: </span>

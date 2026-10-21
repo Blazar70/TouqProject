@@ -593,6 +593,29 @@ export type Database = {
           },
         ]
       }
+      pet_number_counters: {
+        Row: {
+          clinic_id: string
+          last_number: number
+        }
+        Insert: {
+          clinic_id: string
+          last_number: number
+        }
+        Update: {
+          clinic_id?: string
+          last_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_number_counters_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: true
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pet_trusted_contacts: {
         Row: {
           created_at: string
@@ -640,6 +663,7 @@ export type Database = {
           owner_id: string | null
           owner_name: string
           owner_phone: string | null
+          pet_number: number
           photo_url: string | null
           species: string
           vaccination_interval_days: number | null
@@ -658,6 +682,7 @@ export type Database = {
           owner_id?: string | null
           owner_name: string
           owner_phone?: string | null
+          pet_number?: number
           photo_url?: string | null
           species: string
           vaccination_interval_days?: number | null
@@ -676,6 +701,7 @@ export type Database = {
           owner_id?: string | null
           owner_name?: string
           owner_phone?: string | null
+          pet_number?: number
           photo_url?: string | null
           species?: string
           vaccination_interval_days?: number | null

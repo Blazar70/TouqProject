@@ -3292,7 +3292,7 @@ input[type='checkbox']:focus-visible {
 }
 
 .data-pets {
-  --data-cols: minmax(0, 1.2fr) minmax(0, 1fr) 11rem 15rem;
+  --data-cols: minmax(0, 1.2fr) 6rem minmax(0, 1fr) 11rem 15rem;
 }
 
 .data-payments {

@@ -30,7 +30,7 @@ import RequiredMark from '../components/RequiredMark'
 import { formatDateTime } from '../lib/format'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
-  pets: { name: string; owner_phone: string | null } | null
+  pets: { name: string; owner_phone: string | null; pet_number: number } | null
   doctor: { full_name: string } | null
 }
 type Pet = Database['public']['Tables']['pets']['Row']
@@ -50,7 +50,7 @@ type CalendarEvent = {
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_phone), doctor:profiles!appointments_doctor_fkey(full_name)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name)'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -685,7 +685,7 @@ function AppointmentsPage() {
                             visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
                             record,
                             photoUrl: includePhoto ? record.photo_url : null,
-                          })
+                          }, appointment.pets?.pet_number)
                         }
                       >
                         {t('common.print')}

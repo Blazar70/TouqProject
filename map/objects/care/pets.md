@@ -18,6 +18,7 @@ Owner contact is plain text on the pet (0007), because owner logins never took o
 
 - `clinic_id` not null, `owner_id` nullable, `owner_name` not null, `owner_phone`, `owner_email` (0007)
 - `species`, `breed`, `date_of_birth`, `photo_url` (0013)
+- `pet_number` (0052): the visible Pet ID, per clinic from 10001, never changed or reused. Assigned by trigger `pets_assign_pet_number` from table `pet_number_counters` (RLS on, no client access); `pets_prevent_pet_number_change` blocks edits. Unique `(clinic_id, pet_number)`. Shown in the pets list, pet file, prints and payments; searched via `matchesPetSearch` (`src/lib/appointmentSearch.ts`).
 - `home_branch_id` nullable (0046), a default only; pets stay clinic-wide. See [branches](../people/branches.md).
 - `next_vaccination_date`, `vaccination_interval_days` (0012)
 - `deleted_at` (0032): soft delete, 7 days. RLS does not hide trashed rows; the UI filters with `.is('deleted_at', null)` (`src/pages/PetsPage.tsx:48`).
@@ -31,7 +32,7 @@ Owner contact is plain text on the pet (0007), because owner logins never took o
 
 ## If you change this
 
-- **Hits:** PetsPage, RegisterPetPage, PetDetail, VaccinationPanel, Dashboard vaccinations-due, `AppointmentsPage` pet picker, `PaymentsPage` pet picker, purge cron and `admin-manage-clinic` purge order.
+- **Hits:** PetsPage, PetPicker, RegisterPetPage, PetDetail, VaccinationPanel, Dashboard vaccinations-due, `AppointmentsPage` pet picker, `PaymentsPage` pet picker, purge cron and `admin-manage-clinic` purge order.
 - **Does not hit:** payments (the clinic-to-Touq ledger no longer references pets since 0035).
 
 ## Surfaces
