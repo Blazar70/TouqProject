@@ -43,6 +43,7 @@ Isolation between clinics is enforced by RLS through one helper, `current_user_c
 |---|---|
 | `src/pages/AdminDashboardPage.tsx` (`/`) | platform totals, usage chart, billing due |
 | `src/pages/AdminPage.tsx` (`/clinics`) | create (via edge function), rename, disable, trash, logo upload/remove |
+| `src/pages/SettingsPage.tsx` | managers: logo upload/remove (`ClinicLogoField`, shared with AdminPage) |
 | `src/pages/SettingsPage.tsx` | vet edits name/phone |
 | `src/pages/AdminBillingPage.tsx` | reads, sets billing_status |
 
