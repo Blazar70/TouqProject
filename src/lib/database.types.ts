@@ -931,6 +931,7 @@ export type Database = {
       current_user_has_role: { Args: { roles: string[] }; Returns: boolean }
       current_user_id_if_active: { Args: never; Returns: string }
       current_user_is_admin: { Args: never; Returns: boolean }
+      current_user_is_clinic_manager: { Args: never; Returns: boolean }
     }
     Enums: {
       user_role: "vet" | "owner" | "admin"

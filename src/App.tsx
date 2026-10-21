@@ -15,14 +15,17 @@ import AdminBillingPage from './pages/AdminBillingPage'
 import AdminActivityPage from './pages/AdminActivityPage'
 import { useAuth } from './lib/AuthContext'
 import { signOutThisDevice } from './lib/push'
+import { useBranch } from './lib/BranchContext'
 import { useLanguage } from './lib/i18n/LanguageContext'
 import AppShell from './components/AppShell'
 import LoadingScreen from './components/LoadingScreen'
+import BranchPicker from './components/BranchPicker'
 import './App.css'
 
 function App() {
   const { session, profile, clinicName, clinicDisabled, loading, passwordRecovery } = useAuth()
   const { t } = useLanguage()
+  const branch = useBranch()
 
   // Checked ahead of `loading`/`!session` — a recovery link signs the user
   // into a temporary session, so both of those already pass, but they
@@ -30,7 +33,7 @@ function App() {
   // whatever their normal role would otherwise route them to.
   if (passwordRecovery) return <ResetPasswordPage />
 
-  if (loading) return <LoadingScreen />
+  if (loading || branch.loading) return <LoadingScreen />
 
   if (!session) return <LoginPage />
 
@@ -70,6 +73,8 @@ function App() {
   }
 
   const isAdmin = profile?.role === 'admin'
+  // 2+ branches and none picked in this tab yet: pick before the app loads anything.
+  if (branch.asking) return <BranchPicker />
 
   return (
     <AppShell isAdmin={isAdmin} clinicName={clinicName} userName={profile?.full_name ?? session.user.email ?? ''}>

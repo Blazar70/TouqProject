@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
@@ -9,6 +10,8 @@ import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidClinicPhone, isV
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
+import BranchesPanel from '../components/BranchesPanel'
+import ClinicLogoField from '../components/ClinicLogoField'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
@@ -37,10 +40,22 @@ function reminderSelectValue(minutes: number | null) {
 }
 
 function SettingsPage() {
-  const { profile, refreshClinicName } = useAuth()
+  const { profile, refreshClinicName, clinicName: savedClinicName, clinicLogoUrl } = useAuth()
   const { t } = useLanguage()
   const toast = useToast()
   const isVet = profile?.role === 'vet'
+  const isManager = isVet && profile?.clinic_role === 'manager'
+  const { branches, pickable, isClinicManager, reload: reloadBranches } = useBranch()
+  const [staffBranches, setStaffBranches] = useState<{ profile_id: string; branch_id: string }[]>([])
+
+  // Only for the close-branch count ("N staff move to main").
+  useEffect(() => {
+    if (!isClinicManager) return
+    supabase
+      .from('staff_branches')
+      .select('profile_id, branch_id')
+      .then(({ data }) => setStaffBranches(data ?? []))
+  }, [isClinicManager, branches])
 
   const [clinicName, setClinicName] = useState('')
   const [clinicPhone, setClinicPhone] = useState('')
@@ -373,6 +388,40 @@ function SettingsPage() {
               {savingClinic ? t('common.saving') : t('common.saveChanges')}
             </button>
           </form>
+          </div>
+        </div>
+      )}
+
+      {isManager && profile.clinic_id && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('settings.logo')}</h2>
+            <p className="pet-owner">{t('settings.logoHint')}</p>
+          </div>
+          <div className="settings-body">
+            <ClinicLogoField
+              clinic={{ id: profile.clinic_id, name: savedClinicName ?? '', logo_url: clinicLogoUrl }}
+              onSaved={refreshClinicName}
+            />
+          </div>
+        </div>
+      )}
+
+      {isManager && profile.clinic_id && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('settings.branches')}</h2>
+            <p className="pet-owner">{t(isClinicManager ? 'settings.branchesHint' : 'settings.branchesHintOwn')}</p>
+          </div>
+          <div className="settings-body">
+            <BranchesPanel
+              clinicId={profile.clinic_id}
+              branches={isClinicManager ? branches : pickable}
+              staffBranches={staffBranches}
+              canManage={isClinicManager}
+              canEdit={(b) => isClinicManager || pickable.some((p) => p.id === b.id)}
+              onChanged={reloadBranches}
+            />
           </div>
         </div>
       )}

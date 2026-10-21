@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Timer } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
@@ -34,6 +35,7 @@ function SessionPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const { branchId } = useBranch()
   const { t } = useLanguage()
   const toast = useToast()
 
@@ -155,6 +157,7 @@ function SessionPage() {
         clinic_id: profile.clinic_id,
         vet_id: profile.id,
         appointment_id: appointment.id,
+        branch_id: branchId,
         visit_type: visitType,
         presenting_complaint: complaint.trim() || null,
         ...vitalsResult.vitals,

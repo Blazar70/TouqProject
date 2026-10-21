@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ChevronDown, Download, Image as ImageIcon, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, Download, Search, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -9,14 +9,16 @@ import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { speciesLabel, POPULAR_SPECIES } from '../lib/species'
-import { isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
+import { isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { downloadCsv } from '../lib/csvExport'
 import { logAdminAction, auditActionLabelKey } from '../lib/adminAudit'
 import PhoneInput from '../components/PhoneInput'
 import RequiredMark from '../components/RequiredMark'
 import LoadingScreen from '../components/LoadingScreen'
 import Ltr from '../components/Ltr'
-import { CLINIC_LOGOS_BUCKET, clinicLogoUrl, uploadPhoto, validateImageFile } from '../lib/imageUpload'
+import { CLINIC_LOGOS_BUCKET, clinicLogoUrl } from '../lib/imageUpload'
+import BranchesPanel from '../components/BranchesPanel'
+import ClinicLogoField from '../components/ClinicLogoField'
 import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
 import { CLINIC_ROLES, parseStaffLogin } from '../../supabase/functions/_shared/staffRules'
 
@@ -67,7 +69,6 @@ function AdminPage() {
   const [deletingClinicId, setDeletingClinicId] = useState<string | null>(null)
   const [restoringClinicId, setRestoringClinicId] = useState<string | null>(null)
   const [togglingClinicId, setTogglingClinicId] = useState<string | null>(null)
-  const [logoBusyClinicId, setLogoBusyClinicId] = useState<string | null>(null)
 
   const [showNewClinicForm, setShowNewClinicForm] = useState(false)
   const [newClinicName, setNewClinicName] = useState('')
@@ -103,15 +104,6 @@ function AdminPage() {
   const [addStaffPhone, setAddStaffPhone] = useState('')
   const [addingStaff, setAddingStaff] = useState(false)
 
-  // One form for adding (branchId null) and editing a branch.
-  const [branchForm, setBranchForm] = useState<{ clinicId: string; branchId: string | null } | null>(null)
-  const [branchName, setBranchName] = useState('')
-  const [branchNameAr, setBranchNameAr] = useState('')
-  const [branchPhone, setBranchPhone] = useState('')
-  const [branchAddress, setBranchAddress] = useState('')
-  const [savingBranch, setSavingBranch] = useState(false)
-  const [branchError, setBranchError] = useState<string | null>(null)
-  const [busyBranchId, setBusyBranchId] = useState<string | null>(null)
   const [addStaffError, setAddStaffError] = useState<string | null>(null)
 
   const [userModalId, setUserModalId] = useState<string | null>(null)
@@ -449,57 +441,6 @@ function AdminPage() {
     setTogglingClinicId(null)
   }
 
-  async function saveClinicLogo(clinic: Clinic, logoUrl: string | null) {
-    const { data, error } = await supabase.from('clinics').update({ logo_url: logoUrl }).eq('id', clinic.id).select().single()
-    setLogoBusyClinicId(null)
-    if (error || !data) {
-      toast.error(error?.message ?? t('common.couldNotSave'))
-      return
-    }
-    // Same path is overwritten in place; a different extension leaves the old file, so remove it.
-    const oldPath = clinic.logo_url?.split('?')[0]
-    if (oldPath && oldPath !== logoUrl?.split('?')[0]) await supabase.storage.from(CLINIC_LOGOS_BUCKET).remove([oldPath])
-    setClinics((current) => current.map((c) => (c.id === data.id ? data : c)))
-    if (currentProfile) {
-      await logAdminAction(
-        currentProfile.id,
-        currentProfile.full_name,
-        logoUrl ? 'clinic_logo_changed' : 'clinic_logo_removed',
-        'clinic',
-        data.name,
-        data.id,
-      )
-    }
-    toast.success(t(logoUrl ? 'admin.logoSaved' : 'admin.logoRemoved', { name: data.name }))
-  }
-
-  async function handleLogoFile(clinic: Clinic, file: File) {
-    const invalid = validateImageFile(file)
-    if (invalid) {
-      toast.error(t(invalid === 'notImage' ? 'petDetail.imageOnly' : 'petDetail.imageTooLarge'))
-      return
-    }
-    setLogoBusyClinicId(clinic.id)
-    const upload = await uploadPhoto(`${clinic.id}/logo`, file, CLINIC_LOGOS_BUCKET)
-    if (upload.error !== null) {
-      toast.error(upload.error)
-      setLogoBusyClinicId(null)
-      return
-    }
-    // Cache-bust: a re-upload keeps the same path.
-    await saveClinicLogo(clinic, `${upload.path}?t=${Date.now()}`)
-  }
-
-  async function handleRemoveLogo(clinic: Clinic) {
-    const ok = await confirm(t('admin.removeLogoConfirm', { name: clinic.name }), {
-      danger: true,
-      confirmLabel: t('admin.removeLogo'),
-    })
-    if (!ok) return
-    setLogoBusyClinicId(clinic.id)
-    await saveClinicLogo(clinic, null)
-  }
-
   function startEditClinic(clinic: Clinic) {
     setEditingClinicId(clinic.id)
     setEditClinicName(clinic.name)
@@ -544,99 +485,6 @@ function AdminPage() {
       .limit(50)
     setClinicActivity(data ?? [])
     setLoadingClinicActivity(false)
-  }
-
-  function openBranchForm(clinicId: string, branch: Branch | null) {
-    setBranchForm({ clinicId, branchId: branch?.id ?? null })
-    setBranchName(branch?.name ?? '')
-    setBranchNameAr(branch?.name_ar ?? '')
-    setBranchPhone(branch?.phone ?? '')
-    setBranchAddress(branch?.address ?? '')
-    setBranchError(null)
-  }
-
-  async function logBranch(action: string, name: string, clinicId: string) {
-    if (currentProfile) await logAdminAction(currentProfile.id, currentProfile.full_name, action, 'branch', name, clinicId)
-  }
-
-  // Admins write branches directly (branches_all_admin, 0044); close and
-  // make-main are database functions so they can't half-finish (0048).
-  async function handleSaveBranch(e: FormEvent) {
-    e.preventDefault()
-    if (!branchForm) return
-    const name = branchName.trim()
-    if (!name) return
-    if (branchPhone.trim() && !isValidClinicPhone(branchPhone.trim())) {
-      setBranchError(t('registerPet.invalidPhone'))
-      return
-    }
-    setSavingBranch(true)
-    const fields = {
-      name,
-      name_ar: branchNameAr.trim() || null,
-      phone: branchPhone.trim() || null,
-      address: branchAddress.trim() || null,
-    }
-    const { error } = branchForm.branchId
-      ? await supabase.from('branches').update(fields).eq('id', branchForm.branchId)
-      : await supabase.from('branches').insert({ ...fields, clinic_id: branchForm.clinicId })
-    setSavingBranch(false)
-    if (error) {
-      setBranchError(error.code === '23505' ? t('admin.branchNameTaken') : error.message)
-      return
-    }
-    await logBranch(branchForm.branchId ? 'branch_updated' : 'branch_added', name, branchForm.clinicId)
-    toast.success(t(branchForm.branchId ? 'admin.branchSaved' : 'admin.branchAdded', { name }))
-    setBranchForm(null)
-    await load()
-  }
-
-  async function handleMakeMainBranch(branch: Branch) {
-    setBusyBranchId(branch.id)
-    const { error } = await supabase.rpc('admin_set_main_branch', { p_branch: branch.id })
-    setBusyBranchId(null)
-    if (error) {
-      toast.error(error.message)
-      return
-    }
-    await logBranch('branch_made_main', branch.name, branch.clinic_id)
-    toast.success(t('admin.branchMadeMain', { name: branchLabel(branch) }))
-    await load()
-  }
-
-  async function handleCloseBranch(branch: Branch) {
-    // Same rule as admin_close_branch: staff with no other branch move to main.
-    const moving = staffBranches.filter(
-      (sb) => sb.branch_id === branch.id && !staffBranches.some((o) => o.profile_id === sb.profile_id && o.branch_id !== branch.id),
-    ).length
-    const ok = await confirm(t('admin.closeBranchConfirm', { name: branchLabel(branch), count: String(moving) }), {
-      danger: true,
-      confirmLabel: t('admin.closeBranch'),
-    })
-    if (!ok) return
-    setBusyBranchId(branch.id)
-    const { error } = await supabase.rpc('admin_close_branch', { p_branch: branch.id })
-    setBusyBranchId(null)
-    if (error) {
-      toast.error(error.message)
-      return
-    }
-    await logBranch('branch_closed', branch.name, branch.clinic_id)
-    toast.success(t('admin.branchClosed', { name: branchLabel(branch) }))
-    await load()
-  }
-
-  async function handleReopenBranch(branch: Branch) {
-    setBusyBranchId(branch.id)
-    const { error } = await supabase.from('branches').update({ active: true }).eq('id', branch.id)
-    setBusyBranchId(null)
-    if (error) {
-      toast.error(error.message)
-      return
-    }
-    await logBranch('branch_reopened', branch.name, branch.clinic_id)
-    toast.success(t('admin.branchReopened', { name: branchLabel(branch) }))
-    await load()
   }
 
   function startAddStaff(clinicId: string) {
@@ -1333,9 +1181,6 @@ function AdminPage() {
                           <button type="button" className="secondary-button" onClick={() => startAddStaff(clinic.id)}>
                             + {t('admin.addUser')}
                           </button>
-                          <button type="button" className="secondary-button" onClick={() => openBranchForm(clinic.id, null)}>
-                            + {t('admin.addBranch')}
-                          </button>
                           <button type="button" className="secondary-button" onClick={() => openClinicActivity(clinic.id)}>
                             {t('admin.viewActivity')}
                           </button>
@@ -1362,133 +1207,19 @@ function AdminPage() {
                         </div>
                       </div>
                     )}
-                    <div className="admin-clinic-logo">
-                      <span className="admin-clinic-logo-preview">
-                        {clinic.logo_url ? (
-                          <img src={clinicLogoUrl(clinic.logo_url)} alt={t('admin.logoAlt', { name: clinic.name })} />
-                        ) : (
-                          <ImageIcon size={20} aria-hidden />
-                        )}
-                      </span>
-                      <div className="record-actions">
-                        <label className="secondary-button admin-file-label">
-                          {logoBusyClinicId === clinic.id
-                            ? t('common.saving')
-                            : clinic.logo_url
-                              ? t('admin.changeLogo')
-                              : t('admin.uploadLogo')}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            disabled={logoBusyClinicId === clinic.id}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              e.target.value = ''
-                              if (file) handleLogoFile(clinic, file)
-                            }}
-                          />
-                        </label>
-                        {clinic.logo_url && (
-                          <button
-                            type="button"
-                            className="delete-button"
-                            onClick={() => handleRemoveLogo(clinic)}
-                            disabled={logoBusyClinicId === clinic.id}
-                          >
-                            {t('admin.removeLogo')}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                    <ClinicLogoField
+                      clinic={clinic}
+                      onSaved={(saved) => setClinics((current) => current.map((c) => (c.id === saved.id ? saved : c)))}
+                    />
                     <h4>{t('admin.branchesField')}</h4>
-                    <ul className="record-list">
-                      {branches
-                        .filter((b) => b.clinic_id === clinic.id)
-                        .map((b) => (
-                          <li key={b.id}>
-                            <div className="record-row">
-                              <div>
-                                <strong>{b.name}</strong>
-                                {b.name_ar && <span className="pet-owner"> · {b.name_ar}</span>}
-                                {b.is_main && <>{' '}<span className="status-badge status-confirmed">{t('admin.mainBranch')}</span></>}
-                                {!b.active && <>{' '}<span className="status-badge status-cancelled">{t('admin.branchClosedBadge')}</span></>}
-                                {(b.phone || b.address) && (
-                                  <div className="pet-owner">
-                                    {b.phone && <Ltr>{b.phone}</Ltr>}
-                                    {b.phone && b.address && ' · '}
-                                    {b.address}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="record-actions">
-                                <button type="button" className="secondary-button" onClick={() => openBranchForm(clinic.id, b)}>
-                                  {t('common.edit')}
-                                </button>
-                                {b.active && !b.is_main && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="secondary-button"
-                                      onClick={() => handleMakeMainBranch(b)}
-                                      disabled={busyBranchId === b.id}
-                                    >
-                                      {t('admin.makeMainBranch')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="delete-button"
-                                      onClick={() => handleCloseBranch(b)}
-                                      disabled={busyBranchId === b.id}
-                                    >
-                                      {t('admin.closeBranch')}
-                                    </button>
-                                  </>
-                                )}
-                                {!b.active && (
-                                  <button
-                                    type="button"
-                                    className="secondary-button"
-                                    onClick={() => handleReopenBranch(b)}
-                                    disabled={busyBranchId === b.id}
-                                  >
-                                    {t('admin.reopenBranch')}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </li>
-                        ))}
-                    </ul>
-                    {branchForm?.clinicId === clinic.id && (
-                      <form onSubmit={handleSaveBranch} className="pet-form pet-form-grid">
-                        {branchError && <p className="form-error">{branchError}</p>}
-                        <label>
-                          {t('admin.branchName')}
-                          <RequiredMark />
-                          <input value={branchName} onChange={(e) => setBranchName(e.target.value)} required />
-                        </label>
-                        <label>
-                          {t('admin.branchNameAr')}
-                          <input value={branchNameAr} onChange={(e) => setBranchNameAr(e.target.value)} dir="rtl" />
-                        </label>
-                        <label>
-                          {t('common.phone')}
-                          <input value={branchPhone} onChange={(e) => setBranchPhone(e.target.value)} dir="ltr" placeholder="+966 11 234 5678" />
-                        </label>
-                        <label>
-                          {t('admin.branchAddress')}
-                          <input value={branchAddress} onChange={(e) => setBranchAddress(e.target.value)} />
-                        </label>
-                        <div className="record-edit-actions">
-                          <button type="submit" disabled={savingBranch}>
-                            {savingBranch ? t('common.saving') : branchForm.branchId ? t('common.save') : t('admin.addBranch')}
-                          </button>
-                          <button type="button" className="cancel-button" onClick={() => setBranchForm(null)}>
-                            {t('common.cancel')}
-                          </button>
-                        </div>
-                      </form>
-                    )}
+                    <BranchesPanel
+                      clinicId={clinic.id}
+                      branches={branches.filter((b) => b.clinic_id === clinic.id)}
+                      staffBranches={staffBranches}
+                      canManage
+                      canEdit={() => true}
+                      onChanged={load}
+                    />
                     {addStaffClinicId === clinic.id && (
                       <form onSubmit={(e) => handleAddStaff(e, clinic.id)} className="pet-form pet-form-grid">
                         {addStaffError && <p className="form-error">{addStaffError}</p>}

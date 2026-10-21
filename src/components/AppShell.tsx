@@ -9,6 +9,7 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Menu,
   PawPrint,
   Receipt,
@@ -16,13 +17,14 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
 import { signOutThisDevice } from '../lib/push'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { clinicLogoUrl } from '../lib/imageUpload'
 import type { TranslationKey } from '../lib/i18n/translations'
 import LanguageToggle from './LanguageToggle'
+import BranchPicker from './BranchPicker'
 import ThemeToggle from './ThemeToggle'
 
 type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean }
@@ -104,9 +106,9 @@ type Props = {
  * When expanded over content (rail or drawer) it behaves as a modal dialog.
  */
 function AppShell({ isAdmin, clinicName, userName, children }: Props) {
-  const { t, language } = useLanguage()
+  const { t } = useLanguage()
   const { profile, clinicLogoUrl: logo } = useAuth()
-  const [branches, setBranches] = useState<{ name: string; name_ar: string | null }[]>([])
+  const { branchId, branchName, pickable, pickerOpen, openPicker } = useBranch()
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
   const overlayOpen = menuOpen && !isDesktop
@@ -136,26 +138,11 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [overlayOpen])
 
-  // shortcut: shows the person's member branches; switch to the branch picked at login once phase 3 adds the picker.
-  const profileId = profile?.id
-  useEffect(() => {
-    if (isAdmin || !profileId) return
-    supabase
-      .from('staff_branches')
-      .select('branches(name, name_ar, active)')
-      .eq('profile_id', profileId)
-      .then(({ data }) => setBranches((data ?? []).flatMap((row) => (row.branches?.active ? [row.branches] : []))))
-  }, [isAdmin, profileId])
-
   const sections = isAdmin ? ADMIN_SECTIONS : CLINIC_SECTIONS
   const roleLabel = isAdmin
     ? t('role.admin')
     : profile?.clinic_role && t(`staff.role.${profile.clinic_role}` as TranslationKey)
-  const branchLabel = isAdmin
-    ? null
-    : branches.length > 0
-      ? branches.map((b) => (language === 'ar' && b.name_ar) || b.name).join(language === 'ar' ? '، ' : ', ')
-      : profile?.clinic_role === 'manager' && t('staff.allBranches')
+  const branchLabel = isAdmin ? null : branchName(branchId)
   const userMeta = [roleLabel, branchLabel].filter(Boolean).join(' · ')
 
   return (
@@ -257,6 +244,19 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
               {userMeta && <span className="app-user-meta">{userMeta}</span>}
             </span>
           </div>
+          {!isAdmin && pickable.length > 1 && (
+            <button
+              type="button"
+              className="secondary-button app-branch-switch"
+              onClick={() => {
+                setMenuOpen(false)
+                openPicker()
+              }}
+            >
+              <MapPin size={18} aria-hidden />
+              {t('branch.switch')}
+            </button>
+          )}
           <div className="app-sidebar-toggles">
             <ThemeToggle />
             <LanguageToggle />
@@ -271,6 +271,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
       <div className="app-content" inert={overlayOpen}>
         {children}
       </div>
+      {!isAdmin && pickerOpen && <BranchPicker />}
     </div>
   )
 }

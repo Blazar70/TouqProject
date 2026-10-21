@@ -19,7 +19,7 @@ Items copy `description` and `unit_price` from the service at sale time, so a la
 - `invoices`: `clinic_id`, `pet_id` (cascade), `appointment_id` (set null), `method` cash/card/apple_pay, `status` recorded/verified, `amount_total`, `paid_at`, `verified_by`, `verified_at`
 - Cash is verified immediately on entry; card and Apple Pay start as `recorded` and are verified by staff against the terminal slip. `src/pages/PaymentsPage.tsx:181-197`
 - `invoice_items`: `invoice_id` (cascade), `service_id` (set null), `description`, `unit_price`, `quantity`, `line_total`
-- `branch_id` not null (0046), main branch filled by trigger `fill_default_branch()` when not sent. See [branches](../people/branches.md).
+- `branch_id` not null (0046), the Payments page sends the picked branch (phase 3); trigger `fill_default_branch()` fills main only when none is sent. List defaults to the picked branch, managers can switch. See [branches](../people/branches.md).
 - Policies: vet by clinic, admin all.
 
 ## Connected to

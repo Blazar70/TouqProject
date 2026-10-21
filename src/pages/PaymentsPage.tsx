@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
+import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
 import { useToast } from '../lib/ToastContext'
@@ -11,6 +13,7 @@ import PetPicker from '../components/PetPicker'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
+import BranchFilter from '../components/BranchFilter'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
 import { formatDateTime, formatMoney } from '../lib/format'
@@ -49,6 +52,9 @@ function toLocalDateTimeInput(iso: string) {
 function PaymentsPage() {
   const { profile } = useAuth()
   const { t } = useLanguage()
+  const { branchId } = useBranch()
+  // The picked branch's payments; managers may switch to another branch or all.
+  const [viewBranch, setViewBranch] = useState(branchId ?? ALL_BRANCHES)
   const toast = useToast()
   const confirm = useConfirm()
 
@@ -81,14 +87,12 @@ function PaymentsPage() {
 
   useEffect(() => {
     async function load() {
+      let invoicesQuery = supabase.from('invoices').select('*, pets(name, pet_number)')
+      if (viewBranch !== ALL_BRANCHES) invoicesQuery = invoicesQuery.eq('branch_id', viewBranch)
       const [petsRes, servicesRes, invoicesRes] = await Promise.all([
         supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
         supabase.from('services').select('*').eq('active', true).order('name', { ascending: true }),
-        supabase
-          .from('invoices')
-          .select('*, pets(name, pet_number)')
-          .order('paid_at', { ascending: false })
-          .limit(INVOICE_HISTORY_LIMIT),
+        invoicesQuery.order('paid_at', { ascending: false }).limit(INVOICE_HISTORY_LIMIT),
       ])
       setPets(petsRes.data ?? [])
       setServices(servicesRes.data ?? [])
@@ -96,7 +100,7 @@ function PaymentsPage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [viewBranch])
 
   // The appointment link is just a convenience for picking a recent visit
   // to attach the payment to — not every payment has one, so this stays
@@ -198,7 +202,8 @@ function PaymentsPage() {
         notes: notes.trim() || null,
         verified_by: isCash ? profile.id : null,
         verified_at: isCash ? nowIso : null,
-        // branch_id is filled with the main branch by a DB trigger; the generated type can't know that.
+        // No branch picked (clinic without one): a DB trigger fills the main branch; the generated type can't know that.
+        ...(branchId ? { branch_id: branchId } : {}),
       } as Database['public']['Tables']['invoices']['Insert'])
       .select('*, pets(name, pet_number)')
       .single()
@@ -221,7 +226,9 @@ function PaymentsPage() {
     )
     if (itemsError) toast.error(itemsError.message)
 
-    setInvoices((current) => [invoice as Invoice, ...current])
+    // Saved to the picked branch: show that branch's list if another one is on screen.
+    if (viewBranch !== ALL_BRANCHES && viewBranch !== invoice.branch_id) setViewBranch(invoice.branch_id)
+    else setInvoices((current) => [invoice as Invoice, ...current])
     toast.success(t('payments.recorded'))
     setPetId('')
     setItems([newLineItem()])
@@ -314,7 +321,10 @@ function PaymentsPage() {
 
   return (
     <div>
-      <h1>{t('payments.title')}</h1>
+      <div className="page-header">
+        <h1>{t('payments.title')}</h1>
+        {profile?.clinic_role === 'manager' && <BranchFilter value={viewBranch} onChange={setViewBranch} />}
+      </div>
 
       <div className="stat-row">
         <div className="stat-tile">
