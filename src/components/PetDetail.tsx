@@ -295,6 +295,9 @@ function PetDetail({
     <div className="pet-detail">
       <form onSubmit={handleSavePet} className="pet-form pet-detail-sidebar">
         <h3>{t('petDetail.title')}</h3>
+        <p className="pet-owner">
+          {t('pets.petId')}: <Ltr>{pet.pet_number}</Ltr>
+        </p>
         {petError && <p className="form-error">{petError}</p>}
 
         <div className={`pet-photo-row${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
@@ -370,6 +373,7 @@ function PetDetail({
                         record,
                         photoUrl: includeHistoryPhotos ? record.photo_url : null,
                       })),
+                      pet.pet_number,
                     )
                   }
                 >
@@ -533,7 +537,7 @@ function PetDetail({
                                 visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
                                 record,
                                 photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,
-                              })
+                              }, pet.pet_number)
                             }
                           >
                             {t('common.print')}

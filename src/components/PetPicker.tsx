@@ -4,13 +4,14 @@ import { speciesIcon, speciesLabel } from '../lib/species'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
 import Ltr from './Ltr'
+import { matchesPetSearch } from '../lib/appointmentSearch'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
 function petLabel(t: (key: TranslationKey) => string, pet: Pet) {
   const species = speciesLabel(t, pet.species)
   const details = pet.breed ? `${species}, ${pet.breed}` : species
-  return `${pet.name} (${details}) — ${pet.owner_name}`
+  return `${pet.name} · ${pet.pet_number} (${details}) — ${pet.owner_name}`
 }
 
 function PetPicker({
@@ -36,7 +37,7 @@ function PetPicker({
   const allMatches = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q || selectedPet) return []
-    return pets.filter((pet) => pet.name.toLowerCase().includes(q) || (pet.owner_phone ?? '').toLowerCase().includes(q))
+    return pets.filter((pet) => matchesPetSearch(pet, q))
   }, [pets, query, selectedPet])
 
   const matches = useMemo(() => allMatches.slice(0, 8), [allMatches])
@@ -77,6 +78,7 @@ function PetPicker({
                   <span className="pet-picker-title">
                     <Icon className="species-icon" size={16} aria-hidden />
                     <strong>{pet.name}</strong>
+                    <Ltr className="pet-owner">{pet.pet_number}</Ltr>
                     <span className="pet-owner">
                       {pet.breed ? `${speciesLabel(t, pet.species)}, ${pet.breed}` : speciesLabel(t, pet.species)}
                     </span>

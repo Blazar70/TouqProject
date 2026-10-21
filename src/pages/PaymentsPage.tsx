@@ -18,7 +18,7 @@ import { formatDateTime, formatMoney } from '../lib/format'
 type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
 type Appointment = Database['public']['Tables']['appointments']['Row']
-type Invoice = Database['public']['Tables']['invoices']['Row'] & { pets: { name: string } | null }
+type Invoice = Database['public']['Tables']['invoices']['Row'] & { pets: { name: string; pet_number: number } | null }
 
 const PAYMENT_METHODS = ['cash', 'card', 'apple_pay'] as const
 type PaymentMethod = (typeof PAYMENT_METHODS)[number]
@@ -86,7 +86,7 @@ function PaymentsPage() {
         supabase.from('services').select('*').eq('active', true).order('name', { ascending: true }),
         supabase
           .from('invoices')
-          .select('*, pets(name)')
+          .select('*, pets(name, pet_number)')
           .order('paid_at', { ascending: false })
           .limit(INVOICE_HISTORY_LIMIT),
       ])
@@ -200,7 +200,7 @@ function PaymentsPage() {
         verified_at: isCash ? nowIso : null,
         // branch_id is filled with the main branch by a DB trigger; the generated type can't know that.
       } as Database['public']['Tables']['invoices']['Insert'])
-      .select('*, pets(name)')
+      .select('*, pets(name, pet_number)')
       .single()
 
     if (error || !invoice) {
@@ -254,7 +254,7 @@ function PaymentsPage() {
         verified_at: new Date().toISOString(),
       })
       .eq('id', invoice.id)
-      .select('*, pets(name)')
+      .select('*, pets(name, pet_number)')
       .single()
     if (error || !data) {
       toast.error(error?.message ?? t('common.couldNotSave'))
@@ -586,7 +586,14 @@ function PaymentsPage() {
                   </div>
                 ) : (
                   <div className="pet-row data-row">
-                    <strong className="data-cell-wide data-strong">{invoice.pets?.name ?? '—'}</strong>
+                    <span className="data-cell-wide">
+                      <strong className="data-strong">{invoice.pets?.name ?? '—'}</strong>
+                      {invoice.pets && (
+                        <div className="pet-owner">
+                          {t('pets.petId')}: <Ltr>{invoice.pets.pet_number}</Ltr>
+                        </div>
+                      )}
+                    </span>
                     <span className="data-num data-strong">
                       <Ltr>{formatMoney(invoice.amount_total)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
                     </span>

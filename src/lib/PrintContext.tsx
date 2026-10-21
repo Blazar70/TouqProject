@@ -18,8 +18,8 @@ export type VisitSummary = {
 }
 
 type PrintContextValue = {
-  printSummary: (petName: string, visit: VisitSummary) => void
-  printHistory: (petName: string, visits: VisitSummary[]) => void
+  printSummary: (petName: string, visit: VisitSummary, petNumber?: number) => void
+  printHistory: (petName: string, visits: VisitSummary[], petNumber?: number) => void
 }
 
 const PrintContext = createContext<PrintContextValue | null>(null)
@@ -59,6 +59,7 @@ const PRINT_STYLES = `
   .print-hero { display: flex; align-items: baseline; justify-content: space-between; gap: 1.5rem; margin: 0 0 1rem; }
   .print-hero-name { font-size: 2.6rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
   .print-hero-date { font-size: 1.4rem; font-weight: 600; color: #444; white-space: nowrap; }
+  .print-hero-id { font-size: 0.95rem; color: #666; margin-top: 0.25rem; }
   .print-badge {
     display: inline-block; margin: 0 0 1.75rem; padding: 0.3rem 0.9rem;
     border: 1.5px solid #b8860b; border-radius: 999px; color: #8a6408;
@@ -100,6 +101,7 @@ function buildDocument(
   clinicPhone: string | null,
   petName: string,
   visits: VisitSummary[],
+  petNumber?: number,
 ) {
   const isHistory = visits.length > 1
   const title = isHistory ? t('printSummary.historyTitle') : t('printSummary.title')
@@ -142,7 +144,10 @@ function buildDocument(
       <div class="print-printed-at">${escapeHtml(t('printSummary.printedOn'))} ${escapeHtml(formatDateTime(new Date()))}</div>
     </header>
     <div class="print-hero">
-      <div class="print-hero-name">${escapeHtml(petName)}</div>
+      <div>
+        <div class="print-hero-name">${escapeHtml(petName)}</div>
+        ${petNumber ? `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${petNumber}</span></div>` : ''}
+      </div>
       ${heroDate}
     </div>
     ${body}
@@ -156,7 +161,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const { clinicName, clinicPhone } = useAuth()
 
   const runPrint = useCallback(
-    async (petName: string, visits: VisitSummary[]) => {
+    async (petName: string, visits: VisitSummary[], petNumber?: number) => {
       const clinicLabel = clinicName ?? t('auth.brand')
 
       // A separate print window, not an in-page portal — it's a fully
@@ -170,7 +175,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
       const signedVisits = await Promise.all(
         visits.map(async (visit) => (visit.photoUrl ? { ...visit, photoUrl: await signPhotoUrl(visit.photoUrl) } : visit)),
       )
-      const html = buildDocument(t, clinicLabel, clinicPhone, petName, signedVisits)
+      const html = buildDocument(t, clinicLabel, clinicPhone, petName, signedVisits, petNumber)
       printWindow.document.open()
       printWindow.document.write(html)
       printWindow.document.close()
@@ -182,8 +187,8 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     [clinicName, clinicPhone, t],
   )
 
-  const printSummary = useCallback((petName: string, visit: VisitSummary) => runPrint(petName, [visit]), [runPrint])
-  const printHistory = useCallback((petName: string, visits: VisitSummary[]) => runPrint(petName, visits), [runPrint])
+  const printSummary = useCallback((petName: string, visit: VisitSummary, petNumber?: number) => runPrint(petName, [visit], petNumber), [runPrint])
+  const printHistory = useCallback((petName: string, visits: VisitSummary[], petNumber?: number) => runPrint(petName, visits, petNumber), [runPrint])
 
   return <PrintContext.Provider value={{ printSummary, printHistory }}>{children}</PrintContext.Provider>
 }
