@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './lib/AuthContext'
+import { BranchProvider } from './lib/BranchContext'
 import { LanguageProvider } from './lib/i18n/LanguageContext'
 import { ThemeProvider } from './lib/ThemeContext'
 import { ConfirmProvider } from './lib/ConfirmContext'
@@ -29,7 +30,9 @@ const router = createBrowserRouter([
             <ToastProvider>
               <ConfirmProvider>
                 <PrintProvider>
-                  <App />
+                  <BranchProvider>
+                    <App />
+                  </BranchProvider>
                 </PrintProvider>
               </ConfirmProvider>
             </ToastProvider>
