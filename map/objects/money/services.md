@@ -20,7 +20,7 @@ A clinic's own price list.
 ## Connected to
 
 - **owned-by:** clinics
-- **joins:** invoice_items.service_id
+- **joins:** invoice_items.service_id, appointment_services.service_id (price copied at add time, 0059)
 
 ## If you change this
 

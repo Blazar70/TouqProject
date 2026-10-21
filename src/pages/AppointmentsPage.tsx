@@ -30,11 +30,13 @@ import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
+import VisitServices from '../components/VisitServices'
 import { formatDateTime } from '../lib/format'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_phone: string | null; pet_number: number } | null
   doctor: { full_name: string } | null
+  invoice: { id: string; status: string } | null // set = the visit is billed (one invoice per appointment, 0059)
 }
 type Pet = Database['public']['Tables']['pets']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
@@ -53,7 +55,7 @@ type CalendarEvent = {
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, status)'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -742,7 +744,22 @@ function AppointmentsPage() {
                   <p className="pet-owner">{t('appointments.noRecord')}</p>
                 ))}
 
+              {appointment.status === 'completed' && (
+                <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.invoice)} />
+              )}
+              {appointment.invoice && (
+                <p className="pet-owner">
+                  <span className="status-badge status-completed">{t('visitServices.paid')}</span>{' '}
+                  {t(appointment.invoice.status === 'verified' ? 'payments.statusVerified' : 'payments.statusRecorded')}
+                </p>
+              )}
+
               <div className="appointment-panel-actions">
+                {isVet && appointment.status === 'completed' && !appointment.invoice && (
+                  <button type="button" className="primary-button" onClick={() => navigate(`/payments?bill=${appointment.id}`)}>
+                    {t('visitServices.billVisit')}
+                  </button>
+                )}
                 {isVet && inSession && (
                   <button
                     type="button"
@@ -861,6 +878,10 @@ function AppointmentsPage() {
                 {t(STATUS_LABEL_KEYS[status])}
               </li>
             ))}
+            <li>
+              <span className="calendar-unpaid">{t('visitServices.unpaid')}</span>
+              {t('visitServices.unpaidLegend')}
+            </li>
           </ul>
         </div>
       </div>
@@ -907,7 +928,13 @@ function AppointmentsPage() {
             event: ({ event }) =>
               event.appointment ? (
                 <span className="calendar-event-content">
-                  <strong>{event.title}</strong>
+                  <strong>
+                    {event.title}
+                    {/* Beside the name: a 30-minute block has room for two lines only. */}
+                    {event.appointment.status === 'completed' && !event.appointment.invoice && (
+                      <> <span className="calendar-unpaid">{t('visitServices.unpaid')}</span></>
+                    )}
+                  </strong>
                   {event.appointment.reason && <span>{event.appointment.reason}</span>}
                 </span>
               ) : (

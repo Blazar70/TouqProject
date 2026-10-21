@@ -2420,6 +2420,55 @@ input[type='checkbox']:focus-visible {
   font-weight: 600;
 }
 
+/* Services on a visit (session page, appointment dialog); rows reuse .invoice-item-row. */
+.visit-services,
+.visit-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.visit-services-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.visit-services .invoice-total {
+  margin: 0;
+}
+
+.session-page > .visit-services {
+  max-width: 760px;
+  margin-bottom: 1.5rem;
+}
+
+.visit-services-name,
+.visit-services-price {
+  color: var(--text-h);
+}
+
+.visit-services-price {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Unpaid" on a completed calendar block and in the colour key: words, not just colour. */
+.calendar-unpaid {
+  display: inline-block;
+  line-height: 1.25;
+  margin-inline-start: 0.25rem;
+  padding: 0 0.5rem;
+  font-weight: 400;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.calendar-legend .calendar-unpaid {
+  margin-inline-start: 0;
+}
+
 .method-toggle {
   display: flex;
   gap: 0.5rem;
