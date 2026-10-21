@@ -31,6 +31,7 @@ import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import { formatDateTime } from '../lib/format'
+import { isAway } from '../lib/timeOff'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_phone: string | null; pet_number: number } | null
@@ -49,7 +50,10 @@ type CalendarEvent = {
   resourceId: string
   appointment: Appointment | null
   count: number
+  // Day view background block: the doctor's time off (reason only for managers).
+  away?: { reason: string | null }
 }
+type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Returns'][number]
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
@@ -123,6 +127,10 @@ function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [pets, setPets] = useState<Pet[]>([])
   const [staff, setStaff] = useState<Profile[]>([])
+  const [awayPeriods, setAwayPeriods] = useState<AwayPeriod[]>([])
+  const [awayReasons, setAwayReasons] = useState<Map<string, string>>(new Map())
+  const [bookingAwayHint, setBookingAwayHint] = useState(false)
+  const [rescheduleAwayHint, setRescheduleAwayHint] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -171,9 +179,20 @@ function AppointmentsPage() {
       .gte('scheduled_at', rangeStart.toISOString())
       .lt('scheduled_at', rangeEnd.toISOString())
     if (viewBranch !== ALL_BRANCHES) rangeQuery = rangeQuery.eq('branch_id', viewBranch)
-    const { data, error: loadError } = await rangeQuery.order('scheduled_at', { ascending: true })
+    // Time off from today (or the shown range) onwards, so the booking forms know any future date.
+    const awayFrom = new Date(Math.min(rangeStart.getTime(), dayjs().startOf('day').valueOf())).toISOString()
+    const [{ data, error: loadError }, awayRes, reasonsRes] = await Promise.all([
+      rangeQuery.order('scheduled_at', { ascending: true }),
+      supabase.rpc('doctor_time_off_periods', { p_from: awayFrom, p_to: 'infinity' }),
+      // RLS returns rows (with the reason) only to managers of that doctor.
+      profile?.clinic_role === 'manager'
+        ? supabase.from('doctor_time_off').select('id, reason').gt('ends_at', awayFrom)
+        : Promise.resolve({ data: [] }),
+    ])
     if (loadError) setError(loadError.message)
     else setAppointments(data ?? [])
+    setAwayPeriods(awayRes.data ?? [])
+    setAwayReasons(new Map((reasonsRes.data ?? []).map((r) => [r.id, r.reason])))
   }
 
   useEffect(() => {
@@ -261,6 +280,7 @@ function AppointmentsPage() {
     setRescheduleDoctorId(
       doctorsAt(appointment.branch_id).some((s) => s.id === appointment.doctor_id) ? (appointment.doctor_id ?? '') : '',
     )
+    setRescheduleAwayHint(false)
     setRescheduleConflicts([])
     setPanelError(null)
     setPanelMode('reschedule')
@@ -406,6 +426,7 @@ function AppointmentsPage() {
     setScheduledPeriod('AM')
     setReason('')
     setDoctorId('')
+    setBookingAwayHint(false)
     setConflicts([])
     setConflictAcknowledged(false)
     setSubmitting(false)
@@ -441,9 +462,25 @@ function AppointmentsPage() {
   function doctorsAt(id: string | null) {
     return id ? staff.filter((s) => worksAt(s, id)) : staff
   }
-  const bookingStaff = doctorsAt(bookingBranchId)
-  // Switching the viewed branch can drop the chosen doctor from the list.
-  if (doctorId && !bookingStaff.some((s) => s.id === doctorId)) setDoctorId('')
+  // Doctors on time off at the chosen time are not offered (the DB refuses them too).
+  const scheduledAt =
+    scheduledDate && scheduledHour && scheduledMinute
+      ? toScheduledAt(scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod)
+      : null
+  const bookingStaff = doctorsAt(bookingBranchId).filter((s) => !scheduledAt || !isAway(awayPeriods, s.id, scheduledAt))
+  // Switching the viewed branch or the time can drop the chosen doctor from the list.
+  if (doctorId && !bookingStaff.some((s) => s.id === doctorId)) {
+    setBookingAwayHint(doctorsAt(bookingBranchId).some((s) => s.id === doctorId))
+    setDoctorId('')
+  }
+  const rescheduleAt =
+    selected && panelMode === 'reschedule' && rescheduleDate && rescheduleHour && rescheduleMinute
+      ? toScheduledAt(rescheduleDate, rescheduleHour, rescheduleMinute, reschedulePeriod)
+      : null
+  if (rescheduleAt && rescheduleDoctorId && isAway(awayPeriods, rescheduleDoctorId, rescheduleAt)) {
+    setRescheduleDoctorId('')
+    setRescheduleAwayHint(true)
+  }
   const columnStaff = useMemo(
     () => (viewBranch === ALL_BRANCHES ? staff : staff.filter((s) => worksAt(s, viewBranch))),
     [staff, viewBranch],
@@ -481,6 +518,22 @@ function AppointmentsPage() {
       }
     })
   }, [appointments, staffIds, t, view])
+  // Gray "Away" blocks in the doctor's column, clipped to the shown day.
+  const awayEvents: CalendarEvent[] =
+    view === 'day'
+      ? awayPeriods
+          .filter((p) => staffIds.has(p.doctor_id) && new Date(p.starts_at) < rangeEnd && new Date(p.ends_at) > rangeStart)
+          .map((p) => ({
+            id: `away-${p.id}`,
+            title: t('calendar.away'),
+            start: new Date(Math.max(new Date(p.starts_at).getTime(), rangeStart.getTime())),
+            end: new Date(Math.min(new Date(p.ends_at).getTime(), rangeEnd.getTime())),
+            resourceId: p.doctor_id,
+            appointment: null,
+            count: 0,
+            away: { reason: awayReasons.get(p.id) ?? null },
+          }))
+      : []
   const hasUnassigned = view === 'day' && events.some((e) => e.resourceId === UNASSIGNED)
   // Opens at 8 AM, or earlier if the first visible appointment is before that.
   // Only events inside the shown range count: right after navigating, the
@@ -650,11 +703,14 @@ function AppointmentsPage() {
                   value={rescheduleDoctorId}
                   onChange={(e) => {
                     setRescheduleDoctorId(e.target.value)
+                    setRescheduleAwayHint(false)
                     setRescheduleConflicts([])
                   }}
                 >
                   <option value="">{t('calendar.unassigned')}</option>
-                  {doctorsAt(appointment.branch_id).map((member) => (
+                  {doctorsAt(appointment.branch_id)
+                    .filter((s) => !rescheduleAt || !isAway(awayPeriods, s.id, rescheduleAt))
+                    .map((member) => (
                     <option key={member.id} value={member.id}>
                       {member.full_name}
                       {member.title ? ` — ${member.title}` : ''}
@@ -662,6 +718,7 @@ function AppointmentsPage() {
                   ))}
                 </select>
               </label>
+              {rescheduleAwayHint && !rescheduleDoctorId && <p className="pet-owner">{t('appointments.doctorAwayCleared')}</p>}
               {rescheduleConflicts.length > 0 && (
                 <div className="form-warning">
                   <p>{t('appointments.conflictWarning', { count: String(rescheduleConflicts.length) })}</p>
@@ -893,7 +950,9 @@ function AppointmentsPage() {
           scrollToTime={scrollTo}
           selectable={isVet && viewBranch !== ALL_BRANCHES}
           onSelectSlot={handleSelectSlot}
+          backgroundEvents={awayEvents}
           onSelectEvent={(event) => {
+            if (event.away) return
             if (event.appointment) return openAppointment(event.appointment)
             // A week-view hour box opens that day with the individual appointments.
             setDate(event.start)
@@ -901,11 +960,20 @@ function AppointmentsPage() {
           }}
           slotPropGetter={(_date, resourceId) => (resourceId === UNASSIGNED ? { className: 'calendar-slot-unassigned' } : {})}
           eventPropGetter={(event) => ({
-            className: event.appointment ? `calendar-event status-${event.appointment.status}` : 'calendar-hour-count',
+            className: event.away
+              ? 'calendar-away'
+              : event.appointment
+                ? `calendar-event status-${event.appointment.status}`
+                : 'calendar-hour-count',
           })}
           components={{
             event: ({ event }) =>
-              event.appointment ? (
+              event.away ? (
+                <span className="calendar-event-content">
+                  <strong>{event.title}</strong>
+                  {event.away.reason && <span>{event.away.reason}</span>}
+                </span>
+              ) : event.appointment ? (
                 <span className="calendar-event-content">
                   <strong>{event.title}</strong>
                   {event.appointment.reason && <span>{event.appointment.reason}</span>}
@@ -925,7 +993,12 @@ function AppointmentsPage() {
               ) : (
                 <span className="calendar-resource-header">
                   <strong>{resource.title}</strong>
-                  {resource.subtitle && <span>{resource.subtitle}</span>}
+                  {/* The block can start above the scrolled-to 8 AM, so the header says it too. */}
+                  {awayEvents.some((e) => e.resourceId === resource.id) ? (
+                    <span className="calendar-away-tag">{t('calendar.away')}</span>
+                  ) : (
+                    resource.subtitle && <span>{resource.subtitle}</span>
+                  )}
                 </span>
               ),
           }}
@@ -996,7 +1069,14 @@ function AppointmentsPage() {
           <label>
             {t('appointments.staffHandling')}
             <RequiredMark />
-            <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)} required>
+            <select
+              value={doctorId}
+              onChange={(e) => {
+                setDoctorId(e.target.value)
+                setBookingAwayHint(false)
+              }}
+              required
+            >
               <option value="" disabled>
                 {t('appointments.selectStaffMember')}
               </option>
@@ -1007,6 +1087,7 @@ function AppointmentsPage() {
                 </option>
               ))}
             </select>
+            {bookingAwayHint && !doctorId && <span className="pet-owner">{t('appointments.doctorAwayCleared')}</span>}
           </label>
           {conflicts.length > 0 && (
             <div className="form-warning">

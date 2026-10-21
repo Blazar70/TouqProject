@@ -259,6 +259,39 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_time_off: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          doctor_id: string
+          ends_at: string
+          id: string
+          reason: string
+          starts_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id: string
+          ends_at: string
+          id?: string
+          reason: string
+          starts_at: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          created_by?: string | null
+          doctor_id?: string
+          ends_at?: string
+          id?: string
+          reason?: string
+          starts_at?: string
+        }
+        Relationships: []
+      }
       invoice_items: {
         Row: {
           description: string
@@ -932,6 +965,15 @@ export type Database = {
       current_user_id_if_active: { Args: never; Returns: string }
       current_user_is_admin: { Args: never; Returns: boolean }
       current_user_is_clinic_manager: { Args: never; Returns: boolean }
+      can_manage_doctor_time_off: { Args: { p_doctor: string }; Returns: boolean }
+      doctor_time_off_periods: {
+        Args: { p_from: string; p_to: string }
+        Returns: { id: string; doctor_id: string; starts_at: string; ends_at: string }[]
+      }
+      save_doctor_time_off: {
+        Args: { p_id: string | null; p_doctor: string | null; p_starts: string; p_ends: string; p_reason: string }
+        Returns: number
+      }
     }
     Enums: {
       user_role: "vet" | "owner" | "admin"
