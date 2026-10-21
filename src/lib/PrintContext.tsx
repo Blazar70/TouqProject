@@ -1,12 +1,40 @@
 import { createContext, useCallback, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { useLanguage } from './i18n/LanguageContext'
+import { translations } from './i18n/translations'
 import type { TranslationKey } from './i18n/translations'
 import { useAuth } from './AuthContext'
 import { visitRecordFields } from './clinicalFields'
 import { signPhotoUrl } from './photoUrl'
 import type { VisitRecordFields } from './clinicalFields'
-import { formatDate, formatDateTime } from './format'
+import { formatDate, formatDateTime, formatMoney } from './format'
+import { clinicLogoUrl } from './imageUpload'
+import { zatcaTlvBase64 } from './zatcaQr'
+import qrcode from 'qrcode-generator'
+
+/** An invoice or credit note, ready to print. Amounts are VAT-inclusive. */
+export type InvoiceDoc = {
+  kind: 'invoice' | 'credit_note'
+  number: string
+  /** Credit note: the invoice it corrects. */
+  invoiceNumber?: string
+  date: string
+  branch: string
+  vatNumber: string | null
+  pet: { name: string; number: number } | null
+  lines: { description: string; quantity: number; unitPrice: number; total: number; discount?: { label: string; amount: number } }[]
+  billDiscount?: { label: string; amount: number }
+  total: number
+  vat: number
+  /** One rate for every line, or null when they differ. */
+  vatRate: number | null
+  payments?: { method: TranslationKey; amount: number; paidAt: string }[]
+  paid?: number
+  credited?: number
+  remaining?: number
+  reason?: string
+  refund?: { method: TranslationKey; amount: number }
+}
 
 export type VisitSummary = {
   date: string
@@ -18,6 +46,7 @@ export type VisitSummary = {
 }
 
 type PrintContextValue = {
+  printInvoice: (doc: InvoiceDoc) => void
   printSummary: (petName: string, visit: VisitSummary, petNumber?: number) => void
   printHistory: (petName: string, visits: VisitSummary[], petNumber?: number) => void
 }
@@ -156,9 +185,120 @@ function buildDocument(
 </html>`
 }
 
+// Saudi tax invoices carry both languages: every label prints in English and Arabic.
+const bi = (key: TranslationKey) => `${translations.en[key]} · ${translations.ar[key]}`
+const money = (amount: number) => `<span dir="ltr">${formatMoney(amount)} SAR</span>`
+
+const INVOICE_STYLES = `
+  .inv-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem 2rem; margin: 0 0 1.5rem; }
+  .inv-meta div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid #eee; padding: 0.25rem 0; }
+  .inv-meta span:first-child { color: #666; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 1rem; }
+  th { text-align: start; font-size: 0.78rem; color: #666; border-bottom: 2px solid #b8860b; padding: 0.4rem 0.25rem; }
+  td { padding: 0.4rem 0.25rem; border-bottom: 1px solid #eee; vertical-align: top; }
+  .num { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .inv-discount td { color: #8a6408; font-size: 0.85rem; }
+  .inv-totals { margin-inline-start: auto; width: min(100%, 380px); }
+  .inv-totals td { border-bottom: none; padding: 0.2rem 0.25rem; }
+  .inv-grand td { font-size: 1.15rem; font-weight: 700; border-top: 2px solid #000; }
+  .inv-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; margin-top: 1.5rem; }
+  .print-qr svg { width: 140px; height: 140px; }
+  .print-brand { display: flex; gap: 1rem; align-items: center; }
+  .print-logo { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; }
+`
+
+function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone: string | null, logo: string | null, rtl: boolean) {
+  const title = doc.kind === 'invoice' ? bi('print.taxInvoice') : bi('payments.creditNote')
+  // ZATCA phase 1: seller, VAT number, time, total and VAT as Base64 TLV in a QR code.
+  let qr = ''
+  if (doc.vatNumber) {
+    const tlv = zatcaTlvBase64({
+      seller: clinicLabel,
+      vatNumber: doc.vatNumber,
+      timestamp: new Date(doc.date).toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      total: doc.total.toFixed(2),
+      vat: doc.vat.toFixed(2),
+    })
+    const code = qrcode(0, 'M')
+    code.addData(tlv)
+    code.make()
+    qr = `<div class="print-qr" data-tlv="${tlv}">${code.createSvgTag({ cellSize: 4, margin: 2, scalable: true })}</div>`
+  }
+  const ltr = (value: string | number) => `<span dir="ltr">${escapeHtml(String(value))}</span>`
+  const meta = [
+    [bi(doc.kind === 'invoice' ? 'payments.invoiceNumber' : 'payments.creditNote'), ltr(doc.number)],
+    doc.invoiceNumber ? [bi('print.forInvoice'), ltr(doc.invoiceNumber)] : null,
+    [bi('payments.date'), ltr(formatDateTime(doc.date))],
+    [bi('print.branch'), escapeHtml(doc.branch)],
+    doc.vatNumber ? [bi('settings.vatNumber'), ltr(doc.vatNumber)] : null,
+    doc.pet ? [bi('payments.pet'), `${escapeHtml(doc.pet.name)} · ${bi('pets.petId')} ${ltr(doc.pet.number)}`] : null,
+  ]
+    .filter((row) => row !== null)
+    .map(([k, v]) => `<div><span>${k}</span><span>${v}</span></div>`)
+    .join('')
+  const lines = doc.lines
+    .map(
+      (l) =>
+        `<tr><td>${escapeHtml(l.description)}</td><td class="num">${l.quantity}</td><td class="num">${money(l.unitPrice)}</td><td class="num">${money(l.total + (l.discount?.amount ?? 0))}</td></tr>` +
+        (l.discount ? `<tr class="inv-discount"><td colspan="3">${escapeHtml(l.discount.label)}</td><td class="num">−${money(l.discount.amount)}</td></tr>` : ''),
+    )
+    .join('')
+  const row = (label: string, value: string, cls = '') => `<tr class="${cls}"><td>${label}</td><td class="num">${value}</td></tr>`
+  const totals = [
+    doc.billDiscount ? row(bi('payments.subtotal'), money(doc.total + doc.billDiscount.amount)) : '',
+    doc.billDiscount ? row(escapeHtml(doc.billDiscount.label), `−${money(doc.billDiscount.amount)}`, 'inv-discount') : '',
+    row(bi('payments.netTotal'), money(doc.total - doc.vat)),
+    row(`${bi('payments.vat')}${doc.vatRate !== null ? ` ${ltr(`${doc.vatRate}%`)}` : ''}`, money(doc.vat)),
+    row(bi('payments.total'), money(doc.total), 'inv-grand'),
+    doc.credited ? row(bi('payments.creditedAmount'), `−${money(doc.credited)}`) : '',
+    doc.paid !== undefined ? row(bi('payments.paid'), money(doc.paid)) : '',
+    doc.remaining !== undefined ? row(bi('payments.remaining'), money(doc.remaining)) : '',
+    doc.refund ? row(`${bi('payments.refund')} (${bi(doc.refund.method)})`, money(doc.refund.amount)) : '',
+  ].join('')
+  const payments = doc.payments?.length
+    ? `<table><tr><th>${bi('payments.payments')}</th><th></th><th class="num">${bi('payments.amount')}</th></tr>${doc.payments
+        .map((p) => `<tr><td>${bi(p.method)}</td><td>${ltr(formatDateTime(p.paidAt))}</td><td class="num">${money(p.amount)}</td></tr>`)
+        .join('')}</table>`
+    : ''
+  return `<!doctype html>
+<html dir="${rtl ? 'rtl' : 'ltr'}">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(doc.number)}</title>
+    <style>${PRINT_STYLES}${INVOICE_STYLES}</style>
+  </head>
+  <body>
+    <header class="print-header">
+      <div class="print-brand">
+        ${logo ? `<img class="print-logo" src="${escapeHtml(logo)}" alt="" />` : ''}
+        <div>
+          <h1>${escapeHtml(clinicLabel)}</h1>
+          ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
+          <p>${title}</p>
+        </div>
+      </div>
+    </header>
+    <div class="inv-meta">${meta}</div>
+    ${doc.reason ? `<p><strong>${bi('payments.discountReason')}:</strong> ${escapeHtml(doc.reason)}</p>` : ''}
+    ${
+      doc.lines.length
+        ? `<table><tr><th>${bi('payments.itemDescription')}</th><th class="num">${bi('payments.quantity')}</th><th class="num">${bi('payments.unitPrice')}</th><th class="num">${bi('payments.total')}</th></tr>${lines}</table>`
+        : ''
+    }
+    <table class="inv-totals">${totals}</table>
+    ${payments}
+    <div class="inv-foot">
+      <p class="print-printed-at">${bi('payments.pricesIncludeVat')}</p>
+      ${qr}
+    </div>
+    <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>
+  </body>
+</html>`
+}
+
 export function PrintProvider({ children }: { children: ReactNode }) {
-  const { t } = useLanguage()
-  const { clinicName, clinicPhone } = useAuth()
+  const { t, language } = useLanguage()
+  const { clinicName, clinicPhone, clinicLogoUrl: logo } = useAuth()
 
   const runPrint = useCallback(
     async (petName: string, visits: VisitSummary[], petNumber?: number) => {
@@ -190,7 +330,22 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const printSummary = useCallback((petName: string, visit: VisitSummary, petNumber?: number) => runPrint(petName, [visit], petNumber), [runPrint])
   const printHistory = useCallback((petName: string, visits: VisitSummary[], petNumber?: number) => runPrint(petName, visits, petNumber), [runPrint])
 
-  return <PrintContext.Provider value={{ printSummary, printHistory }}>{children}</PrintContext.Provider>
+  const printInvoice = useCallback(
+    (doc: InvoiceDoc) => {
+      const printWindow = window.open('', '_blank', 'width=800,height=1000')
+      if (!printWindow) return
+      printWindow.document.open()
+      printWindow.document.write(buildInvoiceDocument(doc, clinicName ?? t('auth.brand'), clinicPhone, logo ? clinicLogoUrl(logo) : null, language === 'ar'))
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+    },
+    [clinicName, clinicPhone, logo, language, t],
+  )
+
+  return <PrintContext.Provider value={{ printInvoice, printSummary, printHistory }}>{children}</PrintContext.Provider>
 }
 
 export function usePrintSummary() {

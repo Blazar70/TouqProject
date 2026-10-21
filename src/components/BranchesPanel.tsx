@@ -5,6 +5,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { useConfirm } from '../lib/ConfirmContext'
 import { isValidClinicPhone } from '../lib/phone'
+import { defaultInvoiceCode, isValidInvoiceCode } from '../lib/invoiceMath'
 import type { Database } from '../lib/database.types'
 import Ltr from './Ltr'
 import RequiredMark from './RequiredMark'
@@ -37,6 +38,9 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
   const [nameAr, setNameAr] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [invoiceCode, setInvoiceCode] = useState('')
+  // The DB refuses a code change once the branch has invoices (0060); this just greys the field out.
+  const [codeLocked, setCodeLocked] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -52,8 +56,21 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
     setNameAr(branch?.name_ar ?? '')
     setPhone(branch?.phone ?? '')
     setAddress(branch?.address ?? '')
+    setInvoiceCode(branch?.invoice_code ?? '')
+    setCodeLocked(false)
     setError(null)
+    if (branch) {
+      supabase
+        .from('invoices')
+        .select('id')
+        .eq('branch_id', branch.id)
+        .limit(1)
+        .then(({ data }) => setCodeLocked((data ?? []).length > 0))
+    }
   }
+
+  const takenCodes = branches.filter((b) => b.id !== editingId).map((b) => b.invoice_code)
+  const suggestedCode = defaultInvoiceCode(name.trim(), takenCodes)
 
   async function handleSave(e: FormEvent) {
     e.preventDefault()
@@ -63,19 +80,33 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
       setError(t('registerPet.invalidPhone'))
       return
     }
+    const code = invoiceCode.trim() || suggestedCode
+    if (!isValidInvoiceCode(code)) {
+      setError(t('admin.invoiceCodeInvalid'))
+      return
+    }
     setSaving(true)
     const fields = {
       name: trimmed,
       name_ar: nameAr.trim() || null,
       phone: phone.trim() || null,
       address: address.trim() || null,
+      invoice_code: code,
     }
     const { error: saveError } = editingId
       ? await supabase.from('branches').update(fields).eq('id', editingId)
       : await supabase.from('branches').insert({ ...fields, clinic_id: clinicId })
     setSaving(false)
     if (saveError) {
-      setError(saveError.code === '23505' ? t('admin.branchNameTaken') : saveError.message)
+      setError(
+        saveError.message.includes('invoice_code')
+          ? t('admin.invoiceCodeTaken')
+          : saveError.message.includes('invoice code')
+            ? t('admin.invoiceCodeLocked')
+            : saveError.code === '23505'
+              ? t('admin.branchNameTaken')
+              : saveError.message,
+      )
       return
     }
     toast.success(t(editingId ? 'admin.branchSaved' : 'admin.branchAdded', { name: trimmed }))
@@ -137,6 +168,10 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
               <div>
                 <strong>{b.name}</strong>
                 {b.name_ar && <span className="pet-owner"> · {b.name_ar}</span>}
+                <span className="pet-owner">
+                  {' · '}
+                  <Ltr>{b.invoice_code}</Ltr>
+                </span>
                 {b.is_main && <>{' '}<span className="status-badge status-confirmed">{t('admin.mainBranch')}</span></>}
                 {!b.active && <>{' '}<span className="status-badge status-cancelled">{t('admin.branchClosedBadge')}</span></>}
                 {(b.phone || b.address) && (
@@ -192,6 +227,22 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
           <label>
             {t('admin.branchAddress')}
             <input value={address} onChange={(e) => setAddress(e.target.value)} />
+          </label>
+          <label>
+            {t('admin.invoiceCode')}
+            <input
+              value={invoiceCode}
+              onChange={(e) => setInvoiceCode(e.target.value.toUpperCase())}
+              placeholder={suggestedCode}
+              dir="ltr"
+              maxLength={6}
+              autoCapitalize="characters"
+              disabled={codeLocked}
+              aria-describedby="invoice-code-hint"
+            />
+            <span id="invoice-code-hint" className="pet-owner">
+              {t(codeLocked ? 'admin.invoiceCodeLocked' : 'admin.invoiceCodeHint')}
+            </span>
           </label>
           <div className="record-edit-actions">
             <button type="submit" disabled={saving}>

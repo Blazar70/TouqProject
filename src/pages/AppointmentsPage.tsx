@@ -31,13 +31,14 @@ import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import VisitServices from '../components/VisitServices'
+import PaymentStatusBadge from '../components/PaymentStatusBadge'
 import { formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_phone: string | null; pet_number: number } | null
   doctor: { full_name: string } | null
-  invoice: { id: string; status: string } | null // set = the visit is billed (one invoice per appointment, 0059)
+  invoice: { id: string; invoice_number: string; payment_status: string } | null // set = the visit is billed (one invoice per appointment, 0059)
 }
 type Pet = Database['public']['Tables']['pets']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
@@ -59,7 +60,7 @@ type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Re
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, status)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status)'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -827,8 +828,7 @@ function AppointmentsPage() {
               )}
               {appointment.invoice && (
                 <p className="pet-owner">
-                  <span className="status-badge status-completed">{t('visitServices.paid')}</span>{' '}
-                  {t(appointment.invoice.status === 'verified' ? 'payments.statusVerified' : 'payments.statusRecorded')}
+                  <PaymentStatusBadge status={appointment.invoice.payment_status} /> <Ltr>{appointment.invoice.invoice_number}</Ltr>
                 </p>
               )}
 
@@ -1020,8 +1020,13 @@ function AppointmentsPage() {
                   <strong>
                     {event.title}
                     {/* Beside the name: a 30-minute block has room for two lines only. */}
-                    {event.appointment.status === 'completed' && !event.appointment.invoice && (
-                      <> <span className="calendar-unpaid">{t('visitServices.unpaid')}</span></>
+                    {event.appointment.status === 'completed' && event.appointment.invoice?.payment_status !== 'paid' && (
+                      <>
+                        {' '}
+                        <span className="calendar-unpaid">
+                          {t(event.appointment.invoice?.payment_status === 'partly_paid' ? 'payments.statusPartlyPaid' : 'visitServices.unpaid')}
+                        </span>
+                      </>
                     )}
                   </strong>
                   {event.appointment.reason && <span>{event.appointment.reason}</span>}

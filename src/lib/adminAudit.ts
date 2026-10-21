@@ -35,6 +35,8 @@ export const AUDIT_ACTION_LABEL_KEYS: Record<string, TranslationKey> = {
   time_off_added: 'admin.action.timeOffAdded',
   time_off_updated: 'admin.action.timeOffUpdated',
   time_off_deleted: 'admin.action.timeOffDeleted',
+  discount_given: 'admin.action.discountGiven',
+  credit_note_issued: 'admin.action.creditNoteIssued',
   password_reset: 'admin.action.passwordReset',
   profile_updated: 'admin.action.profileUpdated',
   pet_updated: 'admin.action.petUpdated',

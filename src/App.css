@@ -2420,6 +2420,158 @@ input[type='checkbox']:focus-visible {
   font-weight: 600;
 }
 
+/* A line plus its discount (or the "+ Discount" button) under it. */
+.invoice-item-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pet-form .invoice-discount-add {
+  align-self: flex-start;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* Discount: type | value | reason | remove. Reason drops to its own row on phones. */
+.invoice-discount-row {
+  display: grid;
+  grid-template-columns: 4.5rem 6rem minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline-start: 1rem;
+  border-inline-start: 2px solid var(--accent);
+}
+
+.invoice-discount-row :is(select, input) {
+  min-width: 0;
+}
+
+/* Payment part: method buttons | amount | remove. */
+.invoice-pay-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.invoice-pay-row input {
+  min-width: 0;
+}
+
+@media (max-width: 767.98px) {
+  .invoice-discount-row {
+    grid-template-columns: 4.5rem minmax(0, 1fr) 2.75rem;
+  }
+
+  .invoice-discount-row .invoice-discount-reason {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+
+  .invoice-pay-row {
+    grid-template-columns: minmax(0, 1fr) 2.75rem;
+  }
+
+  .invoice-pay-row .method-toggle {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Totals: label start, amount end, the grand total heavier. */
+.invoice-sums {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  max-width: 360px;
+  margin-inline-start: auto;
+  width: 100%;
+}
+
+.invoice-sums dt {
+  color: var(--text-muted);
+}
+
+.invoice-sums dd {
+  margin: 0;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.invoice-sums .invoice-sums-total {
+  color: var(--text-h);
+  font-weight: 600;
+  font-size: 1.15rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-strong);
+}
+
+.admin-modal-card.invoice-modal {
+  max-width: 720px;
+}
+
+.invoice-modal h3 {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.invoice-lines {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.invoice-lines > li {
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0;
+}
+
+.invoice-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-h);
+}
+
+.invoice-line-discount {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding-inline-start: 1rem;
+}
+
+.invoice-line-end {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pet-form.invoice-action-form {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  max-width: none;
+}
+
+.invoice-credit-lines {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.invoice-credit-lines legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+}
+
+.payments-search {
+  margin-bottom: 1rem;
+}
+
 /* Services on a visit (session page, appointment dialog); rows reuse .invoice-item-row. */
 .visit-services,
 .visit-services-list {
@@ -3652,7 +3804,7 @@ input[type='checkbox']:focus-visible {
 }
 
 .data-payments {
-  --data-cols: minmax(0, 1fr) 8rem 6.5rem 11rem 7rem 10.5rem;
+  --data-cols: 8.5rem minmax(0, 1fr) 9rem 7.5rem 11rem 6rem;
 }
 
 .data-staff {
