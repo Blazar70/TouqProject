@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
+import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
@@ -12,6 +14,7 @@ import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import VaccinationBadge from '../components/VaccinationBadge'
 import RefreshButton from '../components/RefreshButton'
+import BranchFilter from '../components/BranchFilter'
 import { formatDate, formatMoney, formatTime } from '../lib/format'
 
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & {
@@ -30,6 +33,9 @@ type TodayAppointment = {
 function DashboardPage() {
   const { profile } = useAuth()
   const { t, language } = useLanguage()
+  const { branchId, isClinicManager } = useBranch()
+  // Whole-clinic managers open on all branches, everyone else on the picked one; managers may switch.
+  const [viewBranch, setViewBranch] = useState(isClinicManager || !branchId ? ALL_BRANCHES : branchId)
   const [today, setToday] = useState<TodayAppointment[]>([])
   const [paymentsToday, setPaymentsToday] = useState<number[]>([])
   const [recentRecords, setRecentRecords] = useState<MedicalRecord[]>([])
@@ -46,18 +52,24 @@ function DashboardPage() {
     const monthStart = new Date(dayStart)
     monthStart.setDate(1)
 
+    // Pets, vaccinations and visit records stay clinic-wide; appointments and money follow the branch filter.
+    const byBranch = <Q extends { eq: (column: 'branch_id', value: string) => Q }>(query: Q) =>
+      viewBranch === ALL_BRANCHES ? query : query.eq('branch_id', viewBranch)
     const [todayRes, paymentsRes, recordsRes, petsRes, cancellationsRes] = await Promise.all([
-      supabase
-        .from('appointments')
-        .select('id, scheduled_at, status, reason, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
-        .gte('scheduled_at', dayStart.toISOString())
-        .lt('scheduled_at', dayEnd.toISOString())
-        .order('scheduled_at', { ascending: true }),
-      supabase
-        .from('invoices')
-        .select('amount_total')
-        .gte('paid_at', dayStart.toISOString())
-        .lt('paid_at', dayEnd.toISOString()),
+      byBranch(
+        supabase
+          .from('appointments')
+          .select('id, scheduled_at, status, reason, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
+          .gte('scheduled_at', dayStart.toISOString())
+          .lt('scheduled_at', dayEnd.toISOString()),
+      ).order('scheduled_at', { ascending: true }),
+      byBranch(
+        supabase
+          .from('invoices')
+          .select('amount_total')
+          .gte('paid_at', dayStart.toISOString())
+          .lt('paid_at', dayEnd.toISOString()),
+      ),
       supabase
         .from('medical_records')
         .select('*, pets(name)')
@@ -71,11 +83,13 @@ function DashboardPage() {
         // One day of slack for timezones; vaccinationStatus() below decides exactly.
         .lte('next_vaccination_date', nextVaccinationDateAfterDose(DUE_SOON_WINDOW_DAYS + 1))
         .order('next_vaccination_date', { ascending: true }),
-      supabase
-        .from('appointments')
-        .select('cancellation_category')
-        .eq('status', 'cancelled')
-        .gte('scheduled_at', monthStart.toISOString()),
+      byBranch(
+        supabase
+          .from('appointments')
+          .select('cancellation_category')
+          .eq('status', 'cancelled')
+          .gte('scheduled_at', monthStart.toISOString()),
+      ),
     ])
     setToday(todayRes.data ?? [])
     setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount_total))
@@ -96,7 +110,7 @@ function DashboardPage() {
     }
     load().then(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.clinic_id])
+  }, [profile?.clinic_id, viewBranch])
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -140,7 +154,10 @@ function DashboardPage() {
           <h1>{t('dashboard.title')}</h1>
           <p className="page-subtitle">{todayLabel}</p>
         </div>
-        <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
+        <div className="page-header-actions">
+          {profile.clinic_role === 'manager' && <BranchFilter value={viewBranch} onChange={setViewBranch} />}
+          <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
+        </div>
       </div>
 
       <div className="dash-stats">

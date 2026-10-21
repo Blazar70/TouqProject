@@ -1,3 +1,6 @@
+// Branch filter value meaning "no branch filter".
+export const ALL_BRANCHES = 'all'
+
 type BranchLike = { id: string; active: boolean }
 
 // Open branches a person can work at: their member branches, or every open

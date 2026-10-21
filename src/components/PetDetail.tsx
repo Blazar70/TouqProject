@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
@@ -57,6 +58,7 @@ function PetDetail({
   onDelete: () => void
 }) {
   const { profile } = useAuth()
+  const { branchId, branchName } = useBranch()
   const { t } = useLanguage()
   const confirm = useConfirm()
   const toast = useToast()
@@ -494,6 +496,9 @@ function PetDetail({
                       <span className="record-date">
                         <Ltr>{formatDate(record.visit_date)}</Ltr>
                         {record.visit_type && ` · ${visitTypeLabel(t, record.visit_type)}`}
+                        {record.branch_id && record.branch_id !== branchId && branchName(record.branch_id) && (
+                          <span className="pet-owner"> · {t('branch.seenAt', { name: branchName(record.branch_id) })}</span>
+                        )}
                       </span>
                       <ChevronDown
                         size={18}

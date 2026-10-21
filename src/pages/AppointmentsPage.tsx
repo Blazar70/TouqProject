@@ -7,6 +7,8 @@ import dayjs from 'dayjs'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
+import { ALL_BRANCHES, worksAt } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
@@ -27,6 +29,7 @@ import { useToast } from '../lib/ToastContext'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
+import BranchFilter from '../components/BranchFilter'
 import { formatDateTime } from '../lib/format'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
@@ -34,7 +37,7 @@ type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   doctor: { full_name: string } | null
 }
 type Pet = Database['public']['Tables']['pets']['Row']
-type Profile = Database['public']['Tables']['profiles']['Row']
+type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
 // Day view: one event per appointment. Week view: one event per busy hour,
 // carrying only the count (appointment is null).
@@ -109,6 +112,10 @@ function AppointmentsPage() {
   const navigate = useNavigate()
   const { printSummary } = usePrintSummary()
   const isVet = profile?.role === 'vet'
+  const { branchId, branchName } = useBranch()
+  // The calendar starts on the picked branch; anyone may look at another one or all (read-only overview).
+  const [viewBranch, setViewBranch] = useState(branchId ?? ALL_BRANCHES)
+  const viewingOther = branchId !== null && viewBranch !== branchId
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [pets, setPets] = useState<Pet[]>([])
@@ -152,15 +159,16 @@ function AppointmentsPage() {
   useUnsavedChangesWarning(Boolean(petId || scheduledDate || reason) || (selected !== null && panelMode !== 'details'))
 
   const { start: rangeStart, end: rangeEnd } = visibleRange(date, view)
-  const rangeKey = `${rangeStart.getTime()}-${rangeEnd.getTime()}`
+  const rangeKey = `${rangeStart.getTime()}-${rangeEnd.getTime()}-${viewBranch}`
 
   async function loadRange() {
-    const { data, error: loadError } = await supabase
+    let rangeQuery = supabase
       .from('appointments')
       .select(APPOINTMENT_SELECT)
       .gte('scheduled_at', rangeStart.toISOString())
       .lt('scheduled_at', rangeEnd.toISOString())
-      .order('scheduled_at', { ascending: true })
+    if (viewBranch !== ALL_BRANCHES) rangeQuery = rangeQuery.eq('branch_id', viewBranch)
+    const { data, error: loadError } = await rangeQuery.order('scheduled_at', { ascending: true })
     if (loadError) setError(loadError.message)
     else setAppointments(data ?? [])
   }
@@ -171,7 +179,7 @@ function AppointmentsPage() {
       supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
       supabase
         .from('profiles')
-        .select('*')
+        .select('*, staff_branches(branch_id)')
         .eq('clinic_id', profile.clinic_id)
         .eq('takes_appointments', true)
         .eq('disabled', false)
@@ -233,6 +241,7 @@ function AppointmentsPage() {
   }
 
   function jumpTo(appointment: Appointment) {
+    if (viewBranch !== ALL_BRANCHES && viewBranch !== appointment.branch_id) setViewBranch(appointment.branch_id)
     setDate(new Date(appointment.scheduled_at))
     setView('day')
     setSearch('')
@@ -246,7 +255,9 @@ function AppointmentsPage() {
     setRescheduleMinute(fields.minute)
     setReschedulePeriod(fields.period)
     // A doctor no longer in the picker (disabled, stopped taking appointments) starts as Unassigned.
-    setRescheduleDoctorId(staff.some((s) => s.id === appointment.doctor_id) ? (appointment.doctor_id ?? '') : '')
+    setRescheduleDoctorId(
+      doctorsAt(appointment.branch_id).some((s) => s.id === appointment.doctor_id) ? (appointment.doctor_id ?? '') : '',
+    )
     setRescheduleConflicts([])
     setPanelError(null)
     setPanelMode('reschedule')
@@ -360,7 +371,8 @@ function AppointmentsPage() {
         reason: reason || null,
         doctor_id: doctorId || null,
         created_by: profile.id,
-        // branch_id is filled with the main branch by a DB trigger; the generated type can't know that.
+        // No branch picked (clinic without one): a DB trigger fills the main branch; the generated type can't know that.
+        ...(branchId ? { branch_id: branchId } : {}),
       } as Database['public']['Tables']['appointments']['Insert'])
       .select(APPOINTMENT_SELECT)
       .single()
@@ -384,6 +396,7 @@ function AppointmentsPage() {
     toast.success(t('appointments.scheduled'))
     setAppointments((current) => mergeById(current, [newAppointment]))
     setSearchPool(null)
+    if (viewBranch !== ALL_BRANCHES && viewBranch !== newAppointment.branch_id) setViewBranch(newAppointment.branch_id)
     setDate(new Date(newAppointment.scheduled_at))
     notifyStatusChange(newAppointment.id)
   }
@@ -395,7 +408,7 @@ function AppointmentsPage() {
     setScheduledHour(fields.hour)
     setScheduledMinute(fields.minute)
     setScheduledPeriod(fields.period)
-    if (resourceId && resourceId !== UNASSIGNED) setDoctorId(String(resourceId))
+    if (resourceId && bookingStaff.some((s) => s.id === resourceId)) setDoctorId(String(resourceId))
     scheduleFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -408,7 +421,16 @@ function AppointmentsPage() {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [selected, savingPanel])
 
-  const staffIds = useMemo(() => new Set(staff.map((s) => s.id)), [staff])
+  // A doctor can only be booked at a branch they work at.
+  function doctorsAt(id: string | null) {
+    return id ? staff.filter((s) => worksAt(s, id)) : staff
+  }
+  const bookingStaff = doctorsAt(branchId)
+  const columnStaff = useMemo(
+    () => (viewBranch === ALL_BRANCHES ? staff : staff.filter((s) => worksAt(s, viewBranch))),
+    [staff, viewBranch],
+  )
+  const staffIds = useMemo(() => new Set(columnStaff.map((s) => s.id)), [columnStaff])
   const events: CalendarEvent[] = useMemo(() => {
     const visible = appointments.filter((a) => a.status !== 'cancelled')
     if (view === 'week') {
@@ -453,8 +475,8 @@ function AppointmentsPage() {
   // Time of day only; the library applies scrollToTime on mount, so a new target remounts it.
   const scrollKey = dayjs(scrollTo).format('HH:mm')
   const resources: CalendarResource[] = [
-    ...staff.map((s) => ({ id: s.id, title: s.full_name, subtitle: s.title })),
-    ...(hasUnassigned || staff.length === 0 ? [{ id: UNASSIGNED, title: t('calendar.unassigned'), subtitle: null }] : []),
+    ...columnStaff.map((s) => ({ id: s.id, title: s.full_name, subtitle: s.title })),
+    ...(hasUnassigned || columnStaff.length === 0 ? [{ id: UNASSIGNED, title: t('calendar.unassigned'), subtitle: null }] : []),
   ]
 
   const query = search.trim()
@@ -480,6 +502,7 @@ function AppointmentsPage() {
               <p className="pet-owner">
                 <Ltr>{formatDateTime(appointment.scheduled_at)}</Ltr>
                 {appointment.doctor && ` · ${appointment.doctor.full_name}`}
+                {viewBranch === ALL_BRANCHES && branchName(appointment.branch_id) && ` · ${branchName(appointment.branch_id)}`}
               </p>
               {appointment.reason && (
                 <p className="pet-owner">
@@ -608,7 +631,7 @@ function AppointmentsPage() {
                   }}
                 >
                   <option value="">{t('calendar.unassigned')}</option>
-                  {staff.map((member) => (
+                  {doctorsAt(appointment.branch_id).map((member) => (
                     <option key={member.id} value={member.id}>
                       {member.full_name}
                       {member.title ? ` — ${member.title}` : ''}
@@ -744,8 +767,19 @@ function AppointmentsPage() {
     <div>
       <div className="page-header">
         <h1>{t('appointments.title')}</h1>
-        <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
+        <div className="page-header-actions">
+          <BranchFilter value={viewBranch} onChange={setViewBranch} />
+          <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
+        </div>
       </div>
+      {viewingOther && (
+        <p className="pet-owner">
+          {t('branch.viewingOther', {
+            name: viewBranch === ALL_BRANCHES ? t('staff.allBranches') : branchName(viewBranch),
+            current: branchName(branchId),
+          })}
+        </p>
+      )}
 
       {error && <p className="form-error">{error}</p>}
 
@@ -825,7 +859,7 @@ function AppointmentsPage() {
           dayLayoutAlgorithm="no-overlap"
           timeslots={4}
           scrollToTime={scrollTo}
-          selectable={isVet}
+          selectable={isVet && !viewingOther}
           onSelectSlot={handleSelectSlot}
           onSelectEvent={(event) => {
             if (event.appointment) return openAppointment(event.appointment)
@@ -932,7 +966,7 @@ function AppointmentsPage() {
               <option value="" disabled>
                 {t('appointments.selectStaffMember')}
               </option>
-              {staff.map((member) => (
+              {bookingStaff.map((member) => (
                 <option key={member.id} value={member.id}>
                   {member.full_name}
                   {member.title ? ` — ${member.title}` : ''}
