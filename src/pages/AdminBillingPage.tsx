@@ -222,10 +222,13 @@ function AdminBillingPage() {
 
   return (
     <div>
-      <div className="panel-header">
-        <h1>
-          {t('admin.billingLedger')} ({filteredPayments.length})
-        </h1>
+      <div className="page-header">
+        <div>
+          <h1>
+            {t('admin.billingLedger')} ({filteredPayments.length})
+          </h1>
+          <p className="page-subtitle">{t('admin.billingLedgerHint')}</p>
+        </div>
         <div className="page-header-actions">
           <button type="button" className="secondary-button" onClick={handleExportPaymentsCsv}>
             <Download size={14} aria-hidden style={{ marginInlineEnd: '0.3rem' }} />
@@ -236,7 +239,6 @@ function AdminBillingPage() {
           </button>
         </div>
       </div>
-      <p className="pet-owner">{t('admin.billingLedgerHint')}</p>
 
       {showNewPaymentForm && (
         <form onSubmit={handleCreatePayment} className="pet-form pet-form-grid">
@@ -297,33 +299,44 @@ function AdminBillingPage() {
       {filteredPayments.length === 0 ? (
         <p>{t('admin.noPaymentsMatch')}</p>
       ) : (
-        <ul className="pet-list">
+        <ul className="pet-list data-table data-billing">
+          <li className="data-head" aria-hidden>
+            <span>{t('admin.paymentClinic')}</span>
+            <span className="data-num">{t('list.amount')}</span>
+            <span>{t('admin.paymentDueDate')}</span>
+            <span>{t('admin.paymentPaidOn')}</span>
+            <span>{t('list.status')}</span>
+            <span />
+          </li>
           {filteredPayments.map((payment) => (
             <li key={payment.id} className="pet-list-item">
-              <div className="pet-row">
-                <div>
-                  <strong>{clinicNameById[payment.clinic_id] ?? '—'}</strong>
+              <div className="pet-row data-row">
+                <strong className="data-cell-wide data-strong">{clinicNameById[payment.clinic_id] ?? '—'}</strong>
+                <span className="data-num data-strong">
+                  <Ltr>{formatMoney(payment.amount)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
+                </span>
+                <span className="data-muted">
+                  {payment.due_date && (
+                    <>
+                      <span className="data-label">{t('admin.paymentDueDate')}: </span>
+                      <Ltr>{formatDate(payment.due_date)}</Ltr>
+                    </>
+                  )}
+                </span>
+                <span className="data-muted">
+                  {payment.paid_at && (
+                    <>
+                      <span className="data-label">{t('admin.paymentPaidOn')}: </span>
+                      <Ltr>{formatDate(payment.paid_at)}</Ltr>
+                    </>
+                  )}
+                </span>
+                <span>
                   <span className={`status-badge status-${payment.status === 'paid' ? 'active' : payment.status}`}>
-                    {' '}
                     {payment.status}
                   </span>
-                  <div className="pet-owner">
-                    <Ltr>{formatMoney(payment.amount)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
-                    {payment.due_date && (
-                      <>
-                        {' · '}
-                        {t('admin.paymentDueDate')}: <Ltr>{formatDate(payment.due_date)}</Ltr>
-                      </>
-                    )}
-                    {payment.paid_at && (
-                      <>
-                        {' · '}
-                        {t('admin.paymentPaidOn')}: <Ltr>{formatDate(payment.paid_at)}</Ltr>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="record-actions">
+                </span>
+                <div className="record-actions data-end">
                   <select
                     value={payment.status}
                     onChange={(e) => handleUpdatePaymentStatus(payment, e.target.value)}

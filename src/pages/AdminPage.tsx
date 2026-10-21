@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ChevronDown, Download, Search, Trash2 } from 'lucide-react'
+import { ChevronDown, Download, Image as ImageIcon, Search, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -15,8 +15,8 @@ import { logAdminAction, auditActionLabelKey } from '../lib/adminAudit'
 import PhoneInput from '../components/PhoneInput'
 import RequiredMark from '../components/RequiredMark'
 import LoadingScreen from '../components/LoadingScreen'
-import SimpleBarChart from '../components/SimpleBarChart'
 import Ltr from '../components/Ltr'
+import { CLINIC_LOGOS_BUCKET, clinicLogoUrl, uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
 import { CLINIC_ROLES, parseStaffLogin } from '../../supabase/functions/_shared/staffRules'
 
@@ -32,8 +32,6 @@ type GlobalSearchResult = { type: 'clinic' | 'user' | 'pet'; id: string; label: 
 
 const BILLING_STATUSES = ['active', 'trial', 'overdue', 'cancelled'] as const
 
-const DORMANT_WINDOW_DAYS = 30
-const CHART_WEEKS = 8
 const TRASH_RETENTION_DAYS = 7
 const ABUSE_SIGNAL_PETS_24H = 15
 const ABUSE_SIGNAL_APPOINTMENTS_24H = 30
@@ -69,6 +67,7 @@ function AdminPage() {
   const [deletingClinicId, setDeletingClinicId] = useState<string | null>(null)
   const [restoringClinicId, setRestoringClinicId] = useState<string | null>(null)
   const [togglingClinicId, setTogglingClinicId] = useState<string | null>(null)
+  const [logoBusyClinicId, setLogoBusyClinicId] = useState<string | null>(null)
 
   const [showNewClinicForm, setShowNewClinicForm] = useState(false)
   const [newClinicName, setNewClinicName] = useState('')
@@ -158,17 +157,15 @@ function AdminPage() {
 
   async function load() {
     // Totals are counted in the database (0038); raw rows are only fetched for
-    // the windows the charts and signals below actually look at.
+    // the 24h window the abuse signal below looks at.
     // shortcut: a window with >1000 rows is still capped by PostgREST, move it into SQL if that happens.
-    const day = 24 * 60 * 60 * 1000
-    const appointmentsSince = new Date(Date.now() - Math.max(DORMANT_WINDOW_DAYS, CHART_WEEKS * 7) * day).toISOString()
-    const petsSince = new Date(Date.now() - day).toISOString()
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const [clinicsRes, profilesRes, countsRes, petsRes, appointmentsRes, branchesRes, staffBranchesRes] = await Promise.all([
       supabase.from('clinics').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.rpc('admin_clinic_counts'),
-      supabase.from('pets').select('clinic_id, created_at').is('deleted_at', null).gte('created_at', petsSince),
-      supabase.from('appointments').select('clinic_id, created_at').gte('created_at', appointmentsSince),
+      supabase.from('pets').select('clinic_id, created_at').is('deleted_at', null).gte('created_at', since),
+      supabase.from('appointments').select('clinic_id, created_at').gte('created_at', since),
       supabase.from('branches').select('*').order('is_main', { ascending: false }).order('name'),
       supabase.from('staff_branches').select('*'),
     ])
@@ -243,44 +240,6 @@ function AdminPage() {
     if (!q) return active
     return active.filter((c) => c.name.toLowerCase().includes(q))
   }, [clinics, clinicSearch])
-
-  const disabledCount = profiles.filter((p) => p.disabled).length
-
-  const { activeClinicCount, dormantClinicCount } = useMemo(() => {
-    const cutoff = Date.now() - DORMANT_WINDOW_DAYS * 24 * 60 * 60 * 1000
-    const activeClinicIds = new Set(
-      appointmentsRaw.filter((a) => new Date(a.created_at).getTime() >= cutoff).map((a) => a.clinic_id),
-    )
-    const liveClinicCount = clinics.filter((c) => !c.deleted_at).length
-    return {
-      activeClinicCount: activeClinicIds.size,
-      dormantClinicCount: Math.max(0, liveClinicCount - activeClinicIds.size),
-    }
-  }, [appointmentsRaw, clinics])
-
-  const weeklyChartData = useMemo(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    const weeks: { label: string; value: number; start: number; end: number }[] = []
-    for (let i = CHART_WEEKS - 1; i >= 0; i--) {
-      const end = new Date(now)
-      end.setDate(end.getDate() - i * 7)
-      const start = new Date(end)
-      start.setDate(start.getDate() - 7)
-      weeks.push({
-        label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        value: 0,
-        start: start.getTime(),
-        end: end.getTime(),
-      })
-    }
-    for (const a of appointmentsRaw) {
-      const t = new Date(a.created_at).getTime()
-      const bucket = weeks.find((w) => t >= w.start && t < w.end)
-      if (bucket) bucket.value += 1
-    }
-    return weeks.map(({ label, value }) => ({ label, value }))
-  }, [appointmentsRaw])
 
   // A lightweight abuse signal, not real rate limiting (that belongs at the
   // infrastructure layer, not in-app) — flags a clinic whose pet/appointment
@@ -445,6 +404,8 @@ function AdminPage() {
       return
     }
 
+    // The purge function doesn't know about logos; drop the file so it isn't left public.
+    if (clinic.logo_url) await supabase.storage.from(CLINIC_LOGOS_BUCKET).remove([clinic.logo_url.split('?')[0]])
     toast.success(t('admin.clinicPurged', { name: clinic.name }))
     setDeletingClinicId(null)
     await load()
@@ -486,6 +447,57 @@ function AdminPage() {
     }
     toast.success(data.disabled ? t('admin.clinicDisabled', { name: data.name }) : t('admin.clinicEnabled', { name: data.name }))
     setTogglingClinicId(null)
+  }
+
+  async function saveClinicLogo(clinic: Clinic, logoUrl: string | null) {
+    const { data, error } = await supabase.from('clinics').update({ logo_url: logoUrl }).eq('id', clinic.id).select().single()
+    setLogoBusyClinicId(null)
+    if (error || !data) {
+      toast.error(error?.message ?? t('common.couldNotSave'))
+      return
+    }
+    // Same path is overwritten in place; a different extension leaves the old file, so remove it.
+    const oldPath = clinic.logo_url?.split('?')[0]
+    if (oldPath && oldPath !== logoUrl?.split('?')[0]) await supabase.storage.from(CLINIC_LOGOS_BUCKET).remove([oldPath])
+    setClinics((current) => current.map((c) => (c.id === data.id ? data : c)))
+    if (currentProfile) {
+      await logAdminAction(
+        currentProfile.id,
+        currentProfile.full_name,
+        logoUrl ? 'clinic_logo_changed' : 'clinic_logo_removed',
+        'clinic',
+        data.name,
+        data.id,
+      )
+    }
+    toast.success(t(logoUrl ? 'admin.logoSaved' : 'admin.logoRemoved', { name: data.name }))
+  }
+
+  async function handleLogoFile(clinic: Clinic, file: File) {
+    const invalid = validateImageFile(file)
+    if (invalid) {
+      toast.error(t(invalid === 'notImage' ? 'petDetail.imageOnly' : 'petDetail.imageTooLarge'))
+      return
+    }
+    setLogoBusyClinicId(clinic.id)
+    const upload = await uploadPhoto(`${clinic.id}/logo`, file, CLINIC_LOGOS_BUCKET)
+    if (upload.error !== null) {
+      toast.error(upload.error)
+      setLogoBusyClinicId(null)
+      return
+    }
+    // Cache-bust: a re-upload keeps the same path.
+    await saveClinicLogo(clinic, `${upload.path}?t=${Date.now()}`)
+  }
+
+  async function handleRemoveLogo(clinic: Clinic) {
+    const ok = await confirm(t('admin.removeLogoConfirm', { name: clinic.name }), {
+      danger: true,
+      confirmLabel: t('admin.removeLogo'),
+    })
+    if (!ok) return
+    setLogoBusyClinicId(clinic.id)
+    await saveClinicLogo(clinic, null)
   }
 
   function startEditClinic(clinic: Clinic) {
@@ -1088,7 +1100,20 @@ function AdminPage() {
 
   return (
     <div>
-      <h1>{t('admin.title')}</h1>
+      <div className="page-header">
+        <h1>
+          {t('admin.clinics')} ({filteredClinics.length})
+        </h1>
+        <div className="page-header-actions">
+          <button type="button" className="secondary-button" onClick={handleExportClinicsCsv}>
+            <Download size={14} aria-hidden style={{ marginInlineEnd: '0.3rem' }} />
+            {t('admin.exportCsv')}
+          </button>
+          <button type="button" className="secondary-button" onClick={() => setShowNewClinicForm((v) => !v)}>
+            {showNewClinicForm ? t('common.cancel') : `+ ${t('admin.newClinic')}`}
+          </button>
+        </div>
+      </div>
 
       <div className="pet-picker" style={{ position: 'relative', marginBottom: '1rem' }}>
         <input
@@ -1117,58 +1142,6 @@ function AdminPage() {
             )}
           </div>
         )}
-      </div>
-
-      <div className="stat-row">
-        <div className="stat-tile">
-          <div className="stat-number" dir="ltr">
-            {clinics.length - trashedClinics.length}
-          </div>
-          <div className="stat-label">{t('admin.clinics')}</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-number" dir="ltr">
-            {activeClinicCount}
-          </div>
-          <div className="stat-label">{t('admin.activeClinics')}</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-number" dir="ltr">
-            {dormantClinicCount}
-          </div>
-          <div className="stat-label">{t('admin.dormantClinics')}</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-number" dir="ltr">
-            {profiles.length}
-          </div>
-          <div className="stat-label">{t('admin.users')}</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-number" dir="ltr">
-            {disabledCount}
-          </div>
-          <div className="stat-label">{t('admin.disabledBadge')}</div>
-        </div>
-      </div>
-
-      <h2>{t('admin.usageDashboard')}</h2>
-      <p className="pet-owner">{t('admin.appointmentsPerWeek')}</p>
-      <SimpleBarChart data={weeklyChartData} />
-
-      <div className="panel-header">
-        <h2>
-          {t('admin.clinics')} ({filteredClinics.length})
-        </h2>
-        <div className="page-header-actions">
-          <button type="button" className="secondary-button" onClick={handleExportClinicsCsv}>
-            <Download size={14} aria-hidden style={{ marginInlineEnd: '0.3rem' }} />
-            {t('admin.exportCsv')}
-          </button>
-          <button type="button" className="secondary-button" onClick={() => setShowNewClinicForm((v) => !v)}>
-            {showNewClinicForm ? t('common.cancel') : `+ ${t('admin.newClinic')}`}
-          </button>
-        </div>
       </div>
 
       {showNewClinicForm && (
@@ -1293,7 +1266,8 @@ function AdminPage() {
                     onClick={() => setExpandedClinicId(expanded ? null : clinic.id)}
                     aria-expanded={expanded}
                   >
-                    <span>
+                    {clinic.logo_url && <img className="admin-clinic-logo-thumb" src={clinicLogoUrl(clinic.logo_url)} alt="" />}
+                    <span className="admin-clinic-title">
                       <strong>{clinic.name}</strong>{' '}
                       <span className={`status-badge status-${clinic.billing_status}`}>{billingStatusLabel(clinic.billing_status)}</span>{' '}
                       {((recentActivityByClinic[clinic.id]?.pets24h ?? 0) >= ABUSE_SIGNAL_PETS_24H ||
@@ -1388,6 +1362,44 @@ function AdminPage() {
                         </div>
                       </div>
                     )}
+                    <div className="admin-clinic-logo">
+                      <span className="admin-clinic-logo-preview">
+                        {clinic.logo_url ? (
+                          <img src={clinicLogoUrl(clinic.logo_url)} alt={t('admin.logoAlt', { name: clinic.name })} />
+                        ) : (
+                          <ImageIcon size={20} aria-hidden />
+                        )}
+                      </span>
+                      <div className="record-actions">
+                        <label className="secondary-button admin-file-label">
+                          {logoBusyClinicId === clinic.id
+                            ? t('common.saving')
+                            : clinic.logo_url
+                              ? t('admin.changeLogo')
+                              : t('admin.uploadLogo')}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={logoBusyClinicId === clinic.id}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              e.target.value = ''
+                              if (file) handleLogoFile(clinic, file)
+                            }}
+                          />
+                        </label>
+                        {clinic.logo_url && (
+                          <button
+                            type="button"
+                            className="delete-button"
+                            onClick={() => handleRemoveLogo(clinic)}
+                            disabled={logoBusyClinicId === clinic.id}
+                          >
+                            {t('admin.removeLogo')}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                     <h4>{t('admin.branchesField')}</h4>
                     <ul className="record-list">
                       {branches

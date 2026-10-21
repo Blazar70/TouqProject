@@ -19,7 +19,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 | Routes and role gate | `src/App.tsx` (admin vs clinic route sets) |
 | Pages | `src/pages/` |
 | Business rules | `src/lib/` (cancellation, vaccination, appointmentConflicts, ...) |
-| DB schema | `supabase/migrations/` (0001-0049, applied in order; rollbacks in `supabase/rollbacks/`) |
+| DB schema | `supabase/migrations/` (0001-0053, applied in order; rollbacks in `supabase/rollbacks/`) |
 | Generated DB types | `src/lib/database.types.ts` |
 | Edge functions | `supabase/functions/` |
 

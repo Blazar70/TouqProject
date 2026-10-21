@@ -10,6 +10,7 @@ import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import AdminPage from './pages/AdminPage'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminBillingPage from './pages/AdminBillingPage'
 import AdminActivityPage from './pages/AdminActivityPage'
 import { useAuth } from './lib/AuthContext'
@@ -76,7 +77,8 @@ function App() {
         <Routes>
           {isAdmin ? (
             <>
-              <Route path="/" element={<AdminPage />} />
+              <Route path="/" element={<AdminDashboardPage />} />
+              <Route path="/clinics" element={<AdminPage />} />
               <Route path="/billing" element={<AdminBillingPage />} />
               <Route path="/activity" element={<AdminActivityPage />} />
             </>

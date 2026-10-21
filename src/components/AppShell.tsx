@@ -19,6 +19,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import { clinicLogoUrl } from '../lib/imageUpload'
 import type { TranslationKey } from '../lib/i18n/translations'
 import LanguageToggle from './LanguageToggle'
 import ThemeToggle from './ThemeToggle'
@@ -30,7 +31,8 @@ const ADMIN_SECTIONS: NavSection[] = [
   {
     title: 'nav.sectionPlatform',
     items: [
-      { to: '/', label: 'nav.admin', icon: Building2, end: true },
+      { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, end: true },
+      { to: '/clinics', label: 'admin.clinics', icon: Building2 },
       { to: '/billing', label: 'nav.billing', icon: CreditCard },
       { to: '/activity', label: 'nav.activity', icon: Activity },
     ],
@@ -102,7 +104,7 @@ type Props = {
  */
 function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   const { t, language } = useLanguage()
-  const { profile } = useAuth()
+  const { profile, clinicLogoUrl: logo } = useAuth()
   const [branches, setBranches] = useState<{ name: string; name_ar: string | null }[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
@@ -209,9 +211,13 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
 
         {clinicName && (
           <div className="app-clinic" title={clinicName}>
-            <span className="app-clinic-badge" aria-hidden>
-              {initials(clinicName)}
-            </span>
+            {logo ? (
+              <img className="app-clinic-badge app-clinic-logo" src={clinicLogoUrl(logo)} alt="" />
+            ) : (
+              <span className="app-clinic-badge" aria-hidden>
+                {initials(clinicName)}
+              </span>
+            )}
             <span className="app-clinic-name">{clinicName}</span>
           </div>
         )}

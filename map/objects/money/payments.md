@@ -26,7 +26,7 @@ Despite the name, this is NOT what pet owners pay. 0001 made `payments` a pet/ow
 
 ## If you change this
 
-- **Hits:** `src/pages/AdminBillingPage.tsx`, payment-documents bucket, `admin-manage-clinic` purge.
+- **Hits:** `src/pages/AdminBillingPage.tsx`, the admin dashboard "Billing due" panel (`src/lib/billingDue.ts`: pending/overdue and marked overdue, past due, or due within 7 days), payment-documents bucket, `admin-manage-clinic` purge.
 - **Does not hit:** invoices, services, `PaymentsPage` (that page is clinic-side invoices).
 
 ## Surfaces
