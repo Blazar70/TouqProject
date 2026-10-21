@@ -132,6 +132,7 @@ function AppointmentsPage() {
   const [rescheduleHour, setRescheduleHour] = useState('')
   const [rescheduleMinute, setRescheduleMinute] = useState('')
   const [reschedulePeriod, setReschedulePeriod] = useState<'AM' | 'PM'>('AM')
+  const [rescheduleDoctorId, setRescheduleDoctorId] = useState('')
   const [rescheduleConflicts, setRescheduleConflicts] = useState<Appointment[]>([])
   const [savingPanel, setSavingPanel] = useState(false)
   const [panelError, setPanelError] = useState<string | null>(null)
@@ -244,6 +245,8 @@ function AppointmentsPage() {
     setRescheduleHour(fields.hour)
     setRescheduleMinute(fields.minute)
     setReschedulePeriod(fields.period)
+    // A doctor no longer in the picker (disabled, stopped taking appointments) starts as Unassigned.
+    setRescheduleDoctorId(staff.some((s) => s.id === appointment.doctor_id) ? (appointment.doctor_id ?? '') : '')
     setRescheduleConflicts([])
     setPanelError(null)
     setPanelMode('reschedule')
@@ -288,7 +291,7 @@ function AppointmentsPage() {
     if (!acknowledged) {
       const found = await fetchConflicts({
         petId: appointment.pet_id,
-        doctorId: appointment.doctor_id ?? '',
+        doctorId: rescheduleDoctorId,
         scheduledAt: newScheduledAt,
         excludeAppointmentId: appointment.id,
       })
@@ -298,16 +301,15 @@ function AppointmentsPage() {
         return
       }
     }
-    const { error: updateError } = await supabase
-      .from('appointments')
-      .update({ scheduled_at: newScheduledAt })
-      .eq('id', appointment.id)
+    const changes = { scheduled_at: newScheduledAt, doctor_id: rescheduleDoctorId || null }
+    const { error: updateError } = await supabase.from('appointments').update(changes).eq('id', appointment.id)
     setSavingPanel(false)
     if (updateError) {
       setPanelError(updateError.message)
       return
     }
-    applyUpdate({ ...appointment, scheduled_at: newScheduledAt })
+    const doctor = staff.find((s) => s.id === rescheduleDoctorId)
+    applyUpdate({ ...appointment, ...changes, doctor: doctor ? { full_name: doctor.full_name } : null })
     toast.success(t('appointments.rescheduledToast'))
     notifyStatusChange(appointment.id)
   }
@@ -595,6 +597,24 @@ function AppointmentsPage() {
                     <option value="PM">PM</option>
                   </select>
                 </div>
+              </label>
+              <label>
+                {t('appointments.staffHandling')}
+                <select
+                  value={rescheduleDoctorId}
+                  onChange={(e) => {
+                    setRescheduleDoctorId(e.target.value)
+                    setRescheduleConflicts([])
+                  }}
+                >
+                  <option value="">{t('calendar.unassigned')}</option>
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.full_name}
+                      {member.title ? ` — ${member.title}` : ''}
+                    </option>
+                  ))}
+                </select>
               </label>
               {rescheduleConflicts.length > 0 && (
                 <div className="form-warning">
