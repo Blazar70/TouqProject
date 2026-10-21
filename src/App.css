@@ -2438,6 +2438,23 @@ input[type='checkbox']:focus-visible {
   margin: 0;
 }
 
+/* Add row: one line where it fits; on phones the service picker takes its own row. */
+.visit-services-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.visit-services-add select {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.visit-services-add .visit-services-qty {
+  width: 4rem;
+}
+
 .session-page > .visit-services {
   max-width: 760px;
   margin-bottom: 1.5rem;

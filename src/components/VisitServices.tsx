@@ -128,7 +128,7 @@ function VisitServices({ appointmentId, locked }: { appointmentId: string; locke
         {t('payments.total')}: <Ltr>{formatMoney(visitTotal(rows))}</Ltr> <span className="money-currency">{t('common.currency')}</span>
       </p>
       {!locked && (
-        <div className="invoice-item-row">
+        <div className="visit-services-add">
           <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} aria-label={t('visitServices.pick')}>
             <option value="">{t('visitServices.pick')}</option>
             {services.map((service) => (
