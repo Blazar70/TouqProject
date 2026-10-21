@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
   const pet = appointment.pets as { name: string; photo_url: string | null } | null
   const payload = {
     title: 'Touq',
-    body: `${pet?.name ?? 'A pet'}'s appointment is now ${appointment.status}.`,
+    // shortcut: English only, staff language isn't stored; upgrade when profiles get a language column.
+    body: `${pet?.name ?? 'A pet'}'s appointment is now ${appointment.status.replace('_', ' ')}.`,
     url: '/appointments',
     icon: await petPhotoIcon(admin, pet?.photo_url),
   }
