@@ -26,7 +26,7 @@ Status is `text` plus a check constraint, not an enum, so a new status is a cons
 ## Connected to
 
 - **owned-by:** pets, clinics
-- **owns:** nothing; medical_records and invoices point at it (`appointment_id`, 0022 / 0037)
+- **owns:** `appointment_services` (cascade, 0059); medical_records and invoices point at it (`appointment_id`, 0022 / 0037; one invoice per appointment since 0059)
 - **joins:** profiles (doctor_id), appointment_reminders_sent
 
 ## If you change this

@@ -13,7 +13,7 @@ First-order only. Open the card; its "If you change this" has the detail.
 | visit types | [medical-records](../objects/care/medical-records.md) |
 | vaccination rules | [pets](../objects/care/pets.md); medical records do not update the schedule |
 | staff / assignment | [staff](../objects/people/staff.md), [appointments](../objects/care/appointments.md) |
-| anything pet-owner money | [invoices](../objects/money/invoices.md), [services](../objects/money/services.md) |
+| anything pet-owner money, visit services, billing a visit | [invoices](../objects/money/invoices.md), [services](../objects/money/services.md) |
 | anything clinic-to-Touq money | [payments](../objects/money/payments.md) |
 | photo upload or bucket policy | [storage-buckets](../objects/platform/storage-buckets.md) |
 | push or reminders | [push](../objects/platform/push.md), [push-notifications](../processes/push-notifications.md) |

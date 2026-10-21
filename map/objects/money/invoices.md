@@ -21,6 +21,13 @@ Items copy `description` and `unit_price` from the service at sale time, so a la
 - `invoice_items`: `invoice_id` (cascade), `service_id` (set null), `description`, `unit_price`, `quantity`, `line_total`
 - `branch_id` not null (0046), the Payments page sends the picked branch (phase 3); trigger `fill_default_branch()` fills main only when none is sent. List defaults to the picked branch, managers can switch. See [branches](../people/branches.md).
 - Policies: vet by clinic, admin all.
+- One invoice per appointment: unique `appointment_id` (0059). An invoice linked to a visit = the visit is billed; the calendar shows "Unpaid" on completed visits without one (`AppointmentsPage`, embed `invoice:invoices(id, status)`).
+
+## Visit services (0059)
+
+- `appointment_services`: `appointment_id` (cascade), `service_id` (set null), `description`, `unit_price` (pre-VAT, 4 dp), `vat_rate`, `quantity`, `clinic_id`, `added_by`. Policies: vet by clinic, admin all.
+- Trigger `appointment_services_guard()` copies name/price/VAT/clinic from the price list on insert (client values ignored), lets only `quantity` change, and refuses any insert/update/delete once an invoice links the appointment. `supabase/migrations/0059_visit_services.sql`, check `supabase/tests/0059_visit_services_check.sql`.
+- UI: `src/components/VisitServices.tsx` on SessionPage and the completed-appointment dialog. "Bill this visit" opens `/payments?bill=<appointment id>`, which pre-fills pet, visit link and one line per service (`src/lib/visitServices.ts`); lines stay editable there.
 
 ## Connected to
 
@@ -30,7 +37,7 @@ Items copy `description` and `unit_price` from the service at sale time, so a la
 
 ## If you change this
 
-- **Hits:** `PaymentsPage` and its daily totals, CSV export (`src/lib/csvExport.ts`), `PrintContext`.
+- **Hits:** `PaymentsPage` and its daily totals, the appointment dialog's Paid / Bill this visit, the calendar Unpaid marker, CSV export (`src/lib/csvExport.ts`), `PrintContext`.
 - **Does not hit:** AdminBillingPage.
 
 ## See
