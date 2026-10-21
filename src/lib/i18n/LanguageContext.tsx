@@ -35,7 +35,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     let text: string = translations[language][key] ?? translations.en[key] ?? key
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
-        text = text.replace(`{${k}}`, v)
+        text = text.replaceAll(`{${k}}`, v)
       }
     }
     return text

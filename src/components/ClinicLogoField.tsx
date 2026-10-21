@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { ImageIcon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { useConfirm } from '../lib/ConfirmContext'
-import { logAdminAction } from '../lib/adminAudit'
 import { CLINIC_LOGOS_BUCKET, clinicLogoUrl, uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import type { Database } from '../lib/database.types'
 
@@ -14,7 +12,6 @@ type Clinic = Database['public']['Tables']['clinics']['Row']
 // Logo preview + upload/remove. Admin Clinics page and the manager's Settings;
 // storage and clinics.logo_url are guarded by can_manage_clinic_logo() (0053).
 function ClinicLogoField({ clinic, onSaved }: { clinic: Pick<Clinic, 'id' | 'name' | 'logo_url'>; onSaved: (clinic: Clinic) => void }) {
-  const { profile } = useAuth()
   const { t } = useLanguage()
   const toast = useToast()
   const confirm = useConfirm()
@@ -31,10 +28,7 @@ function ClinicLogoField({ clinic, onSaved }: { clinic: Pick<Clinic, 'id' | 'nam
     const oldPath = clinic.logo_url?.split('?')[0]
     if (oldPath && oldPath !== logoUrl?.split('?')[0]) await supabase.storage.from(CLINIC_LOGOS_BUCKET).remove([oldPath])
     onSaved(data)
-    // The audit log is admin-only (0030).
-    if (profile?.role === 'admin') {
-      await logAdminAction(profile.id, profile.full_name, logoUrl ? 'clinic_logo_changed' : 'clinic_logo_removed', 'clinic', data.name, data.id)
-    }
+    // Logged by the database (0057).
     toast.success(t(logoUrl ? 'admin.logoSaved' : 'admin.logoRemoved', { name: data.name }))
   }
 

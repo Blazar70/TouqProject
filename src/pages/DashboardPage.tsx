@@ -52,7 +52,8 @@ function DashboardPage() {
     const monthStart = new Date(dayStart)
     monthStart.setDate(1)
 
-    // Pets, vaccinations and visit records stay clinic-wide; appointments and money follow the branch filter.
+    // Pets and vaccinations stay clinic-wide (pets have no branch); appointments, money and
+    // recent visits follow the branch filter (visits saved before phase 3 have no branch).
     const byBranch = <Q extends { eq: (column: 'branch_id', value: string) => Q }>(query: Q) =>
       viewBranch === ALL_BRANCHES ? query : query.eq('branch_id', viewBranch)
     const [todayRes, paymentsRes, recordsRes, petsRes, cancellationsRes] = await Promise.all([
@@ -70,9 +71,7 @@ function DashboardPage() {
           .gte('paid_at', dayStart.toISOString())
           .lt('paid_at', dayEnd.toISOString()),
       ),
-      supabase
-        .from('medical_records')
-        .select('*, pets(name)')
+      byBranch(supabase.from('medical_records').select('*, pets(name)'))
         .order('visit_date', { ascending: false })
         .limit(5),
       supabase

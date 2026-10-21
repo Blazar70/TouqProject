@@ -116,6 +116,9 @@ function AppointmentsPage() {
   // The calendar starts on the picked branch; anyone may look at another one or all (read-only overview).
   const [viewBranch, setViewBranch] = useState(branchId ?? ALL_BRANCHES)
   const viewingOther = branchId !== null && viewBranch !== branchId
+  // New bookings go to the branch on screen (e.g. Main taking a call for North); "All branches" books at your own.
+  const bookingBranchId = viewBranch !== ALL_BRANCHES ? viewBranch : branchId
+  const bookingElsewhere = branchId !== null && bookingBranchId !== branchId
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [pets, setPets] = useState<Pet[]>([])
@@ -385,7 +388,7 @@ function AppointmentsPage() {
         doctor_id: doctorId || null,
         created_by: profile.id,
         // No branch picked (clinic without one): a DB trigger fills the main branch; the generated type can't know that.
-        ...(branchId ? { branch_id: branchId } : {}),
+        ...(bookingBranchId ? { branch_id: bookingBranchId } : {}),
       } as Database['public']['Tables']['appointments']['Insert'])
       .select(APPOINTMENT_SELECT)
       .single()
@@ -438,7 +441,9 @@ function AppointmentsPage() {
   function doctorsAt(id: string | null) {
     return id ? staff.filter((s) => worksAt(s, id)) : staff
   }
-  const bookingStaff = doctorsAt(branchId)
+  const bookingStaff = doctorsAt(bookingBranchId)
+  // Switching the viewed branch can drop the chosen doctor from the list.
+  if (doctorId && !bookingStaff.some((s) => s.id === doctorId)) setDoctorId('')
   const columnStaff = useMemo(
     () => (viewBranch === ALL_BRANCHES ? staff : staff.filter((s) => worksAt(s, viewBranch))),
     [staff, viewBranch],
@@ -797,10 +802,9 @@ function AppointmentsPage() {
       </div>
       {viewingOther && (
         <p className="pet-owner">
-          {t('branch.viewingOther', {
-            name: viewBranch === ALL_BRANCHES ? t('staff.allBranches') : branchName(viewBranch),
-            current: branchName(branchId),
-          })}
+          {viewBranch === ALL_BRANCHES
+            ? t('branch.viewingOther', { name: t('staff.allBranches'), current: branchName(branchId) })
+            : t('branch.bookingAt', { name: branchName(viewBranch) })}
         </p>
       )}
 
@@ -882,7 +886,7 @@ function AppointmentsPage() {
           dayLayoutAlgorithm="no-overlap"
           timeslots={4}
           scrollToTime={scrollTo}
-          selectable={isVet && !viewingOther}
+          selectable={isVet && viewBranch !== ALL_BRANCHES}
           onSelectSlot={handleSelectSlot}
           onSelectEvent={(event) => {
             if (event.appointment) return openAppointment(event.appointment)
@@ -936,7 +940,9 @@ function AppointmentsPage() {
       {isVet && (
         <form ref={scheduleFormRef} onSubmit={handleAddAppointment} className="pet-form pet-form-grid">
           <h2>{t('appointments.schedule')}</h2>
-          <p className="pet-owner appointment-schedule-hint">{t('calendar.slotHint')}</p>
+          <p className="pet-owner appointment-schedule-hint">
+            {bookingElsewhere ? t('branch.bookingAt', { name: branchName(bookingBranchId) }) : t('calendar.slotHint')}
+          </p>
           <label>
             {t('appointments.pet')}
             <RequiredMark />

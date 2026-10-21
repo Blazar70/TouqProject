@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { useConfirm } from '../lib/ConfirmContext'
-import { logAdminAction } from '../lib/adminAudit'
 import { isValidClinicPhone } from '../lib/phone'
 import type { Database } from '../lib/database.types'
 import Ltr from './Ltr'
@@ -29,7 +27,6 @@ type Props = {
 // Branch list + add/edit form. Used by the admin Clinics page and the manager's Settings.
 // Writes are plain updates under RLS; close and make-main are DB functions so they can't half-finish.
 function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, onChanged }: Props) {
-  const { profile } = useAuth()
   const { t, language } = useLanguage()
   const toast = useToast()
   const confirm = useConfirm()
@@ -46,11 +43,6 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
 
   function label(b: Branch) {
     return (language === 'ar' && b.name_ar) || b.name
-  }
-
-  // The audit log is admin-only (0030); managers' branch changes aren't logged there.
-  async function log(action: string, branchName: string) {
-    if (profile?.role === 'admin') await logAdminAction(profile.id, profile.full_name, action, 'branch', branchName, clinicId)
   }
 
   function openForm(branch: Branch | null) {
@@ -86,7 +78,6 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
       setError(saveError.code === '23505' ? t('admin.branchNameTaken') : saveError.message)
       return
     }
-    await log(editingId ? 'branch_updated' : 'branch_added', trimmed)
     toast.success(t(editingId ? 'admin.branchSaved' : 'admin.branchAdded', { name: trimmed }))
     setFormOpen(false)
     onChanged()
@@ -100,7 +91,6 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
       toast.error(rpcError.message)
       return
     }
-    await log('branch_made_main', branch.name)
     toast.success(t('admin.branchMadeMain', { name: label(branch) }))
     onChanged()
   }
@@ -122,7 +112,6 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
       toast.error(rpcError.message)
       return
     }
-    await log('branch_closed', branch.name)
     toast.success(t('admin.branchClosed', { name: label(branch) }))
     onChanged()
   }
@@ -135,7 +124,6 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
       toast.error(reopenError.message)
       return
     }
-    await log('branch_reopened', branch.name)
     toast.success(t('admin.branchReopened', { name: label(branch) }))
     onChanged()
   }

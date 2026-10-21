@@ -9,7 +9,6 @@ import {
   CreditCard,
   LayoutDashboard,
   LogOut,
-  MapPin,
   Menu,
   PawPrint,
   Receipt,
@@ -24,7 +23,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { clinicLogoUrl } from '../lib/imageUpload'
 import type { TranslationKey } from '../lib/i18n/translations'
 import LanguageToggle from './LanguageToggle'
-import BranchPicker from './BranchPicker'
+import BranchMenu from './BranchMenu'
 import ThemeToggle from './ThemeToggle'
 
 type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean }
@@ -108,7 +107,7 @@ type Props = {
 function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   const { t } = useLanguage()
   const { profile, clinicLogoUrl: logo } = useAuth()
-  const { branchId, branchName, pickable, pickerOpen, openPicker } = useBranch()
+  const { branchId, branchName, pickable } = useBranch()
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
   const overlayOpen = menuOpen && !isDesktop
@@ -142,7 +141,9 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   const roleLabel = isAdmin
     ? t('role.admin')
     : profile?.clinic_role && t(`staff.role.${profile.clinic_role}` as TranslationKey)
-  const branchLabel = isAdmin ? null : branchName(branchId)
+  const hasBranchMenu = !isAdmin && pickable.length > 1
+  // With 2+ branches the branch shows in the dropdown instead.
+  const branchLabel = isAdmin || hasBranchMenu ? null : branchName(branchId)
   const userMeta = [roleLabel, branchLabel].filter(Boolean).join(' · ')
 
   return (
@@ -244,19 +245,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
               {userMeta && <span className="app-user-meta">{userMeta}</span>}
             </span>
           </div>
-          {!isAdmin && pickable.length > 1 && (
-            <button
-              type="button"
-              className="secondary-button app-branch-switch"
-              onClick={() => {
-                setMenuOpen(false)
-                openPicker()
-              }}
-            >
-              <MapPin size={18} aria-hidden />
-              {t('branch.switch')}
-            </button>
-          )}
+          {hasBranchMenu && <BranchMenu onPicked={() => setMenuOpen(false)} />}
           <div className="app-sidebar-toggles">
             <ThemeToggle />
             <LanguageToggle />
@@ -271,7 +260,6 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
       <div className="app-content" inert={overlayOpen}>
         {children}
       </div>
-      {!isAdmin && pickerOpen && <BranchPicker />}
     </div>
   )
 }

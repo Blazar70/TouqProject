@@ -260,15 +260,113 @@
   min-height: 44px;
 }
 
-.app-sidebar-footer .app-branch-switch {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 44px;
+/* Branch dropdown in the sidebar (BranchMenu): pop-up button, menu opens upward. */
+.branch-menu {
+  position: relative;
 }
 
-/* Branch picker: after login and from "Switch branch". */
+.branch-menu-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text-h);
+  background: var(--bg-tint);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.branch-menu-button > svg:first-child {
+  flex: none;
+  color: var(--accent);
+}
+
+.branch-menu-button:hover {
+  border-color: var(--accent);
+}
+
+.branch-menu-button:focus-visible,
+.branch-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.branch-menu-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  font-weight: 600;
+}
+
+.branch-menu-chevron {
+  flex: none;
+  color: var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.branch-menu-button[aria-expanded='true'] .branch-menu-chevron {
+  transform: rotate(180deg);
+}
+
+.branch-menu-list {
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(100% + 0.25rem);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.branch-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: start;
+  color: var(--text-h);
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.branch-menu-item:hover {
+  background: var(--bg-tint-hover);
+}
+
+.branch-menu-check {
+  flex: none;
+  color: var(--accent);
+  visibility: hidden;
+}
+
+.branch-menu-item[aria-checked='true'] .branch-menu-check {
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-menu-chevron {
+    transition: none;
+  }
+}
+
+/* Branch picker: after login, for people with 2+ branches. */
 .branch-picker-list {
   display: flex;
   flex-direction: column;

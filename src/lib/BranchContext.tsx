@@ -20,9 +20,6 @@ type BranchContextValue = {
   loading: boolean
   /** Must pick before using the app (2+ branches, nothing valid picked in this tab). */
   asking: boolean
-  pickerOpen: boolean
-  openPicker: () => void
-  closePicker: () => void
   pick: (branchId: string) => void
   branchName: (branchId: string | null) => string
   reload: () => void
@@ -55,7 +52,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   const [branchId, setBranchId] = useState<string | null>(null)
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
 
   const profileId = profile?.id ?? null
   const clinicId = profile?.role === 'vet' ? profile.clinic_id : null
@@ -102,7 +98,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       setBranchId(id)
       setAsking(false)
-      setPickerOpen(false)
       writeKey(() => sessionStorage, storageKey, id)
       writeKey(() => localStorage, storageKey, id)
       if (profileId) supabase.from('profiles').update({ last_branch_id: id }).eq('id', profileId).then()
@@ -125,9 +120,6 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     isClinicManager: clinicRole === 'manager' && memberIds.length === 0,
     loading: loadedKey !== loadKey,
     asking,
-    pickerOpen: pickerOpen || asking,
-    openPicker: () => setPickerOpen(true),
-    closePicker: () => setPickerOpen(false),
     pick,
     branchName,
     reload: load,
