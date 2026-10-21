@@ -70,9 +70,9 @@ end $$;
 -- Billed: the visit's services are locked, and a second invoice for it is refused.
 select set_config('request.jwt.claims', json_build_object('sub', 'f5900000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
 do $$ begin
-  insert into invoices (clinic_id, pet_id, appointment_id, created_by, method, amount_total)
-  values ('f5900000-0000-0000-0000-00000000000a', 'f5900000-0000-0000-0000-0000000000a1', 'f5900000-0000-0000-0000-0000000000c1',
-          'f5900000-0000-0000-0000-000000000001', 'cash', 450);
+  -- Invoices are created through create_invoice() since 0061.
+  perform public.create_invoice('f5900000-0000-0000-0000-0000000000a1', null, 'f5900000-0000-0000-0000-0000000000c1', null,
+    '[{"description": "Exam", "unit_price": 450, "quantity": 1}]', null, null);
   begin
     insert into appointment_services (appointment_id, service_id) values ('f5900000-0000-0000-0000-0000000000c1', 'f5900000-0000-0000-0000-0000000000d1');
     assert false, 'insert allowed after billing';
@@ -89,9 +89,9 @@ do $$ begin
   exception when raise_exception then null;
   end;
   begin
-    insert into invoices (clinic_id, pet_id, appointment_id, created_by, method, amount_total)
-    values ('f5900000-0000-0000-0000-00000000000a', 'f5900000-0000-0000-0000-0000000000a1', 'f5900000-0000-0000-0000-0000000000c1',
-            'f5900000-0000-0000-0000-000000000001', 'cash', 1);
+    -- Invoices are created through create_invoice() since 0061.
+    perform public.create_invoice('f5900000-0000-0000-0000-0000000000a1', null, 'f5900000-0000-0000-0000-0000000000c1', null,
+      '[{"description": "Exam", "unit_price": 1, "quantity": 1}]', null, null);
     assert false, 'second invoice for one appointment';
   exception when unique_violation then null;
   end;
