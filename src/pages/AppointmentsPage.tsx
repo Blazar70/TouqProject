@@ -31,7 +31,7 @@ import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import VisitServices from '../components/VisitServices'
-import { formatDateTime } from '../lib/format'
+import { formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
@@ -536,6 +536,27 @@ function AppointmentsPage() {
             away: { reason: awayReasons.get(p.id) ?? null },
           }))
       : []
+
+  // Header pill: plain "Away" for the whole day, otherwise the hours, so a doctor
+  // away only in the evening doesn't look off all day.
+  function awayTag(resourceId: string) {
+    const periods = awayEvents.filter((e) => e.resourceId === resourceId)
+    if (periods.length === 0) return null
+    const wholeDay = periods.some((e) => e.start <= rangeStart && e.end.getTime() >= rangeEnd.getTime() - 60_000)
+    return (
+      <span className="calendar-away-tag">
+        {t('calendar.away')}
+        {!wholeDay && (
+          <>
+            {' '}
+            <Ltr>
+              {formatTime(periods[0].start)}–{formatTime(periods[0].end)}
+            </Ltr>
+          </>
+        )}
+      </span>
+    )
+  }
   const hasUnassigned = view === 'day' && events.some((e) => e.resourceId === UNASSIGNED)
   // Opens at 8 AM, or earlier if the first visible appointment is before that.
   // Only events inside the shown range count: right after navigating, the
@@ -1021,11 +1042,7 @@ function AppointmentsPage() {
                 <span className="calendar-resource-header">
                   <strong>{resource.title}</strong>
                   {/* The block can start above the scrolled-to 8 AM, so the header says it too. */}
-                  {awayEvents.some((e) => e.resourceId === resource.id) ? (
-                    <span className="calendar-away-tag">{t('calendar.away')}</span>
-                  ) : (
-                    resource.subtitle && <span>{resource.subtitle}</span>
-                  )}
+                  {awayTag(String(resource.id)) ?? (resource.subtitle && <span>{resource.subtitle}</span>)}
                 </span>
               ),
           }}
