@@ -11,6 +11,8 @@ export const AUDIT_ACTION_LABEL_KEYS: Record<string, TranslationKey> = {
   clinic_purged: 'admin.action.clinicPurged',
   clinic_disabled: 'admin.action.clinicDisabled',
   clinic_enabled: 'admin.action.clinicEnabled',
+  clinic_logo_changed: 'admin.action.clinicLogoChanged',
+  clinic_logo_removed: 'admin.action.clinicLogoRemoved',
   user_disabled: 'admin.action.userDisabled',
   user_enabled: 'admin.action.userEnabled',
   users_bulk_disabled: 'admin.action.usersBulkDisabled',

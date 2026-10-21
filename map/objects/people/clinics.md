@@ -23,7 +23,8 @@ Isolation between clinics is enforced by RLS through one helper, `current_user_c
 - A vet can still read their own clinic when disabled, so the app can explain why it is empty. `0031` policy `clinics_select_own_vet_regardless_disabled`
 - Vets may update their own clinic (0021). Before 0021 the write was silently blocked.
 - `timezone` (0044), default `Asia/Riyadh`. Every clinic has one main [branch](branches.md), created by trigger `clinics_create_main_branch` on insert.
-- Per-clinic totals (pets, appointments, staff) for the admin page come from SQL function `admin_clinic_counts()` (0038), not from counting rows in the browser.
+- `logo_url` (0053): storage path in the public `clinic-logos` bucket plus `?t=<n>`. Only an admin or an enabled manager of that clinic may change it (trigger `clinics_enforce_logo_update`, helper `can_manage_clinic_logo()`), even though any staff member may update the rest of the row (0021). Shown in the sidebar badge (`AppShell`, via `AuthContext.clinicLogoUrl`), initials when null.
+- Per-clinic totals (pets, appointments, staff) for the admin pages come from SQL function `admin_clinic_counts()` (0038), not from counting rows in the browser.
 
 ## Connected to
 
@@ -40,7 +41,8 @@ Isolation between clinics is enforced by RLS through one helper, `current_user_c
 
 | Surface | Role |
 |---|---|
-| `src/pages/AdminPage.tsx` | create (via edge function), rename, disable, trash |
+| `src/pages/AdminDashboardPage.tsx` (`/`) | platform totals, usage chart, billing due |
+| `src/pages/AdminPage.tsx` (`/clinics`) | create (via edge function), rename, disable, trash, logo upload/remove |
 | `src/pages/SettingsPage.tsx` | vet edits name/phone |
 | `src/pages/AdminBillingPage.tsx` | reads, sets billing_status |
 

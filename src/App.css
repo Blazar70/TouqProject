@@ -491,6 +491,10 @@
   font-weight: 600;
 }
 
+.app-clinic-logo {
+  border: 1px solid var(--border);
+}
+
 .app-clinic-name {
   min-width: 0;
   color: var(--text-h);
@@ -2372,6 +2376,72 @@ input[type='checkbox']:focus-visible {
   display: none;
 }
 
+/* Clinic logo on the admin Clinics page. The file input stays focusable
+   (visually hidden) so the upload is reachable by keyboard. */
+.admin-clinic-logo {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+
+.admin-clinic-logo-preview {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  overflow: hidden;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-tint);
+  color: var(--text-muted);
+}
+
+.admin-clinic-logo-preview img,
+.admin-clinic-logo-thumb,
+.app-clinic-logo {
+  object-fit: contain;
+  background: var(--bg-raised);
+}
+
+.admin-clinic-logo-preview img {
+  width: 100%;
+  height: 100%;
+}
+
+.admin-clinic-logo .admin-file-label input[type='file'] {
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.admin-clinic-logo .admin-file-label {
+  position: relative;
+  cursor: pointer;
+}
+
+.admin-clinic-logo .admin-file-label:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.admin-clinic-logo-thumb {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.admin-clinic-title {
+  flex: 1;
+  min-width: 0;
+}
+
 .pet-form-file-field {
   display: flex;
   flex-direction: column;
@@ -3171,9 +3241,24 @@ input[type='checkbox']:focus-visible {
   margin-top: 1.5rem;
 }
 
+/* Admin dashboard: chart panel and its caption. */
+.dash-panel-meta {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-align: end;
+}
+
+.dash-panel-body {
+  padding: 0.5rem 1.5rem 1rem;
+}
+
 @media (min-width: 1024px) {
   .dash-columns {
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .dash-stats-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -3184,6 +3269,13 @@ input[type='checkbox']:focus-visible {
 }
 
 @media (max-width: 767.98px) {
+  /* Header actions drop under the title, and clinic-row actions wrap,
+     instead of squeezing or running off the side. */
+  .page-header,
+  .record-accordion-body .page-header-actions {
+    flex-wrap: wrap;
+  }
+
   .dash-stats {
     gap: 0.75rem;
   }
@@ -3301,6 +3393,14 @@ input[type='checkbox']:focus-visible {
 
 .data-staff {
   --data-cols: minmax(0, 1.2fr) 8rem minmax(0, 1fr) minmax(0, 1fr) 15rem;
+}
+
+.data-billing {
+  --data-cols: minmax(0, 1fr) 8rem 7.5rem 7.5rem 6rem 22rem;
+}
+
+.data-activity {
+  --data-cols: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) 11rem;
 }
 
 @media (min-width: 1024px) {

@@ -11,6 +11,7 @@ type AuthContextValue = {
   profile: Profile | null
   clinicName: string | null
   clinicPhone: string | null
+  clinicLogoUrl: string | null
   clinicDisabled: boolean
   refreshClinicName: () => void
   loading: boolean
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextValue>({
   profile: null,
   clinicName: null,
   clinicPhone: null,
+  clinicLogoUrl: null,
   clinicDisabled: false,
   refreshClinicName: () => {},
   loading: true,
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [clinicName, setClinicName] = useState<string | null>(null)
   const [clinicPhone, setClinicPhone] = useState<string | null>(null)
+  const [clinicLogoUrl, setClinicLogoUrl] = useState<string | null>(null)
   const [clinicDisabled, setClinicDisabled] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
   // Set when the user arrives via a "reset your password" email link —
@@ -64,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null)
       setClinicName(null)
       setClinicPhone(null)
+      setClinicLogoUrl(null)
       setClinicDisabled(false)
       setProfileLoaded(true)
       return
@@ -77,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // just silently showing empty data everywhere.
     const { data } = await supabase
       .from('profiles')
-      .select('*, clinics(name, phone, disabled)')
+      .select('*, clinics(name, phone, disabled, logo_url)')
       .eq('id', session.user.id)
       .maybeSingle()
 
@@ -86,11 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(profileRow as Profile)
       setClinicName(clinics?.name ?? null)
       setClinicPhone(clinics?.phone ?? null)
+      setClinicLogoUrl(clinics?.logo_url ?? null)
       setClinicDisabled(clinics?.disabled ?? false)
     } else {
       setProfile(null)
       setClinicName(null)
       setClinicPhone(null)
+      setClinicLogoUrl(null)
       setClinicDisabled(false)
     }
     setProfileLoaded(true)
@@ -119,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, clinicName, clinicPhone, clinicDisabled, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery }}
+      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery }}
     >
       {children}
     </AuthContext.Provider>

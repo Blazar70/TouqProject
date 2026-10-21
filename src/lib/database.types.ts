@@ -230,6 +230,7 @@ export type Database = {
           deleted_at: string | null
           disabled: boolean
           id: string
+          logo_url: string | null
           name: string
           phone: string | null
           timezone: string
@@ -240,6 +241,7 @@ export type Database = {
           deleted_at?: string | null
           disabled?: boolean
           id?: string
+          logo_url?: string | null
           name: string
           phone?: string | null
           timezone?: string
@@ -250,6 +252,7 @@ export type Database = {
           deleted_at?: string | null
           disabled?: boolean
           id?: string
+          logo_url?: string | null
           name?: string
           phone?: string | null
           timezone?: string
@@ -895,6 +898,7 @@ export type Database = {
       }
       admin_close_branch: { Args: { p_branch: string }; Returns: number }
       admin_set_main_branch: { Args: { p_branch: string }; Returns: undefined }
+      can_manage_clinic_logo: { Args: { p_clinic: string }; Returns: boolean }
       current_user_branch_ids: { Args: never; Returns: string[] }
       current_user_clinic_id: { Args: never; Returns: string }
       current_user_clinic_role: { Args: never; Returns: string }

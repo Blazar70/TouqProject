@@ -8,7 +8,7 @@ entity: supabase/migrations/0043_pet_photos_private.sql
 
 # Storage buckets
 
-Two private buckets.
+Two private buckets and one public one (`clinic-logos`, 0053).
 
 ## Why this shape
 
@@ -20,6 +20,7 @@ Two private buckets.
 - `photo_url` stores the path, not a URL, plus `?t=<n>` after a re-upload so the cache key changes (0043 converted the old public URLs).
 - Pet photo path `<clinic_id>/<pet_id>.<ext>`; record photo uses a `records/` prefix (0027). Validation: 5 MB, image types only. `src/lib/imageUpload.ts:1`
 - `payment-documents`: `0035_clinic_billing_payments.sql`
+- `clinic-logos` (0053): public read; insert/update/delete only where `can_manage_clinic_logo(<first folder>)` (admin, or enabled manager of that clinic). Path `<clinic_id>/logo.<ext>`, uploaded with `uploadPhoto(..., CLINIC_LOGOS_BUCKET)`, shown via `clinicLogoUrl()` in `src/lib/imageUpload.ts`. The admin purge removes the file client-side (the edge function doesn't know about logos).
 
 ## If you change this
 

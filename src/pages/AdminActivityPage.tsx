@@ -38,17 +38,28 @@ function AdminActivityPage() {
 
   return (
     <div>
-      <h1>{t('admin.activityLog')}</h1>
+      <div className="page-header">
+        <h1>{t('admin.activityLog')}</h1>
+      </div>
       {auditLog.length === 0 ? (
-        <p>{t('admin.noActivity')}</p>
+        <p className="empty-state">{t('admin.noActivity')}</p>
       ) : (
-        <ul className="pet-list">
+        <ul className="pet-list data-table data-activity">
+          <li className="data-head" aria-hidden>
+            <span>{t('admin.activityWho')}</span>
+            <span>{t('admin.activityWhat')}</span>
+            <span>{t('admin.activityTarget')}</span>
+            <span>{t('admin.activityWhen')}</span>
+          </li>
           {auditLog.map((entry) => (
             <li key={entry.id} className="pet-list-item">
-              <strong className="data-strong">{entry.actor_name}</strong> {auditActionLabel(entry.action)}
-              {entry.target_label ? ` — ${entry.target_label}` : ''}
-              <div className="record-date">
-                <Ltr>{formatDateTime(entry.created_at)}</Ltr>
+              <div className="pet-row data-row">
+                <strong className="data-strong">{entry.actor_name}</strong>
+                <span>{auditActionLabel(entry.action)}</span>
+                <span className="data-cell-wide">{entry.target_label}</span>
+                <span className="data-muted data-num">
+                  <Ltr>{formatDateTime(entry.created_at)}</Ltr>
+                </span>
               </div>
             </li>
           ))}
