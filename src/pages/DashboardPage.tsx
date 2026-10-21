@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { useBranch } from '../lib/BranchContext'
+import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
@@ -33,9 +33,9 @@ type TodayAppointment = {
 function DashboardPage() {
   const { profile } = useAuth()
   const { t, language } = useLanguage()
-  const { branchId, isClinicManager } = useBranch()
+  const { isClinicManager } = useBranch()
   // Whole-clinic managers open on all branches, everyone else on the picked one; managers may switch.
-  const [viewBranch, setViewBranch] = useState(isClinicManager || !branchId ? ALL_BRANCHES : branchId)
+  const [viewBranch, setViewBranch] = useBranchView(isClinicManager)
   const [today, setToday] = useState<TodayAppointment[]>([])
   const [paymentsToday, setPaymentsToday] = useState<number[]>([])
   const [recentRecords, setRecentRecords] = useState<MedicalRecord[]>([])

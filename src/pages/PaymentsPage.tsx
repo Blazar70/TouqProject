@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { useBranch } from '../lib/BranchContext'
+import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
@@ -54,7 +54,7 @@ function PaymentsPage() {
   const { t } = useLanguage()
   const { branchId } = useBranch()
   // The picked branch's payments; managers may switch to another branch or all.
-  const [viewBranch, setViewBranch] = useState(branchId ?? ALL_BRANCHES)
+  const [viewBranch, setViewBranch] = useBranchView()
   const toast = useToast()
   const confirm = useConfirm()
 

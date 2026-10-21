@@ -7,7 +7,7 @@ import dayjs from 'dayjs'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
-import { useBranch } from '../lib/BranchContext'
+import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES, worksAt } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
@@ -114,7 +114,7 @@ function AppointmentsPage() {
   const isVet = profile?.role === 'vet'
   const { branchId, branchName } = useBranch()
   // The calendar starts on the picked branch; anyone may look at another one or all (read-only overview).
-  const [viewBranch, setViewBranch] = useState(branchId ?? ALL_BRANCHES)
+  const [viewBranch, setViewBranch] = useBranchView()
   const viewingOther = branchId !== null && viewBranch !== branchId
   // New bookings go to the branch on screen (e.g. Main taking a call for North); "All branches" books at your own.
   const bookingBranchId = viewBranch !== ALL_BRANCHES ? viewBranch : branchId

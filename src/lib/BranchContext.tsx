@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { supabase } from './supabase'
 import { useAuth } from './AuthContext'
 import { useLanguage } from './i18n/LanguageContext'
-import { pickableBranches, startingBranch } from './branchChoice'
+import { ALL_BRANCHES, pickableBranches, startingBranch } from './branchChoice'
 import type { Database } from './database.types'
 
 export type Branch = Database['public']['Tables']['branches']['Row']
@@ -132,4 +132,18 @@ export function useBranch() {
   const value = useContext(BranchContext)
   if (!value) throw new Error('useBranch must be used inside BranchProvider')
   return value
+}
+
+// A page's branch filter: starts on the picked branch (or all), and follows a
+// switch from the sidebar instead of staying on the old branch.
+export function useBranchView(startOnAll = false) {
+  const { branchId } = useBranch()
+  const start = startOnAll || !branchId ? ALL_BRANCHES : branchId
+  const [view, setView] = useState(start)
+  const [seenBranchId, setSeenBranchId] = useState(branchId)
+  if (seenBranchId !== branchId) {
+    setSeenBranchId(branchId)
+    setView(start)
+  }
+  return [view, setView] as const
 }
