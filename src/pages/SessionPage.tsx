@@ -138,25 +138,16 @@ function SessionPage() {
       setError(t('appointments.completionRequired'))
       return
     }
-    // Checked before the status update so a typo in a vital can be fixed
-    // without leaving a completed appointment with no record.
+    // Checked before saving anything so a typo in a vital can be fixed first.
     const vitalsResult = parseVitals({ weight, temperature, heartRate })
     if (!vitalsResult.ok) {
       setError(t(vitalsResult.errorKey))
       return
     }
 
+    // Record first, then the status: a failed save must never leave a
+    // completed appointment without its record.
     setSaving(true)
-    const { error: appointmentError } = await supabase
-      .from('appointments')
-      .update({ status: 'completed' })
-      .eq('id', appointment.id)
-    if (appointmentError) {
-      setError(appointmentError.message)
-      setSaving(false)
-      return
-    }
-
     const { data: newRecord, error: recordError } = await supabase
       .from('medical_records')
       .insert({
@@ -177,6 +168,18 @@ function SessionPage() {
       .single()
     if (recordError || !newRecord) {
       setError(t('appointments.recordFailed', { error: recordError?.message ?? '' }))
+      setSaving(false)
+      return
+    }
+
+    const { error: appointmentError } = await supabase
+      .from('appointments')
+      .update({ status: 'completed' })
+      .eq('id', appointment.id)
+    if (appointmentError) {
+      // Undo the record so pressing Finish again doesn't save it twice.
+      await supabase.from('medical_records').delete().eq('id', newRecord.id)
+      setError(appointmentError.message)
       setSaving(false)
       return
     }

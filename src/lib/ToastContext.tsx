@@ -63,10 +63,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="toast-stack">
+      {/* Always mounted so screen readers announce toasts added later. */}
+      <div className="toast-stack" aria-live="polite">
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            role={toast.type === 'error' ? 'alert' : undefined}
             className={`toast toast-${toast.type}`}
             onClick={() => dismiss(toast.id)}
             onMouseEnter={() => handleMouseEnter(toast.id)}

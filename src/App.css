@@ -2366,6 +2366,15 @@ input[type='checkbox']:focus-visible {
   color: var(--danger-deep);
 }
 
+/* Touch screens get 44px targets; mouse users keep the compact size. */
+@media (pointer: coarse) {
+  .secondary-button,
+  .delete-button,
+  .cancel-button {
+    min-height: 44px;
+  }
+}
+
 .admin-file-label {
   display: inline-flex;
   align-items: center;
