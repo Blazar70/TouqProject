@@ -12,6 +12,7 @@ import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subs
 import Ltr from '../components/Ltr'
 import BranchesPanel from '../components/BranchesPanel'
 import ClinicLogoField from '../components/ClinicLogoField'
+import { isValidVatNumber } from '../lib/invoiceMath'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
@@ -61,6 +62,10 @@ function SettingsPage() {
   const [clinicPhone, setClinicPhone] = useState('')
   const [savingClinic, setSavingClinic] = useState(false)
   const [clinicError, setClinicError] = useState<string | null>(null)
+  const [vatNumber, setVatNumber] = useState('')
+  const [maxDiscount, setMaxDiscount] = useState('10')
+  const [savingBilling, setSavingBilling] = useState(false)
+  const [billingError, setBillingError] = useState<string | null>(null)
 
   const [services, setServices] = useState<Service[]>([])
   const [loadingServices, setLoadingServices] = useState(false)
@@ -103,13 +108,15 @@ function SettingsPage() {
     if (!profile?.clinic_id) return
     supabase
       .from('clinics')
-      .select('name, phone')
+      .select('name, phone, vat_number, max_staff_discount_percent')
       .eq('id', profile.clinic_id)
       .single()
       .then(({ data }) => {
         if (data) {
           setClinicName(data.name)
           setClinicPhone(data.phone ?? '')
+          setVatNumber(data.vat_number ?? '')
+          setMaxDiscount(String(data.max_staff_discount_percent))
         }
       })
   }, [profile?.clinic_id])
@@ -269,6 +276,34 @@ function SettingsPage() {
     refreshClinicName()
   }
 
+  // Managers only; the DB refuses everyone else (0061).
+  async function handleSaveBilling(e: FormEvent) {
+    e.preventDefault()
+    setBillingError(null)
+    if (!profile?.clinic_id) return
+    const vat = vatNumber.trim()
+    const max = parseFloat(maxDiscount)
+    if (vat && !isValidVatNumber(vat)) {
+      setBillingError(t('settings.vatNumberInvalid'))
+      return
+    }
+    if (Number.isNaN(max) || max < 0 || max > 100) {
+      setBillingError(t('payments.invalidAmount'))
+      return
+    }
+    setSavingBilling(true)
+    const { error } = await supabase
+      .from('clinics')
+      .update({ vat_number: vat || null, max_staff_discount_percent: max })
+      .eq('id', profile.clinic_id)
+    setSavingBilling(false)
+    if (error) {
+      setBillingError(error.message)
+      return
+    }
+    toast.success(t('settings.savedChanges'))
+  }
+
   async function handleSaveAccount(e: FormEvent) {
     e.preventDefault()
     setAccountError(null)
@@ -388,6 +423,50 @@ function SettingsPage() {
               {savingClinic ? t('common.saving') : t('common.saveChanges')}
             </button>
           </form>
+          </div>
+        </div>
+      )}
+
+      {isManager && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('settings.billing')}</h2>
+            <p className="pet-owner">{t('settings.billingHint')}</p>
+          </div>
+          <div className="settings-body">
+            <form onSubmit={handleSaveBilling} className="pet-form">
+              {billingError && <p className="form-error">{billingError}</p>}
+              <label>
+                {t('settings.vatNumber')}
+                <input
+                  value={vatNumber}
+                  onChange={(e) => setVatNumber(e.target.value.replace(/D/g, ''))}
+                  dir="ltr"
+                  inputMode="numeric"
+                  maxLength={15}
+                  placeholder="3XXXXXXXXXXXXX3"
+                />
+              </label>
+              <label>
+                {t('settings.maxDiscount')}
+                <input
+                  type="number"
+                  className="no-spinner"
+                  dir="ltr"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={maxDiscount}
+                  onChange={(e) => setMaxDiscount(e.target.value)}
+                  required
+                />
+                <span className="pet-owner">{t('settings.maxDiscountHint')}</span>
+              </label>
+              <button type="submit" disabled={savingBilling}>
+                {savingBilling ? t('common.saving') : t('common.saveChanges')}
+              </button>
+            </form>
           </div>
         </div>
       )}

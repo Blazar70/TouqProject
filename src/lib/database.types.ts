@@ -226,6 +226,7 @@ export type Database = {
           clinic_id: string
           created_at: string
           id: string
+          invoice_code: string
           is_main: boolean
           name: string
           name_ar: string | null
@@ -237,6 +238,7 @@ export type Database = {
           clinic_id: string
           created_at?: string
           id?: string
+          invoice_code?: string
           is_main?: boolean
           name: string
           name_ar?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           clinic_id?: string
           created_at?: string
           id?: string
+          invoice_code?: string
           is_main?: boolean
           name?: string
           name_ar?: string | null
@@ -271,9 +274,11 @@ export type Database = {
           disabled: boolean
           id: string
           logo_url: string | null
+          max_staff_discount_percent: number
           name: string
           phone: string | null
           timezone: string
+          vat_number: string | null
         }
         Insert: {
           billing_status?: string
@@ -282,9 +287,11 @@ export type Database = {
           disabled?: boolean
           id?: string
           logo_url?: string | null
+          max_staff_discount_percent?: number
           name: string
           phone?: string | null
           timezone?: string
+          vat_number?: string | null
         }
         Update: {
           billing_status?: string
@@ -293,9 +300,11 @@ export type Database = {
           disabled?: boolean
           id?: string
           logo_url?: string | null
+          max_staff_discount_percent?: number
           name?: string
           phone?: string | null
           timezone?: string
+          vat_number?: string | null
         }
         Relationships: []
       }
@@ -332,34 +341,54 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_notes: {
+        Row: {
+          amount: number
+          branch_id: string
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          credit_number: string
+          id: string
+          invoice_id: string
+          item_ids: string[]
+          reason: string
+          refund_amount: number
+          refund_method: string
+          vat_amount: number
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "credit_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
+          bill_discount_share: number
           description: string
+          discount_amount: number
+          discount_reason: string | null
+          discount_type: string | null
+          discount_value: number | null
           id: string
           invoice_id: string
           line_total: number
+          position: number
           quantity: number
           service_id: string | null
           unit_price: number
+          vat_amount: number
+          vat_rate: number
         }
-        Insert: {
-          description: string
-          id?: string
-          invoice_id: string
-          line_total: number
-          quantity?: number
-          service_id?: string | null
-          unit_price: number
-        }
-        Update: {
-          description?: string
-          id?: string
-          invoice_id?: string
-          line_total?: number
-          quantity?: number
-          service_id?: string | null
-          unit_price?: number
-        }
+        Insert: never
+        Update: never
         Relationships: [
           {
             foreignKeyName: "invoice_items_invoice_id_fkey"
@@ -377,55 +406,54 @@ export type Database = {
           },
         ]
       }
+      invoice_payments: {
+        Row: {
+          amount: number
+          branch_id: string
+          clinic_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          method: string
+          paid_at: string
+          received_by: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
+          amount_credited: number
+          amount_paid: number
+          amount_refunded: number
           amount_total: number
           appointment_id: string | null
           branch_id: string
           clinic_id: string
           created_at: string
           created_by: string
+          discount_amount: number
+          discount_reason: string | null
+          discount_type: string | null
+          discount_value: number | null
           id: string
-          method: string
+          invoice_number: string
           notes: string | null
-          paid_at: string
+          payment_status: string
           pet_id: string
-          status: string
-          verified_at: string | null
-          verified_by: string | null
+          vat_total: number
         }
-        Insert: {
-          amount_total: number
-          appointment_id?: string | null
-          branch_id: string
-          clinic_id: string
-          created_at?: string
-          created_by: string
-          id?: string
-          method: string
-          notes?: string | null
-          paid_at?: string
-          pet_id: string
-          status?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
-        Update: {
-          amount_total?: number
-          appointment_id?: string | null
-          branch_id?: string
-          clinic_id?: string
-          created_at?: string
-          created_by?: string
-          id?: string
-          method?: string
-          notes?: string | null
-          paid_at?: string
-          pet_id?: string
-          status?: string
-          verified_at?: string | null
-          verified_by?: string | null
-        }
+        Insert: never
+        Update: never
         Relationships: [
           {
             foreignKeyName: "invoices_appointment_id_fkey"
@@ -460,13 +488,6 @@ export type Database = {
             columns: ["pet_id"]
             isOneToOne: false
             referencedRelation: "pets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoices_verified_by_fkey"
-            columns: ["verified_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1005,6 +1026,27 @@ export type Database = {
       current_user_id_if_active: { Args: never; Returns: string }
       current_user_is_admin: { Args: never; Returns: boolean }
       current_user_is_clinic_manager: { Args: never; Returns: boolean }
+      create_invoice: {
+        Args: {
+          p_pet: string
+          p_branch: string | null
+          p_appointment: string | null
+          p_notes: string | null
+          p_lines: Json
+          p_discount: Json | null
+          p_payments: Json
+          p_paid_at?: string
+        }
+        Returns: string
+      }
+      add_invoice_payment: {
+        Args: { p_invoice: string; p_method: string; p_amount: number; p_branch?: string | null }
+        Returns: undefined
+      }
+      create_credit_note: {
+        Args: { p_invoice: string; p_item_ids: string[] | null; p_amount: number | null; p_reason: string; p_refund_method: string }
+        Returns: string
+      }
       can_manage_doctor_time_off: { Args: { p_doctor: string }; Returns: boolean }
       doctor_time_off_periods: {
         Args: { p_from: string; p_to: string }

@@ -3,7 +3,7 @@ export const DEFAULT_VAT_RATE = 15
 
 // Round to 2 decimals (halalas). EPSILON nudges values like 1.005 that are
 // stored as 1.00499999… so they round up the way a person would expect.
-function roundHalalas(value: number): number {
+export function roundHalalas(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 

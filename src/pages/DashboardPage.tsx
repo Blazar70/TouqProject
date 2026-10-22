@@ -66,8 +66,8 @@ function DashboardPage() {
       ).order('scheduled_at', { ascending: true }),
       byBranch(
         supabase
-          .from('invoices')
-          .select('amount_total')
+          .from('invoice_payments')
+          .select('amount')
           .gte('paid_at', dayStart.toISOString())
           .lt('paid_at', dayEnd.toISOString()),
       ),
@@ -91,7 +91,7 @@ function DashboardPage() {
       ),
     ])
     setToday(todayRes.data ?? [])
-    setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount_total))
+    setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount))
     setRecentRecords(recordsRes.data ?? [])
     setVaccinationsDue(
       (petsRes.data ?? []).filter((pet) => {

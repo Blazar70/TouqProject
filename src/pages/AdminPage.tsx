@@ -20,6 +20,7 @@ import { CLINIC_LOGOS_BUCKET, clinicLogoUrl } from '../lib/imageUpload'
 import BranchesPanel from '../components/BranchesPanel'
 import ClinicLogoField from '../components/ClinicLogoField'
 import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
+import { isValidVatNumber } from '../lib/invoiceMath'
 import { CLINIC_ROLES, parseStaffLogin } from '../../supabase/functions/_shared/staffRules'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
@@ -82,6 +83,7 @@ function AdminPage() {
   const [editingClinicId, setEditingClinicId] = useState<string | null>(null)
   const [editClinicName, setEditClinicName] = useState('')
   const [editClinicBillingStatus, setEditClinicBillingStatus] = useState<string>('active')
+  const [editClinicVat, setEditClinicVat] = useState('')
   const [savingClinicEdit, setSavingClinicEdit] = useState(false)
 
   const [selectedClinicIds, setSelectedClinicIds] = useState<Set<string>>(new Set())
@@ -445,16 +447,21 @@ function AdminPage() {
     setEditingClinicId(clinic.id)
     setEditClinicName(clinic.name)
     setEditClinicBillingStatus(clinic.billing_status)
+    setEditClinicVat(clinic.vat_number ?? '')
   }
 
   async function handleSaveClinicEdit(e: FormEvent, clinic: Clinic) {
     e.preventDefault()
     if (!editClinicName.trim()) return
+    if (editClinicVat && !isValidVatNumber(editClinicVat)) {
+      toast.error(t('settings.vatNumberInvalid'))
+      return
+    }
 
     setSavingClinicEdit(true)
     const { data, error } = await supabase
       .from('clinics')
-      .update({ name: editClinicName.trim(), billing_status: editClinicBillingStatus })
+      .update({ name: editClinicName.trim(), billing_status: editClinicBillingStatus, vat_number: editClinicVat || null })
       .eq('id', clinic.id)
       .select()
       .single()
@@ -1158,6 +1165,17 @@ function AdminPage() {
                               </option>
                             ))}
                           </select>
+                        </label>
+                        <label>
+                          {t('settings.vatNumber')}
+                          <input
+                            value={editClinicVat}
+                            onChange={(e) => setEditClinicVat(e.target.value.replace(/D/g, ''))}
+                            dir="ltr"
+                            inputMode="numeric"
+                            maxLength={15}
+                            placeholder="3XXXXXXXXXXXXX3"
+                          />
                         </label>
                         <div className="record-edit-actions">
                           <button type="submit" disabled={savingClinicEdit}>
