@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatDateTime, formatIsoDate, formatMoney } from './format'
+import { clinicDay, formatDate, formatDateTime, formatIsoDate, formatMoney } from './format'
 
 describe('format', () => {
+  it('gives the clinic day in Riyadh time, whatever the device zone', () => {
+    expect(clinicDay('2026-10-19T20:59:30Z')).toBe('2026-10-19')
+    expect(clinicDay('2026-10-19T21:00:30Z')).toBe('2026-10-20')
+  })
+
   it('formats dates with a month name', () => {
     expect(formatDate(new Date(2026, 8, 21, 15, 30))).toBe('Sep 21, 2026')
   })

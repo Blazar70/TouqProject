@@ -48,8 +48,17 @@ export type VisitSummary = {
   photoUrl?: string | null
 }
 
+/** A report: titled tables of ready-formatted cells; `num` marks right-aligned LTR columns. */
+export type ReportDoc = {
+  title: string
+  meta: string[]
+  sections: { title?: string; head: string[]; num: boolean[]; rows: string[][]; foot?: string[] }[]
+  note?: string
+}
+
 type PrintContextValue = {
   printInvoice: (doc: InvoiceDoc) => void
+  printReport: (doc: ReportDoc) => void
   printSummary: (petName: string, visit: VisitSummary, petNumber?: number) => void
   printHistory: (petName: string, visits: VisitSummary[], petNumber?: number) => void
 }
@@ -303,6 +312,40 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
 </html>`
 }
 
+function buildReportDocument(doc: ReportDoc, clinicLabel: string, printedOn: string, rtl: boolean) {
+  const cells = (row: string[], num: boolean[], tag: 'td' | 'th') =>
+    row.map((c, i) => (num[i] ? `<${tag} class="num"><span dir="ltr">${escapeHtml(c)}</span></${tag}>` : `<${tag}>${escapeHtml(c)}</${tag}>`)).join('')
+  const sections = doc.sections
+    .map(
+      (s) => `${s.title ? `<h2>${escapeHtml(s.title)}</h2>` : ''}<table>
+        <tr>${cells(s.head, s.num, 'th')}</tr>
+        ${s.rows.map((r) => `<tr>${cells(r, s.num, 'td')}</tr>`).join('')}
+        ${s.foot ? `<tr class="report-foot">${cells(s.foot, s.num, 'td')}</tr>` : ''}
+      </table>`,
+    )
+    .join('')
+  return `<!doctype html>
+<html dir="${rtl ? 'rtl' : 'ltr'}">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(doc.title)}</title>
+    <style>${PRINT_STYLES}${INVOICE_STYLES} h2 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; } .report-foot td { font-weight: 700; border-top: 2px solid #000; }</style>
+  </head>
+  <body>
+    <header class="print-header">
+      <div>
+        <h1>${escapeHtml(clinicLabel)}</h1>
+        <p>${escapeHtml(doc.title)}</p>
+      </div>
+      <div class="print-printed-at">${escapeHtml(printedOn)} <span dir="ltr">${escapeHtml(formatDateTime(new Date()))}</span></div>
+    </header>
+    ${doc.meta.map((m) => `<p>${escapeHtml(m)}</p>`).join('')}
+    ${sections}
+    ${doc.note ? `<p class="print-printed-at">${escapeHtml(doc.note)}</p>` : ''}
+  </body>
+</html>`
+}
+
 export function PrintProvider({ children }: { children: ReactNode }) {
   const { t, language } = useLanguage()
   const { clinicName, clinicPhone, clinicLogoUrl: logo } = useAuth()
@@ -352,7 +395,22 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     [clinicName, clinicPhone, logo, language, t],
   )
 
-  return <PrintContext.Provider value={{ printInvoice, printSummary, printHistory }}>{children}</PrintContext.Provider>
+  const printReport = useCallback(
+    (doc: ReportDoc) => {
+      const printWindow = window.open('', '_blank', 'width=1000,height=1000')
+      if (!printWindow) return
+      printWindow.document.open()
+      printWindow.document.write(buildReportDocument(doc, clinicName ?? t('auth.brand'), t('printSummary.printedOn'), language === 'ar'))
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+    },
+    [clinicName, language, t],
+  )
+
+  return <PrintContext.Provider value={{ printInvoice, printSummary, printHistory, printReport }}>{children}</PrintContext.Provider>
 }
 
 export function usePrintSummary() {

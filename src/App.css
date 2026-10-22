@@ -3825,6 +3825,96 @@ input[type='checkbox']:focus-visible {
   --data-cols: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) 11rem;
 }
 
+/* ReportsPage: one tab per report, then a panel with filters, tiles and tables. */
+.report-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.report-tab {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.report-tab:hover {
+  background: var(--bg-tint-hover);
+}
+
+.report-tab[aria-selected='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.report-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.report-filters {
+  margin: 1rem 0 0.5rem;
+}
+
+.report-note {
+  max-width: 70ch;
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.report-tiles {
+  margin: 1rem 0 1.5rem;
+}
+
+.report-section + .report-section {
+  margin-top: 1.5rem;
+}
+
+.app-main .report-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.report-foot .data-row {
+  background: var(--bg-tint);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.data-r-cash {
+  --data-cols: minmax(0, 1fr) minmax(0, 1fr) 8rem 8rem 8rem 8rem 6rem;
+}
+
+.data-r-visits {
+  --data-cols: 7rem minmax(0, 1fr) 5rem minmax(0, 1fr) 9rem minmax(0, 1fr) minmax(0, 0.8fr) 8rem;
+}
+
+.data-r-bills {
+  --data-cols: 7rem 9rem minmax(0, 1fr) 5rem minmax(0, 1fr) 9rem 7rem 7rem 7rem;
+}
+
+.data-r-services {
+  --data-cols: minmax(0, 1.5fr) 5rem 8rem 8rem 8rem 8rem;
+}
+
+.data-r-branches {
+  --data-cols: minmax(0, 1fr) 8rem 8rem 8rem 8rem;
+}
+
+.data-r-vat {
+  --data-cols: minmax(0, 1fr) 9rem 9rem;
+}
+
 @media (min-width: 1024px) {
   .data-head,
   .data-table .data-row {

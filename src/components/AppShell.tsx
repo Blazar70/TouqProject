@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
+  BarChart3,
   Building2,
   CalendarDays,
   ContactRound,
@@ -58,6 +59,7 @@ const CLINIC_SECTIONS: NavSection[] = [
     title: 'nav.sectionClinic',
     items: [
       { to: '/payments', label: 'nav.payments', icon: Receipt },
+      { to: '/reports', label: 'nav.reports', icon: BarChart3 },
       { to: '/staff', label: 'nav.staff', icon: Users },
     ],
   },

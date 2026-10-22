@@ -1111,6 +1111,49 @@ export type Database = {
         Args: { p_keep: string; p_remove: string }
         Returns: undefined
       }
+      report_cash_up: {
+        Args: { p_day: string; p_branch?: string | null }
+        Returns: { branch_id: string; method: string; payments: number; deposits: number; refunds: number; net: number; entries: number }[]
+      }
+      report_unpaid: {
+        Args: { p_branch?: string | null; p_from?: string | null; p_to?: string | null }
+        Returns: {
+          kind: 'visit' | 'invoice'
+          id: string
+          at: string
+          branch_id: string
+          invoice_number: string | null
+          pet_name: string
+          pet_number: number
+          owner_name: string | null
+          owner_phone: string | null
+          doctor_name: string | null
+          total: number
+          paid: number
+          remaining: number
+        }[]
+      }
+      report_income_services: {
+        Args: { p_from: string; p_to: string; p_branch?: string | null }
+        Returns: { service_id: string | null; service_name: string | null; quantity: number; net: number; vat: number; total: number; credited: number }[]
+      }
+      report_income_branches: {
+        Args: { p_from: string; p_to: string; p_branch?: string | null }
+        Returns: { branch_id: string; invoiced: number; credited: number; net: number; collected: number }[]
+      }
+      report_vat_summary: {
+        Args: { p_from: string; p_to: string; p_branch?: string | null }
+        Returns: {
+          vat_rate: number
+          sales_net: number
+          sales_vat: number
+          discounts: number
+          credit_net: number
+          credit_vat: number
+          net_taxable: number
+          net_vat: number
+        }[]
+      }
       can_manage_doctor_time_off: { Args: { p_doctor: string }; Returns: boolean }
       doctor_time_off_periods: {
         Args: { p_from: string; p_to: string }
