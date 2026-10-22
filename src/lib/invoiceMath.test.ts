@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { amountRemaining, defaultInvoiceCode, discountPercent, invoiceTotals, isDiscountValid, isValidVatNumber } from './invoiceMath'
+import { amountRemaining, balanceUsed, defaultInvoiceCode, discountPercent, invoiceTotals, isDiscountValid, isValidVatNumber, methodsFor } from './invoiceMath'
+
+describe('owner balance as a payment method', () => {
+  it('adds up only the balance parts', () => {
+    expect(balanceUsed([{ method: 'balance', amount: 100.1 }, { method: 'cash', amount: 50 }, { method: 'balance', amount: 49.9 }])).toBe(150)
+    expect(balanceUsed([{ method: 'card', amount: 10 }])).toBe(0)
+  })
+
+  it('offers Balance only when the owner has some', () => {
+    expect(methodsFor(0)).not.toContain('balance')
+    expect(methodsFor(null)).not.toContain('balance')
+    expect(methodsFor(25)).toContain('balance')
+  })
+})
 
 const reason = 'r'
 

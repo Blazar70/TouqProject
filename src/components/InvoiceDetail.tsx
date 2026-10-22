@@ -6,7 +6,7 @@ import { useToast } from '../lib/ToastContext'
 import { usePrintSummary } from '../lib/PrintContext'
 import type { InvoiceDoc } from '../lib/PrintContext'
 import { formatDateTime, formatMoney } from '../lib/format'
-import { INVOICE_SELECT, METHOD_LABEL_KEYS, PAYMENT_METHODS, amountRemaining } from '../lib/invoiceMath'
+import { INVOICE_SELECT, METHOD_LABEL_KEYS, PAYMENT_METHODS, amountRemaining, methodsFor } from '../lib/invoiceMath'
 import type { InvoiceFull, PaymentMethod } from '../lib/invoiceMath'
 import PaymentStatusBadge from './PaymentStatusBadge'
 import Ltr from './Ltr'
@@ -32,11 +32,11 @@ function Money({ amount }: { amount: number }) {
   )
 }
 
-function MethodToggle({ value, onChange }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void }) {
+function MethodToggle({ value, onChange, methods }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void; methods: PaymentMethod[] }) {
   const { t } = useLanguage()
   return (
     <div className="method-toggle">
-      {PAYMENT_METHODS.map((m) => (
+      {methods.map((m) => (
         <button
           key={m}
           type="button"
@@ -64,6 +64,9 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The pet's owner's prepaid balance (0064), loaded when paying or crediting.
+  const [ownerBalance, setOwnerBalance] = useState<number | null>(null)
+  const balanceText = `${formatMoney(ownerBalance ?? 0)} ${t('common.currency')}`
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -89,6 +92,14 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
     setCreditItems([])
     setReason('')
     setError(null)
+    if (invoice.pets) {
+      supabase
+        .from('owner_files')
+        .select('balance')
+        .eq('id', invoice.pets.owner_file_id)
+        .single()
+        .then(({ data }) => setOwnerBalance(data?.balance ?? null))
+    }
   }
 
   async function reload() {
@@ -103,11 +114,15 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       setError(t('payments.invalidAmount'))
       return
     }
+    if (method === 'balance' && value > (ownerBalance ?? 0)) {
+      setError(t('owners.notEnoughBalance', { amount: balanceText }))
+      return
+    }
     setSaving(true)
     const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId })
     setSaving(false)
     if (rpcError) {
-      setError(rpcError.message)
+      setError(rpcError.message.startsWith('Not enough balance') ? t('owners.notEnoughBalance', { amount: balanceText }) : rpcError.message)
       return
     }
     toast.success(t('payments.paymentAdded'))
@@ -318,7 +333,8 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
         {mode === 'pay' && (
           <form className="pet-form invoice-action-form" onSubmit={handlePay}>
             {error && <p className="form-error">{error}</p>}
-            <MethodToggle value={method} onChange={setMethod} />
+            <MethodToggle value={method} onChange={setMethod} methods={methodsFor(ownerBalance)} />
+            {ownerBalance !== null && <p className="owner-balance-note">{t('owners.ownerBalance', { amount: balanceText })}</p>}
             <label>
               {t('payments.amount')}
               <input type="number" inputMode="decimal" className="no-spinner" dir="ltr" min="0.01" step="0.01" max={remaining} value={amount} onChange={(e) => setAmount(e.target.value)} required />
@@ -359,7 +375,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
             </label>
             <div>
               <span className="pet-form-file-field-label">{t('payments.refundMethod')}</span>
-              <MethodToggle value={method} onChange={setMethod} />
+              <MethodToggle value={method} onChange={setMethod} methods={invoice.pets ? [...PAYMENT_METHODS, 'balance'] : [...PAYMENT_METHODS]} />
             </div>
             <div className="record-edit-actions">
               <button type="submit" disabled={saving}>{saving ? t('common.saving') : t('payments.issueCreditNote')}</button>

@@ -19,7 +19,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 | Routes and role gate | `src/App.tsx` (admin vs clinic route sets) |
 | Pages | `src/pages/` |
 | Business rules | `src/lib/` (cancellation, vaccination, appointmentConflicts, ...) |
-| DB schema | `supabase/migrations/` (0001-0062, applied in order; rollbacks in `supabase/rollbacks/`) |
+| DB schema | `supabase/migrations/` (0001-0064, applied in order; rollbacks in `supabase/rollbacks/`) |
 | Generated DB types | `src/lib/database.types.ts` |
 | Edge functions | `supabase/functions/` |
 
@@ -30,7 +30,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 - **Vet** = `user_role = 'vet'`. Roles are `vet`, `owner`, `admin`. Owner accounts are effectively unused.
 - **Clinic role** = `profiles.clinic_role` (0045): manager / doctor / nurse / receptionist, inside a `vet` account. No policy uses it yet.
 - **Branch** = table `branches` (0044), a location of a clinic. Not a data wall: isolation is still by `clinic_id`. The branch someone works at right now is client state (`BranchContext`), not a DB column.
-- **Pet owner** in the UI = text fields on `pets`, not a profile.
+- **Pet owner** = table `owner_files` (0063), the customer, not a profile; `pets.owner_file_id` links it. `pets.owner_name/phone/email` stay as a trigger-synced copy. `pets.owner_id` (-> profiles) is the old unused owner login, not this.
 - **Vaccination** = columns on `pets`, not a table.
 - **Trash** = soft delete (`deleted_at`), 7 days, UI-filtered, pets only. Staff are never trashed: removing = disable (`profiles.disabled` + auth ban).
 

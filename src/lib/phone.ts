@@ -27,3 +27,9 @@ export function isValidClinicPhone(value: string) {
   const digits = value.replace(/\D/g, '')
   return /^[\d+()\-\s]+$/.test(value) && digits.length >= 7 && digits.length <= 15
 }
+
+// One owner per phone: the key two stored numbers share when they are the
+// same phone ("+966501234567", "0501234567"). Mirror of owner_phone_key() (0063).
+export function phoneKey(stored: string | null) {
+  return formatSaudiPhoneInput(stripSaudiPrefix(stored))
+}

@@ -6,6 +6,7 @@ import {
   Activity,
   Building2,
   CalendarDays,
+  ContactRound,
   CreditCard,
   LayoutDashboard,
   LogOut,
@@ -50,6 +51,7 @@ const CLINIC_SECTIONS: NavSection[] = [
       { to: '/', label: 'nav.dashboard', icon: LayoutDashboard, end: true },
       { to: '/appointments', label: 'nav.appointments', icon: CalendarDays },
       { to: '/pets', label: 'nav.pets', icon: PawPrint },
+      { to: '/owners', label: 'nav.owners', icon: ContactRound },
     ],
   },
   {

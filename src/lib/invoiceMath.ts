@@ -4,12 +4,12 @@ import type { Database } from './database.types'
 
 type Tables = Database['public']['Tables']
 export type InvoiceFull = Tables['invoices']['Row'] & {
-  pets: { name: string; pet_number: number } | null
+  pets: { name: string; pet_number: number; owner_file_id: string } | null
   invoice_items: Tables['invoice_items']['Row'][]
   invoice_payments: Tables['invoice_payments']['Row'][]
   credit_notes: Tables['credit_notes']['Row'][]
 }
-export const INVOICE_SELECT = '*, pets(name, pet_number), invoice_items(*), invoice_payments(*), credit_notes(*)'
+export const INVOICE_SELECT = '*, pets(name, pet_number, owner_file_id), invoice_items(*), invoice_payments(*), credit_notes(*)'
 
 // Mirrors create_invoice() in supabase/migrations/0061_invoicing_core.sql so the
 // form shows the totals the database will save. The database is the authority.
@@ -79,11 +79,19 @@ export const isValidInvoiceCode = (code: string) => /^[A-Z0-9]{2,6}$/.test(code)
 /** Saudi VAT registration number: 15 digits, starts and ends with 3. */
 export const isValidVatNumber = (value: string) => /^3\d{13}3$/.test(value)
 
-// invoice_payments.method (0061); 'balance' joins later with owner accounts.
+// invoice_payments.method (0061); 'balance' (0064) is offered only when the owner has some.
 export const PAYMENT_METHODS = ['cash', 'card', 'apple_pay'] as const
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number]
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number] | 'balance'
 export const METHOD_LABEL_KEYS: Record<string, TranslationKey> = {
   cash: 'payments.methodCash',
   card: 'payments.methodCard',
   apple_pay: 'payments.methodApplePay',
+  balance: 'payments.methodBalance',
 }
+
+/** The methods to offer: the owner's balance only when there is some. */
+export const methodsFor = (balance: number | null): PaymentMethod[] => (balance ? [...PAYMENT_METHODS, 'balance'] : [...PAYMENT_METHODS])
+
+/** What the payment parts take from the owner's balance. */
+export const balanceUsed = (payments: { method: string; amount: number }[]) =>
+  roundHalalas(payments.filter((p) => p.method === 'balance').reduce((sum, p) => sum + p.amount, 0))

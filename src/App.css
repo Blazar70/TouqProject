@@ -4049,3 +4049,145 @@ input[type='checkbox']:focus-visible {
 .calendar-resource-header.is-unassigned span {
   color: var(--status-amber-fg);
 }
+
+/* ---- Owners (OwnersPage, OwnerDetail, OwnerPickerModal) ---- */
+.data-owners {
+  --data-cols: minmax(0, 1.2fr) 10rem 7rem 9rem 6rem;
+}
+
+.owner-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.owner-detail-grid {
+  display: grid;
+  gap: 0 2rem;
+}
+
+@media (min-width: 1024px) {
+  .owner-detail-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+}
+
+.owner-contact {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.owner-contact dt {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.owner-contact dd {
+  margin: 0;
+  color: var(--text-h);
+}
+
+.owner-notes {
+  white-space: pre-wrap;
+}
+
+.record-list li.owner-pet-row,
+.owner-detail .record-list li.record-row {
+  align-items: center;
+}
+
+.owner-pet-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.owner-pet-link strong,
+.owner-detail .record-row strong {
+  display: block;
+  color: var(--text-h);
+}
+
+.owner-pet-link:hover strong {
+  color: var(--accent);
+}
+
+.owner-detail .record-actions {
+  align-items: center;
+}
+
+.owner-pick-list {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.record-list li:has(> .owner-pick-row) {
+  padding: 0;
+}
+
+.owner-pick-row {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.owner-pick-row:hover,
+.owner-pick-row:focus-visible {
+  background: var(--bg-tint-hover);
+}
+
+.owner-chosen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-tint);
+}
+
+.owner-balance-note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.pet-form-grid > .owner-chosen,
+.pet-form-grid > .owner-pick-bar {
+  grid-column: 1 / -1;
+  margin-bottom: 0.85rem;
+}
+
+.pet-detail-owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.pet-detail-owner > .pet-owner:first-child {
+  flex-basis: 100%;
+}
+
+.owner-chosen strong {
+  display: block;
+  color: var(--text-h);
+}

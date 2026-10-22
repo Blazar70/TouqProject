@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch } from '../lib/BranchContext'
@@ -23,6 +24,8 @@ import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import { ListSkeleton } from './Skeleton'
 import RequiredMark from './RequiredMark'
 import PhotoThumbnail from './PhotoThumbnail'
+import OwnerPickerModal from './OwnerPickerModal'
+import type { PickedOwner } from './OwnerPickerModal'
 import { formatDate } from '../lib/format'
 
 type Pet = Database['public']['Tables']['pets']['Row']
@@ -72,6 +75,7 @@ function PetDetail({
   const [savingPet, setSavingPet] = useState(false)
   const [petError, setPetError] = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [pickingOwner, setPickingOwner] = useState(false)
 
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loadingRecords, setLoadingRecords] = useState(true)
@@ -157,6 +161,18 @@ function PetDetail({
     onUpdated(data)
     setSavingPet(false)
     toast.success(t('petDetail.petSaved', { name: data.name }))
+  }
+
+  // Moves the pet to another owner file; the database copies that owner's contact onto the pet (0063).
+  async function handleChangeOwner(owner: PickedOwner) {
+    setPickingOwner(false)
+    const { data, error } = await supabase.from('pets').update({ owner_file_id: owner.id }).eq('id', pet.id).select().single()
+    if (error || !data) {
+      setPetError(error?.message ?? t('common.couldNotSave'))
+      return
+    }
+    onUpdated(data)
+    toast.success(t('owners.moved', { pet: data.name, name: owner.name }))
   }
 
   const processPhotoFile = useCallback(
@@ -334,6 +350,26 @@ function PetDetail({
           {t('registerPet.dateOfBirth')}
           <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} disabled={!isVet} />
         </label>
+        <div className="pet-detail-owner">
+          <span className="pet-owner">{t('pets.owner')}</span>
+          {isVet ? (
+            <Link to={`/owners?id=${pet.owner_file_id}`}>
+              <strong>{pet.owner_name}</strong>
+            </Link>
+          ) : (
+            <strong>{pet.owner_name}</strong>
+          )}
+          {pet.owner_phone && (
+            <span className="pet-owner">
+              <Ltr>{pet.owner_phone}</Ltr>
+            </span>
+          )}
+          {isVet && (
+            <button type="button" className="secondary-button" onClick={() => setPickingOwner(true)}>
+              {t('owners.changeOwner')}
+            </button>
+          )}
+        </div>
         {isVet && (
           <>
             <button type="submit" disabled={savingPet}>
@@ -346,6 +382,15 @@ function PetDetail({
           </>
         )}
       </form>
+      {pickingOwner && (
+        <OwnerPickerModal
+          title={t('owners.moveTitle', { pet: pet.name })}
+          excludeId={pet.owner_file_id}
+          allowNew
+          onPick={handleChangeOwner}
+          onClose={() => setPickingOwner(false)}
+        />
+      )}
 
       <div className="pet-detail-main">
         <div className="medical-records">
