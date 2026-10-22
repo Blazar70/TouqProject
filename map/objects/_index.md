@@ -6,6 +6,7 @@ All cards verified 2026-10-14 @ 583fe57. Line numbers in `database.types.ts` are
 - [profiles](people/profiles.md) — login row; role vet / owner / admin; `disabled`
 - [clinics](people/clinics.md) — the tenant; disable / trash; `billing_status`
 - [branches](people/branches.md) — clinic locations + `staff_branches`; one main per clinic; no UI yet (0044-0046)
+- [owner-files](people/owner-files.md) — pet owners (customers) per clinic + prepaid balance ledger `owner_balance_entries` (0063-0064)
 - [staff](people/staff.md) — clinic logins (`profiles` role vet + clinic_role); caregivers retired in 0047
 
 ## care

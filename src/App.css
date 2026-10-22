@@ -4186,3 +4186,8 @@ input[type='checkbox']:focus-visible {
 .pet-detail-owner > .pet-owner:first-child {
   flex-basis: 100%;
 }
+
+.owner-chosen strong {
+  display: block;
+  color: var(--text-h);
+}

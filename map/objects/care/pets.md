@@ -16,7 +16,8 @@ Owner contact is plain text on the pet (0007), because owner logins never took o
 
 ## Shape
 
-- `clinic_id` not null, `owner_id` nullable, `owner_name` not null, `owner_phone`, `owner_email` (0007)
+- `clinic_id` not null, `owner_id` nullable (old owner logins, unused), `owner_name` not null, `owner_phone`, `owner_email` (0007)
+- `owner_file_id` not null (0063) -> [owner-files](../people/owner-files.md), same clinic (composite FK). The owner text columns are a copy kept by triggers: a new pet without an owner file gets one from its text; picking another owner copies its contact; a direct text edit (admin page) edits the owner file. `supabase/migrations/0063_owner_files.sql`
 - `species`, `breed`, `date_of_birth`, `photo_url` (0013)
 - `pet_number` (0052): the visible Pet ID, per clinic from 10001, never changed or reused. Assigned by trigger `pets_assign_pet_number` from table `pet_number_counters` (RLS on, no client access); `pets_prevent_pet_number_change` blocks edits. Unique `(clinic_id, pet_number)`. Shown in the pets list, pet file, prints and payments; searched via `matchesPetSearch` (`src/lib/appointmentSearch.ts`).
 - `home_branch_id` nullable (0046), a default only; pets stay clinic-wide. See [branches](../people/branches.md).
