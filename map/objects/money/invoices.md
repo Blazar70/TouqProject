@@ -34,6 +34,11 @@ Items copy `description` and `unit_price` from the service at sale time, so a la
 - Trigger `appointment_services_guard()` copies name/price/VAT/clinic from the price list on insert (client values ignored), lets only `quantity` change, and refuses any insert/update/delete once an invoice links the appointment. `supabase/migrations/0059_visit_services.sql`, check `supabase/tests/0059_visit_services_check.sql`.
 - UI: `src/components/VisitServices.tsx` on SessionPage and the completed-appointment dialog. "Bill this visit" opens `/payments?bill=<appointment id>`, which pre-fills pet, visit link and one line per service (`src/lib/visitServices.ts`); lines stay editable there.
 
+## Reports (0065)
+
+- `ReportsPage` (`/reports`, nav under Clinic; every staff member for now, phase 4 limits it). Read-only security-invoker SQL functions, days in clinic time (`report_bounds()` uses `clinics.timezone`): `report_cash_up` (one day, per branch and method: payments + owner deposits − credit-note refunds; `balance` shown apart), `report_unpaid` (completed visits without invoice + not-paid invoices), `report_income_services` / `report_income_branches` and `report_vat_summary` (by invoice / credit-note date = accrual; "collected" by payment date). Credit notes are spread over their lines by `report_credit_lines`. Check `supabase/tests/0065_reports_check.sql`, rollback `0065_down.sql`.
+- CSV via `downloadCsv`, print via `PrintContext.printReport()`. Client "today" = `clinicDay()` in `src/lib/format.ts`.
+
 ## Connected to
 
 - **owned-by:** clinics, pets
@@ -42,7 +47,7 @@ Items copy `description` and `unit_price` from the service at sale time, so a la
 
 ## If you change this
 
-- **Hits:** `PaymentsPage` and its daily totals (from `invoice_payments`), DashboardPage revenue (`invoice_payments`), the appointment dialog's Paid / Bill this visit, the calendar Unpaid marker, CSV export (`src/lib/csvExport.ts`), `PrintContext`.
+- **Hits:** `ReportsPage` and the 0065 report functions (any column change), `PaymentsPage` and its daily totals (from `invoice_payments`), DashboardPage revenue (`invoice_payments`), the appointment dialog's Paid / Bill this visit, the calendar Unpaid marker, CSV export (`src/lib/csvExport.ts`), `PrintContext`.
 - **Does not hit:** AdminBillingPage.
 
 ## See
