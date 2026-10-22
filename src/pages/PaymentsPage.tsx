@@ -19,6 +19,7 @@ import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
 import { formatDateTime, formatMoney } from '../lib/format'
 import { toPaymentLines } from '../lib/visitServices'
+import { matchesPetSearch } from '../lib/appointmentSearch'
 import {
   INVOICE_SELECT,
   METHOD_LABEL_KEYS,
@@ -341,7 +342,8 @@ function PaymentsPage() {
     const q = search.trim().toLowerCase()
 
     return invoices.filter((invoice) => {
-      if (q && !invoice.invoice_number.toLowerCase().includes(q) && !invoice.pets?.name.toLowerCase().includes(q)) return false
+      // Invoice number, or the pet: name, Pet ID or owner phone.
+      if (q && !invoice.invoice_number.toLowerCase().includes(q) && !(invoice.pets && matchesPetSearch(invoice.pets, q))) return false
       if (fromIso && invoice.created_at < fromIso) return false
       if (toIso && invoice.created_at > toIso) return false
       if (min !== null && !Number.isNaN(min) && invoice.amount_total < min) return false

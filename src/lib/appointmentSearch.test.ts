@@ -53,6 +53,14 @@ describe('matchesAppointmentSearch', () => {
 describe('matchesPetSearch', () => {
   const pet = { name: 'Luna', owner_phone: null, pet_number: 10001 }
 
+  it('matches a stored +966 phone typed the local way or with spaces', () => {
+    const owned = { name: 'Milo', owner_phone: '+966501234508', pet_number: 10005 }
+    expect(matchesPetSearch(owned, '0501234508')).toBe(true)
+    expect(matchesPetSearch(owned, '050 123 4508')).toBe(true)
+    expect(matchesPetSearch(owned, '+966501234508')).toBe(true)
+    expect(matchesPetSearch(owned, '0509999999')).toBe(false)
+  })
+
   it('matches by name or Pet ID, not by unrelated text', () => {
     expect(matchesPetSearch(pet, ' LUNA ')).toBe(true)
     expect(matchesPetSearch(pet, '10001')).toBe(true)

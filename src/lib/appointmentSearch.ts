@@ -11,9 +11,13 @@ type SearchableAppointment = {
 // Pet name, owner phone or Pet ID (substring). Shared by every pet search box.
 export function matchesPetSearch(pet: SearchablePet, query: string): boolean {
   const normalized = query.trim().toLowerCase()
+  // Phones are stored as +9665…; a local "05…" or spaced number still matches on its digits.
+  const digits = normalized.replace(/[\s+-]/g, '')
+  const localDigits = /^\d{3,}$/.test(digits) ? digits.replace(/^0+/, '') : ''
   return (
     pet.name.toLowerCase().includes(normalized) ||
     (pet.owner_phone ?? '').toLowerCase().includes(normalized) ||
+    (localDigits !== '' && (pet.owner_phone ?? '').replace(/\D/g, '').includes(localDigits)) ||
     String(pet.pet_number).includes(normalized)
   )
 }
