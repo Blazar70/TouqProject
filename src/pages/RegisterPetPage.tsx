@@ -12,6 +12,9 @@ import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from '../components/SpeciesSelect'
 import PhoneInput from '../components/PhoneInput'
 import RequiredMark from '../components/RequiredMark'
+import OwnerPickerModal from '../components/OwnerPickerModal'
+import type { PickedOwner } from '../components/OwnerPickerModal'
+import Ltr from '../components/Ltr'
 import { handleEnterAdvance } from '../lib/formEnterNav'
 
 function RegisterPetPage() {
@@ -27,6 +30,10 @@ function RegisterPetPage() {
   const [ownerName, setOwnerName] = useState('')
   const [ownerPhone, setOwnerPhone] = useState('')
   const [ownerEmail, setOwnerEmail] = useState('')
+  // An existing owner file (0063), or null = a new owner from the fields below.
+  const [owner, setOwner] = useState<PickedOwner | null>(null)
+  const [pickingOwner, setPickingOwner] = useState(false)
+  const [phoneMatch, setPhoneMatch] = useState<PickedOwner | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +72,20 @@ function RegisterPetPage() {
     if (file) processPhotoFile(file)
   }
 
+  // A typed phone that an owner already has: offer that owner instead of a duplicate.
+  useEffect(() => {
+    if (owner || !isValidSaudiMobile(ownerPhone)) {
+      setPhoneMatch(null)
+      return
+    }
+    supabase
+      .from('owner_files')
+      .select('id, name, phone, email, balance')
+      .eq('phone', `+966${ownerPhone}`)
+      .limit(1)
+      .then(({ data }) => setPhoneMatch(data?.[0] ?? null))
+  }, [owner, ownerPhone])
+
   // Pasting a screenshot/copied image (Ctrl+V) works the same as picking a
   // file — no need to click into anything first, this page has nothing else
   // a paste would meaningfully target.
@@ -85,7 +106,7 @@ function RegisterPetPage() {
       return
     }
 
-    if (!isValidSaudiMobile(ownerPhone)) {
+    if (!owner && !isValidSaudiMobile(ownerPhone)) {
       setError(t('registerPet.invalidPhone'))
       return
     }
@@ -99,9 +120,10 @@ function RegisterPetPage() {
         species,
         breed: breed || null,
         date_of_birth: dateOfBirth || null,
-        owner_name: ownerName,
-        owner_phone: `+966${ownerPhone}`,
-        owner_email: ownerEmail || null,
+        // With an owner file the database copies its contact onto the pet; without one it makes a file from these.
+        ...(owner
+          ? { owner_file_id: owner.id, owner_name: owner.name }
+          : { owner_name: ownerName, owner_phone: `+966${ownerPhone}`, owner_email: ownerEmail || null }),
       })
       .select()
       .single()
@@ -167,20 +189,47 @@ function RegisterPetPage() {
           {t('registerPet.dateOfBirth')}
           <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
         </label>
-        <label>
-          {t('registerPet.ownerName')}
-          <RequiredMark />
-          <input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} required />
-        </label>
-        <label>
-          {t('registerPet.ownerPhone')}
-          <RequiredMark />
-          <PhoneInput value={ownerPhone} onChange={setOwnerPhone} invalidMessage={t('registerPet.invalidPhone')} required />
-        </label>
-        <label>
-          {t('registerPet.ownerEmail')}
-          <input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} />
-        </label>
+        {owner ? (
+          <div className="owner-chosen">
+            <span>
+              <strong>{owner.name}</strong>
+              <span className="pet-owner">{owner.phone && <Ltr>{owner.phone}</Ltr>}</span>
+            </span>
+            <button type="button" className="secondary-button" onClick={() => setOwner(null)}>
+              {t('owners.newOwner')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="owner-pick-bar">
+              <button type="button" className="secondary-button" onClick={() => setPickingOwner(true)}>
+                {t('owners.pickExisting')}
+              </button>
+            </div>
+            <label>
+              {t('registerPet.ownerName')}
+              <RequiredMark />
+              <input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} required />
+            </label>
+            <label>
+              {t('registerPet.ownerPhone')}
+              <RequiredMark />
+              <PhoneInput value={ownerPhone} onChange={setOwnerPhone} invalidMessage={t('registerPet.invalidPhone')} required />
+            </label>
+            <label>
+              {t('registerPet.ownerEmail')}
+              <input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} />
+            </label>
+            {phoneMatch && (
+              <div className="owner-chosen">
+                <span>{t('owners.phoneMatch', { name: phoneMatch.name })}</span>
+                <button type="button" className="secondary-button" onClick={() => setOwner(phoneMatch)}>
+                  {t('owners.useThisOwner')}
+                </button>
+              </div>
+            )}
+          </>
+        )}
         <div className="record-edit-actions">
           <button type="submit" className="primary-button" disabled={submitting}>
             {submitting ? t('common.saving') : t('registerPet.submit')}
@@ -190,6 +239,16 @@ function RegisterPetPage() {
           </button>
         </div>
       </form>
+      {pickingOwner && (
+        <OwnerPickerModal
+          title={t('owners.pickExisting')}
+          onPick={(picked) => {
+            setOwner(picked)
+            setPickingOwner(false)
+          }}
+          onClose={() => setPickingOwner(false)}
+        />
+      )}
     </div>
   )
 }

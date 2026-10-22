@@ -12,9 +12,9 @@ import { clinicLogoUrl } from './imageUpload'
 import { zatcaTlvBase64 } from './zatcaQr'
 import qrcode from 'qrcode-generator'
 
-/** An invoice or credit note, ready to print. Amounts are VAT-inclusive. */
+/** An invoice, credit note or balance deposit receipt, ready to print. Amounts are VAT-inclusive. */
 export type InvoiceDoc = {
-  kind: 'invoice' | 'credit_note'
+  kind: 'invoice' | 'credit_note' | 'deposit'
   number: string
   /** Credit note: the invoice it corrects. */
   invoiceNumber?: string
@@ -34,6 +34,9 @@ export type InvoiceDoc = {
   remaining?: number
   reason?: string
   refund?: { method: TranslationKey; amount: number }
+  /** Deposit: whose balance, and what it is after. */
+  owner?: string
+  balanceAfter?: number
 }
 
 export type VisitSummary = {
@@ -209,7 +212,8 @@ const INVOICE_STYLES = `
 `
 
 function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone: string | null, logo: string | null, rtl: boolean) {
-  const title = doc.kind === 'invoice' ? bi('print.taxInvoice') : bi('payments.creditNote')
+  const title = bi(doc.kind === 'invoice' ? 'print.taxInvoice' : doc.kind === 'credit_note' ? 'payments.creditNote' : 'owners.depositReceipt')
+  const deposit = doc.kind === 'deposit'
   // ZATCA phase 1: seller, VAT number, time, total and VAT as Base64 TLV in a QR code.
   let qr = ''
   if (doc.vatNumber) {
@@ -227,11 +231,12 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
   }
   const ltr = (value: string | number) => `<span dir="ltr">${escapeHtml(String(value))}</span>`
   const meta = [
-    [bi(doc.kind === 'invoice' ? 'payments.invoiceNumber' : 'payments.creditNote'), ltr(doc.number)],
+    [bi(doc.kind === 'invoice' ? 'payments.invoiceNumber' : doc.kind === 'credit_note' ? 'payments.creditNote' : 'owners.depositReceipt'), ltr(doc.number)],
     doc.invoiceNumber ? [bi('print.forInvoice'), ltr(doc.invoiceNumber)] : null,
     [bi('payments.date'), ltr(formatDateTime(doc.date))],
     [bi('print.branch'), escapeHtml(doc.branch)],
     doc.vatNumber ? [bi('settings.vatNumber'), ltr(doc.vatNumber)] : null,
+    doc.owner ? [bi('pets.owner'), escapeHtml(doc.owner)] : null,
     doc.pet ? [bi('payments.pet'), `${escapeHtml(doc.pet.name)} · ${bi('pets.petId')} ${ltr(doc.pet.number)}`] : null,
   ]
     .filter((row) => row !== null)
@@ -248,12 +253,13 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
   const totals = [
     doc.billDiscount ? row(bi('payments.subtotal'), money(doc.total + doc.billDiscount.amount)) : '',
     doc.billDiscount ? row(escapeHtml(doc.billDiscount.label), `${money(-doc.billDiscount.amount)}`, 'inv-discount') : '',
-    row(bi('payments.netTotal'), money(doc.total - doc.vat)),
-    row(`${bi('payments.vat')}${doc.vatRate !== null ? ` ${ltr(`${doc.vatRate}%`)}` : ''}`, money(doc.vat)),
+    deposit ? '' : row(bi('payments.netTotal'), money(doc.total - doc.vat)),
+    deposit ? '' : row(`${bi('payments.vat')}${doc.vatRate !== null ? ` ${ltr(`${doc.vatRate}%`)}` : ''}`, money(doc.vat)),
     row(bi('payments.total'), money(doc.total), 'inv-grand'),
     doc.credited ? row(bi('payments.creditedAmount'), `${money(-doc.credited)}`) : '',
     doc.paid !== undefined ? row(bi('payments.paid'), money(doc.paid)) : '',
     doc.remaining !== undefined ? row(bi('payments.remaining'), money(doc.remaining)) : '',
+    doc.balanceAfter !== undefined ? row(bi('owners.balanceAfter'), money(doc.balanceAfter)) : '',
     doc.refund ? row(`${bi('payments.refund')} (${bi(doc.refund.method)})`, money(doc.refund.amount)) : '',
   ].join('')
   const payments = doc.payments?.length
@@ -289,7 +295,7 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
     <table class="inv-totals">${totals}</table>
     ${payments}
     <div class="inv-foot">
-      <p class="print-printed-at">${bi('payments.pricesIncludeVat')}</p>
+      <p class="print-printed-at">${deposit ? '' : bi('payments.pricesIncludeVat')}</p>
       ${qr}
     </div>
     <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>

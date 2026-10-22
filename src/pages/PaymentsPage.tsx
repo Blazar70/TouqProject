@@ -22,7 +22,8 @@ import { toPaymentLines } from '../lib/visitServices'
 import {
   INVOICE_SELECT,
   METHOD_LABEL_KEYS,
-  PAYMENT_METHODS,
+  balanceUsed,
+  methodsFor,
   discountPercent,
   invoiceTotals,
   isDiscountValid,
@@ -78,6 +79,8 @@ function PaymentsPage() {
   const [todayPayments, setTodayPayments] = useState<{ method: string; amount: number }[]>([])
   const [clinic, setClinic] = useState<{ vat_number: string | null; max_staff_discount_percent: number } | null>(null)
   const [petAppointments, setPetAppointments] = useState<Appointment[]>([])
+  // The picked pet's owner's prepaid balance (0064); null = no pet picked.
+  const [ownerBalance, setOwnerBalance] = useState<number | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
 
   const [petId, setPetId] = useState('')
@@ -144,6 +147,18 @@ function PaymentsPage() {
   // to attach the invoice to — not every invoice has one, so this stays
   // optional and resets whenever the pet is picked (see PetPicker below).
   // shortcut: only the pet's 10 latest visits are offered; a billed visit older than that shows as "no appointment" in the select but stays linked.
+  const ownerFileId = pets.find((p) => p.id === petId)?.owner_file_id
+  useEffect(() => {
+    setOwnerBalance(null)
+    if (!ownerFileId) return
+    supabase
+      .from('owner_files')
+      .select('balance')
+      .eq('id', ownerFileId)
+      .single()
+      .then(({ data }) => setOwnerBalance(data?.balance ?? null))
+  }, [ownerFileId])
+
   useEffect(() => {
     if (!petId) {
       setPetAppointments([])
@@ -257,6 +272,10 @@ function PaymentsPage() {
       setFormError(t('payments.overpaid'))
       return
     }
+    if (balanceUsed(paid) > (ownerBalance ?? 0)) {
+      setFormError(t('owners.notEnoughBalance', { amount: `${formatMoney(ownerBalance ?? 0)} ${t('common.currency')}` }))
+      return
+    }
 
     setSaving(true)
     const { data: id, error } = await supabase.rpc('create_invoice', {
@@ -282,7 +301,9 @@ function PaymentsPage() {
           ? t('payments.alreadyBilled')
           : error?.message.includes('staff limit')
             ? t('payments.discountOverLimit', { max: String(maxDiscount) })
-            : (error?.message ?? t('common.couldNotSave')),
+            : error?.message.startsWith('Not enough balance')
+              ? t('owners.notEnoughBalance', { amount: `${formatMoney(ownerBalance ?? 0)} ${t('common.currency')}` })
+              : (error?.message ?? t('common.couldNotSave')),
       )
       setSaving(false)
       return
@@ -426,6 +447,11 @@ function PaymentsPage() {
                 }}
               />
             </label>
+            {ownerBalance !== null && (
+              <p className="owner-balance-note">
+                {t('owners.ownerBalance', { amount: `${formatMoney(ownerBalance)} ${t('common.currency')}` })}
+              </p>
+            )}
 
             {petId && petAppointments.length > 0 && (
               <label>
@@ -555,7 +581,7 @@ function PaymentsPage() {
               {payRows.map((row) => (
                 <div key={row.key} className="invoice-pay-row">
                   <div className="method-toggle" role="group" aria-label={t('payments.method')}>
-                    {PAYMENT_METHODS.map((m) => (
+                    {methodsFor(ownerBalance).map((m) => (
                       <button
                         key={m}
                         type="button"

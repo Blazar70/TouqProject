@@ -5,6 +5,7 @@ import RegisterPetPage from './pages/RegisterPetPage'
 import AppointmentsPage from './pages/AppointmentsPage'
 import SessionPage from './pages/SessionPage'
 import PaymentsPage from './pages/PaymentsPage'
+import OwnersPage from './pages/OwnersPage'
 import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
@@ -92,6 +93,7 @@ function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/pets" element={<PetsPage />} />
               <Route path="/pets/new" element={<RegisterPetPage />} />
+              <Route path="/owners" element={<OwnersPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
               <Route path="/appointments/:id/session" element={<SessionPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
