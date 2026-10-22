@@ -20,7 +20,7 @@ export type InvoiceLineInput = { unitPrice: number; quantity: number; vatRate: n
 
 /** Discount amount on a VAT-inclusive base. */
 export function discountAmount(base: number, discount: Discount | null): number {
-  if (!discount) return 0
+  if (!discount || !(discount.value > 0)) return 0 // a half-typed discount previews as none
   return discount.type === 'percent' ? roundHalalas((base * discount.value) / 100) : roundHalalas(discount.value)
 }
 

@@ -35,6 +35,10 @@ describe('invoiceTotals (same numbers as supabase/tests/0061_invoicing_core_chec
     expect(t.total).toBe(29)
   })
 
+  it('previews a half-typed discount (empty value) as none', () => {
+    expect(invoiceTotals([{ unitPrice: 80, quantity: 1, vatRate: 15, discount: { type: 'percent', value: NaN, reason } }], null).total).toBe(80)
+  })
+
   it('handles no lines', () => {
     expect(invoiceTotals([], null).total).toBe(0)
   })

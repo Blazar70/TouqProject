@@ -16,7 +16,7 @@ Branches are a working context, not a wall: all staff see all patients of the cl
 
 ## Shape
 
-- `branches`: `clinic_id` (cascade on clinic delete), `name`, `name_ar`, `phone`, `address`, `active` (soft close), `is_main`. One main per clinic: partial unique index `branches_one_main_per_clinic`. `unique (id, clinic_id)` backs the composite FKs below. `supabase/migrations/0044_branches.sql`
+- `branches`: `clinic_id` (cascade on clinic delete), `name`, `name_ar`, `phone`, `address`, `active` (soft close), `is_main`, `invoice_code` (0060: 2-6 A-Z/0-9, unique per clinic, default from the name or BR1, locked once the branch has invoices; set in `BranchesPanel`). One main per clinic: partial unique index `branches_one_main_per_clinic`. `unique (id, clinic_id)` backs the composite FKs below. `supabase/migrations/0044_branches.sql`
 - `staff_branches (profile_id, branch_id)`, PK both, cascade on either side. Managers need no rows (see `current_user_branch_ids()` on [profiles](profiles.md)).
 - Trigger `clinics_create_main_branch` (after insert on clinics) creates "Main" / "الرئيسي" for every new clinic, so `admin-manage-clinic create` needs no change. 0044 backfilled one main branch per existing clinic and made every existing clinic account a member of it.
 - `clinics.timezone` text, default `Asia/Riyadh` (for calendar day bounds, later).

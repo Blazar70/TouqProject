@@ -536,7 +536,7 @@ function PaymentsPage() {
                   <dt>{t('payments.subtotal')}</dt>
                   <dd>{money(totals.rows.reduce((s, r) => s + r.gross, 0))}</dd>
                   <dt>{t('payments.discounts')}</dt>
-                  <dd>−{money(totals.bill + totals.rows.reduce((s, r) => s + r.discount, 0))}</dd>
+                  <dd>{money(-(totals.bill + totals.rows.reduce((s, r) => s + r.discount, 0)))}</dd>
                 </>
               )}
               <dt>{t('payments.netTotal')}</dt>
@@ -699,7 +699,7 @@ function PaymentsPage() {
                     {money(invoice.amount_total)}
                     {invoice.amount_credited > 0 && (
                       <div className="pet-owner">
-                        {t('payments.creditedAmount')} −<Ltr>{formatMoney(invoice.amount_credited)}</Ltr>
+                        {t('payments.creditedAmount')} <Ltr>{formatMoney(-invoice.amount_credited)}</Ltr>
                       </div>
                     )}
                   </span>

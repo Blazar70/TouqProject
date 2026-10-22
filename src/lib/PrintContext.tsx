@@ -203,6 +203,7 @@ const INVOICE_STYLES = `
   .inv-grand td { font-size: 1.15rem; font-weight: 700; border-top: 2px solid #000; }
   .inv-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; margin-top: 1.5rem; }
   .print-qr svg { width: 140px; height: 140px; }
+  .print-header p { text-transform: none; letter-spacing: normal; }
   .print-brand { display: flex; gap: 1rem; align-items: center; }
   .print-logo { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; }
 `
@@ -240,17 +241,17 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
     .map(
       (l) =>
         `<tr><td>${escapeHtml(l.description)}</td><td class="num">${l.quantity}</td><td class="num">${money(l.unitPrice)}</td><td class="num">${money(l.total + (l.discount?.amount ?? 0))}</td></tr>` +
-        (l.discount ? `<tr class="inv-discount"><td colspan="3">${escapeHtml(l.discount.label)}</td><td class="num">−${money(l.discount.amount)}</td></tr>` : ''),
+        (l.discount ? `<tr class="inv-discount"><td colspan="3">${escapeHtml(l.discount.label)}</td><td class="num">${money(-l.discount.amount)}</td></tr>` : ''),
     )
     .join('')
   const row = (label: string, value: string, cls = '') => `<tr class="${cls}"><td>${label}</td><td class="num">${value}</td></tr>`
   const totals = [
     doc.billDiscount ? row(bi('payments.subtotal'), money(doc.total + doc.billDiscount.amount)) : '',
-    doc.billDiscount ? row(escapeHtml(doc.billDiscount.label), `−${money(doc.billDiscount.amount)}`, 'inv-discount') : '',
+    doc.billDiscount ? row(escapeHtml(doc.billDiscount.label), `${money(-doc.billDiscount.amount)}`, 'inv-discount') : '',
     row(bi('payments.netTotal'), money(doc.total - doc.vat)),
     row(`${bi('payments.vat')}${doc.vatRate !== null ? ` ${ltr(`${doc.vatRate}%`)}` : ''}`, money(doc.vat)),
     row(bi('payments.total'), money(doc.total), 'inv-grand'),
-    doc.credited ? row(bi('payments.creditedAmount'), `−${money(doc.credited)}`) : '',
+    doc.credited ? row(bi('payments.creditedAmount'), `${money(-doc.credited)}`) : '',
     doc.paid !== undefined ? row(bi('payments.paid'), money(doc.paid)) : '',
     doc.remaining !== undefined ? row(bi('payments.remaining'), money(doc.remaining)) : '',
     doc.refund ? row(`${bi('payments.refund')} (${bi(doc.refund.method)})`, money(doc.refund.amount)) : '',

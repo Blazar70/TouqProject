@@ -235,7 +235,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
                 <div className="invoice-line invoice-line-discount">
                   <span>{discountLabel(i.discount_type, i.discount_value, i.discount_reason)}</span>
                   <span className="data-num">
-                    −<Money amount={i.discount_amount} />
+                    <Money amount={-(i.discount_amount)} />
                   </span>
                 </div>
               )}
@@ -246,7 +246,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
               <div className="invoice-line invoice-line-discount">
                 <span>{discountLabel(invoice.discount_type, invoice.discount_value, invoice.discount_reason)}</span>
                 <span className="data-num">
-                  −<Money amount={invoice.discount_amount} />
+                  <Money amount={-(invoice.discount_amount)} />
                 </span>
               </div>
             </li>
@@ -265,7 +265,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
           {invoice.amount_credited > 0 && (
             <>
               <dt>{t('payments.creditedAmount')}</dt>
-              <dd>−<Money amount={invoice.amount_credited} /></dd>
+              <dd><Money amount={-(invoice.amount_credited)} /></dd>
               <dt>{t('payments.effectiveTotal')}</dt>
               <dd><Money amount={creditable} /></dd>
             </>
@@ -302,7 +302,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
                     <Ltr>{c.credit_number}</Ltr> <span className="data-muted">· {c.reason}</span>
                   </span>
                   <span className="invoice-line-end">
-                    <span className="data-num">−<Money amount={c.amount} /></span>
+                    <span className="data-num"><Money amount={-(c.amount)} /></span>
                     <button type="button" className="secondary-button" onClick={() => printCredit(c)}>
                       {t('payments.print')}
                     </button>
