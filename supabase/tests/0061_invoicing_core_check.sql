@@ -20,7 +20,7 @@ insert into pets (id, clinic_id, name, species, owner_name) values
   ('f6100000-0000-0000-0000-0000000000a1', 'f6100000-0000-0000-0000-00000000000a', 'Rex', 'dog', 'O');
 insert into services (id, clinic_id, name, price, vat_rate) values
   ('f6100000-0000-0000-0000-0000000000d1', 'f6100000-0000-0000-0000-00000000000a', 'Exam', 130.4348, 15),
-  ('f6100000-0000-0000-0000-0000000000d2', 'f6100000-0000-0000-0000-00000000000a', 'Food', 50, 0);
+  ('f6100000-0000-0000-0000-0000000000d2', 'f6100000-0000-0000-0000-00000000000a', 'Food', 16.67, 0); -- 0062: price-list lines use this price
 
 set local role authenticated;
 

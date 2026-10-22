@@ -490,6 +490,8 @@ function PaymentsPage() {
                       step="0.01"
                       value={item.unitPrice}
                       onChange={(e) => updateItem(item.key, { unitPrice: e.target.value })}
+                      // Price-list lines always use the list price (0062); lower it with a discount.
+                      readOnly={Boolean(item.serviceId)}
                       aria-label={t('payments.unitPrice')}
                     />
                     <button

@@ -2395,6 +2395,12 @@ input[type='checkbox']:focus-visible {
   min-width: 0;
 }
 
+/* Price-list price: fixed (0062), changed only through a discount. */
+.invoice-item-price[readonly] {
+  background: var(--bg-tint);
+  color: var(--text-muted);
+}
+
 .invoice-item-desc {
   grid-row: 2;
   grid-column: 1;
