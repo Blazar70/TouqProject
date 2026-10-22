@@ -597,6 +597,52 @@ export type Database = {
           },
         ]
       }
+      owner_balance_entries: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          credit_note_id: string | null
+          id: string
+          invoice_id: string | null
+          invoice_payment_id: string | null
+          kind: string
+          method: string | null
+          owner_file_id: string
+          reason: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      owner_files: {
+        Row: {
+          balance: number
+          clinic_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          clinic_id: string
+          email?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          email?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       ownership_transfers: {
         Row: {
           from_owner_id: string
@@ -758,6 +804,7 @@ export type Database = {
           next_vaccination_date: string | null
           owner_email: string | null
           owner_id: string | null
+          owner_file_id: string
           owner_name: string
           owner_phone: string | null
           pet_number: number
@@ -777,6 +824,7 @@ export type Database = {
           next_vaccination_date?: string | null
           owner_email?: string | null
           owner_id?: string | null
+          owner_file_id?: string
           owner_name: string
           owner_phone?: string | null
           pet_number?: number
@@ -796,6 +844,7 @@ export type Database = {
           next_vaccination_date?: string | null
           owner_email?: string | null
           owner_id?: string | null
+          owner_file_id?: string
           owner_name?: string
           owner_phone?: string | null
           pet_number?: number
@@ -816,6 +865,13 @@ export type Database = {
             columns: ["home_branch_id", "clinic_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "pets_owner_file_fkey"
+            columns: ["owner_file_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "owner_files"
             referencedColumns: ["id", "clinic_id"]
           },
           {
@@ -1046,6 +1102,14 @@ export type Database = {
       create_credit_note: {
         Args: { p_invoice: string; p_item_ids: string[] | null; p_amount: number | null; p_reason: string; p_refund_method: string }
         Returns: string
+      }
+      add_owner_balance: {
+        Args: { p_owner: string; p_amount: number; p_method: string | null; p_reason?: string | null; p_branch?: string | null }
+        Returns: string
+      }
+      merge_owner_files: {
+        Args: { p_keep: string; p_remove: string }
+        Returns: undefined
       }
       can_manage_doctor_time_off: { Args: { p_doctor: string }; Returns: boolean }
       doctor_time_off_periods: {

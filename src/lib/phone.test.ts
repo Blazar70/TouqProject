@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { formatSaudiPhoneInput, isValidSaudiMobile, stripSaudiPrefix } from './phone'
+import { formatSaudiPhoneInput, isValidSaudiMobile, phoneKey, stripSaudiPrefix } from './phone'
+
+describe('phoneKey', () => {
+  it('gives the same key for the same phone in any stored form', () => {
+    expect(phoneKey('+966501234567')).toBe('501234567')
+    expect(phoneKey('0501234567')).toBe('501234567')
+    expect(phoneKey('050 123 4567')).toBe('501234567')
+  })
+
+  it('is empty when there is no phone', () => {
+    expect(phoneKey(null)).toBe('')
+    expect(phoneKey('')).toBe('')
+  })
+})
 
 describe('formatSaudiPhoneInput', () => {
   it('strips non-digit characters', () => {
