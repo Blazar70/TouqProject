@@ -17,7 +17,7 @@ All cards verified 2026-10-14 @ 583fe57. Line numbers in `database.types.ts` are
 - [ownership-transfers](care/ownership-transfers.md) — **ghost**, nothing uses it
 
 ## money
-- [invoices](money/invoices.md) — what pet owners owe/paid the clinic (+ `invoice_items`, `invoice_payments`, `credit_notes`, per-branch numbers, 0060-0061); also visit services `appointment_services` (0059)
+- [invoices](money/invoices.md) — what pet owners owe/paid the clinic (+ `invoice_items`, `invoice_payments`, `credit_notes`, per-branch numbers, 0060-0061; reports 0065); also visit services `appointment_services` (0059)
 - [services](money/services.md) — clinic price list
 - [payments](money/payments.md) — what a clinic pays Touq (admin-only), NOT pet-owner payments
 

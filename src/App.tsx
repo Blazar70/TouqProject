@@ -6,6 +6,7 @@ import AppointmentsPage from './pages/AppointmentsPage'
 import SessionPage from './pages/SessionPage'
 import PaymentsPage from './pages/PaymentsPage'
 import OwnersPage from './pages/OwnersPage'
+import ReportsPage from './pages/ReportsPage'
 import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
@@ -97,6 +98,8 @@ function App() {
               <Route path="/appointments" element={<AppointmentsPage />} />
               <Route path="/appointments/:id/session" element={<SessionPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
+              {/* shortcut: every clinic staff member can open reports; phase 4 limits them to receptionists and managers. */}
+              <Route path="/reports" element={<ReportsPage />} />
               <Route path="/staff" element={<StaffPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </>
