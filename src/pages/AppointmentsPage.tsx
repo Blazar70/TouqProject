@@ -522,14 +522,6 @@ function AppointmentsPage() {
     if (slot) handleSelectSlot({ start: new Date(slot.dataset.slot!), resourceId: slot.dataset.resource || undefined })
   }
 
-  useEffect(() => {
-    if (!selected) return
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !savingPanel) setSelected(null)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [selected, savingPanel])
 
   // A doctor can only be booked at a branch they work at.
   function doctorsAt(id: string | null) {
@@ -654,14 +646,7 @@ function AppointmentsPage() {
     const isActive = appointment.status === 'requested' || appointment.status === 'confirmed'
     const inSession = appointment.status === 'in_session'
     return (
-      <div className="admin-modal-backdrop" onClick={() => !savingPanel && setSelected(null)}>
-        <div
-          className="admin-modal-card appointment-panel"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="appointment-panel-title"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <Modal onClose={() => !savingPanel && setSelected(null)} labelledBy="appointment-panel-title" className="appointment-panel">
           <div className="appointment-panel-header">
             <div>
               <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
@@ -978,8 +963,7 @@ function AppointmentsPage() {
               </div>
             </>
           )}
-        </div>
-      </div>
+      </Modal>
     )
   }
 

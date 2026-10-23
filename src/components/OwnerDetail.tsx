@@ -402,7 +402,9 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
                   <li key={inv.id} className="record-row">
                     <span>
                       <strong>
-                        <Ltr>{inv.invoice_number}</Ltr>
+                        <Link to={`/payments?invoice=${inv.id}`}>
+                          <Ltr>{inv.invoice_number}</Ltr>
+                        </Link>
                       </strong>
                       <span className="pet-owner">
                         {inv.pets?.name} · <Ltr>{formatDateTime(inv.created_at)}</Ltr>

@@ -10,6 +10,7 @@ import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
 import Ltr from './Ltr'
 import FormError from './FormError'
+import Modal from './Modal'
 
 export type PickedOwner = { id: string; name: string; phone: string | null; email: string | null; balance: number }
 
@@ -47,13 +48,6 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
       })
   }, [])
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -79,8 +73,7 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
   const matches = (owners ?? []).filter((o) => o.id !== excludeId && matchesOwner(o, query)).slice(0, 20)
 
   return (
-    <div className="admin-modal-backdrop" onClick={onClose}>
-      <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="owner-picker-title" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} labelledBy="owner-picker-title">
         <h2 id="owner-picker-title">{title}</h2>
         <FormError message={error} />
         {creating ? (
@@ -155,8 +148,7 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
 

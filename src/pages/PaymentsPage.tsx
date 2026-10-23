@@ -67,6 +67,8 @@ function PaymentsPage() {
   const billId = searchParams.get('bill')
   // From the pet file's "Take payment": start a bill for that pet.
   const forPetId = searchParams.get('pet')
+  // From an owner's invoice list: open that invoice (fetched if older than the loaded history).
+  const invoiceParam = searchParams.get('invoice')
   const isManager = profile?.clinic_role === 'manager'
   const toast = useToast()
 
@@ -126,6 +128,24 @@ function PaymentsPage() {
     }
     load()
   }, [viewBranch, profile?.clinic_id])
+
+  useEffect(() => {
+    if (!invoiceParam) return
+    supabase
+      .from('invoices')
+      .select(INVOICE_SELECT)
+      .eq('id', invoiceParam)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          const invoice = data as InvoiceFull
+          setInvoices((current) => (current.some((i) => i.id === invoice.id) ? current : [invoice, ...current]))
+          setOpenId(invoice.id)
+        }
+        setSearchParams({}, { replace: true })
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceParam])
 
   useEffect(() => {
     if (!forPetId) return
@@ -590,7 +610,7 @@ function PaymentsPage() {
             <div className="invoice-items">
               <span className="pet-form-file-field-label">{t('payments.payments')}</span>
               {payRows.length === 0 && <p className="pet-owner">{t('payments.noPaymentYet')}</p>}
-              {payRows.map((row) => (
+              {payRows.map((row, i) => (
                 <div key={row.key} className="invoice-pay-row">
                   <div className="method-toggle" role="group" aria-label={t('payments.method')}>
                     {methodsFor(ownerBalance).map((m) => (
@@ -599,7 +619,15 @@ function PaymentsPage() {
                         type="button"
                         aria-pressed={row.method === m}
                         className={`secondary-button${row.method === m ? ' method-toggle-active' : ''}`}
-                        onClick={() => updatePayRow(row.key, { method: m })}
+                        onClick={() =>
+                          // Paying from balance: take what it can cover of this row (P1), not more than it holds.
+                          updatePayRow(
+                            row.key,
+                            m === 'balance' && ownerBalance !== null
+                              ? { method: m, amount: Math.min(ownerBalance, payments[i]?.amount ?? 0).toFixed(2) }
+                              : { method: m },
+                          )
+                        }
                       >
                         {t(METHOD_LABEL_KEYS[m])}
                       </button>
@@ -625,6 +653,11 @@ function PaymentsPage() {
                   >
                     <Trash2 size={14} aria-hidden />
                   </button>
+                  {row.method === 'balance' && ownerBalance !== null && (
+                    <span className="invoice-pay-row-note">
+                      {t('owners.ownerBalance', { amount: `${formatMoney(ownerBalance)} ${t('common.currency')}` })}
+                    </span>
+                  )}
                 </div>
               ))}
               <button type="button" className="secondary-button" onClick={() => setPayRows((current) => [...current, newPayRow()])}>

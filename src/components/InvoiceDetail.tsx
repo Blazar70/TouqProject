@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -14,6 +14,7 @@ import PaymentStatusBadge from './PaymentStatusBadge'
 import Ltr from './Ltr'
 import RequiredMark from './RequiredMark'
 import FormError from './FormError'
+import Modal from './Modal'
 import PaidAtField from './PaidAtField'
 
 type Props = {
@@ -75,13 +76,6 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const [ownerBalance, setOwnerBalance] = useState<number | null>(null)
   const balanceText = `${formatMoney(ownerBalance ?? 0)} ${t('common.currency')}`
 
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
 
   const items = [...invoice.invoice_items].sort((a, b) => a.position - b.position)
   const remaining = amountRemaining(invoice)
@@ -238,8 +232,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   }
 
   return (
-    <div className="admin-modal-backdrop" onClick={onClose}>
-      <div className="admin-modal-card invoice-modal" role="dialog" aria-modal="true" aria-labelledby="invoice-title" onClick={(e) => e.stopPropagation()}>
+    <Modal onClose={onClose} labelledBy="invoice-title" className="invoice-modal">
         <div className="panel-header">
           <h2 id="invoice-title">
             <Ltr>{invoice.invoice_number}</Ltr>
@@ -429,8 +422,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </Modal>
   )
 }
 

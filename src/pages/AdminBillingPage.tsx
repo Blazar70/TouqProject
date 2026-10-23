@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import type { TranslationKey } from '../lib/i18n/translations'
 import type { Database } from '../lib/database.types'
 import { downloadCsv } from '../lib/csvExport'
 import RequiredMark from '../components/RequiredMark'
@@ -333,7 +334,7 @@ function AdminBillingPage() {
                 </span>
                 <span>
                   <span className={`status-badge status-${payment.status === 'paid' ? 'active' : payment.status}`}>
-                    {payment.status}
+                    {t(`admin.billing.${payment.status}` as TranslationKey)}
                   </span>
                 </span>
                 <div className="record-actions data-end">
@@ -344,7 +345,7 @@ function AdminBillingPage() {
                   >
                     {PAYMENT_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {t(`admin.billing.${s}`)}
                       </option>
                     ))}
                   </select>

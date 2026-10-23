@@ -20,7 +20,8 @@ function Modal({
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
-    cardRef.current?.focus()
+    // Keep a child's autoFocus (e.g. the main button); otherwise focus the card.
+    if (!cardRef.current?.contains(document.activeElement)) cardRef.current?.focus()
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') closeRef.current()
     }

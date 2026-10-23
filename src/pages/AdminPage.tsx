@@ -1342,9 +1342,8 @@ function AdminPage() {
         </ul>
       )}
 
-      <button type="button" className="admin-trash-fab" onClick={() => setTrashModalOpen(true)} aria-label={t('admin.trash')}>
-        <Trash2 size={20} aria-hidden />
-        {trashedClinics.length > 0 && <span className="admin-trash-fab-count">{trashedClinics.length}</span>}
+      <button type="button" className="secondary-button pets-trash-button" onClick={() => setTrashModalOpen(true)}>
+        <Trash2 size={16} aria-hidden /> {t('admin.deletedClinics', { count: String(trashedClinics.length) })}
       </button>
 
       {petModalOpen && (
