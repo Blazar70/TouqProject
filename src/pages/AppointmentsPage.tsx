@@ -37,6 +37,7 @@ import { calendarCulture, formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
 import FormError from '../components/FormError'
 import Modal from '../components/Modal'
+import BookingPetInfo from '../components/BookingPetInfo'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number } | null
@@ -1181,6 +1182,7 @@ function AppointmentsPage() {
             <RequiredMark />
             <PetPicker pets={pets} value={petId} onChange={setPetId} />
           </label>
+          {pets.find((p) => p.id === petId) && <BookingPetInfo pet={pets.find((p) => p.id === petId)!} />}
           <label>
             {t('appointments.date')}
             <RequiredMark />

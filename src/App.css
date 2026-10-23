@@ -1952,6 +1952,24 @@ input[type='checkbox']:focus-visible {
   cursor: pointer;
 }
 
+/* Booking pop-up: facts about the picked pet, under the Pet field. */
+.booking-pet-info {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-tint);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.booking-pet-info-warn {
+  color: var(--status-amber-fg);
+  font-weight: 600;
+}
+
 .pet-detail-quick {
   display: flex;
   flex-wrap: wrap;
