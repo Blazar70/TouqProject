@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -31,11 +31,11 @@ function PetsPage() {
   const toast = useToast()
   const [pets, setPets] = useState<Pet[]>([])
   const [loading, setLoading] = useState(true)
-  const [expandedPetId, setExpandedPetId] = useState<string | null>(null)
-  const [expandedPetDirty, setExpandedPetDirty] = useState(false)
+  // The open pet file lives in the URL (/pets/<id>): Back closes it, links and reloads reopen it.
+  const { id: expandedPetId = null } = useParams()
+  const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [searchParams, setSearchParams] = useSearchParams()
   const [refreshing, setRefreshing] = useState(false)
 
   const [trashModalOpen, setTrashModalOpen] = useState(false)
@@ -75,22 +75,18 @@ function PetsPage() {
     loadPets()
   }, [])
 
-  // Deep link from the Dashboard's "recent medical records" list — expand
-  // the referenced pet and scroll it into view, then drop the query param
-  // so it doesn't re-trigger on a later manual collapse/re-expand.
+  // Opened by URL (link, Back/Forward, reload): bring the pet into view; an unknown or deleted pet falls back to the list.
   useEffect(() => {
-    if (loading) return
-    const highlightId = searchParams.get('highlight')
-    if (!highlightId) return
-    if (pets.some((pet) => pet.id === highlightId)) {
-      setExpandedPetId(highlightId)
-      requestAnimationFrame(() => {
-        document.getElementById(`pet-row-${highlightId}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      })
+    if (loading || !expandedPetId) return
+    if (!pets.some((pet) => pet.id === expandedPetId)) {
+      navigate('/pets', { replace: true })
+      return
     }
-    setSearchParams({}, { replace: true })
+    requestAnimationFrame(() => {
+      document.getElementById(`pet-row-${expandedPetId}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, pets])
+  }, [loading, expandedPetId])
 
   async function handleDeletePet(pet: Pet) {
     const ok = await confirm(t('pets.deleteConfirm', { name: pet.name, days: String(TRASH_RETENTION_DAYS) }), {
@@ -105,10 +101,7 @@ function PetsPage() {
       return
     }
     setPets((current) => current.filter((p) => p.id !== pet.id))
-    if (expandedPetId === pet.id) {
-      setExpandedPetId(null)
-      setExpandedPetDirty(false)
-    }
+    if (expandedPetId === pet.id) navigate('/pets', { replace: true })
     toast.success(t('pets.deleted', { name: pet.name }))
   }
 
@@ -176,39 +169,16 @@ function PetsPage() {
     toast.success(t('vaccination.markedGiven'))
   }
 
-  function collapsePet(petId: string) {
-    setExpandedPetId(null)
-    setExpandedPetDirty(false)
-    requestAnimationFrame(() => {
-      document.getElementById(`pet-row-${petId}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    })
-  }
-
-  // Switching which pet is expanded swaps the mounted PetDetail entirely —
-  // no route change involved, so useBlocker (which only sees real
-  // navigation) can't catch this. Guard it here instead.
-  async function handleRowToggle(pet: Pet) {
+  // Real navigation now, so PetDetail's unsaved-changes guard (useBlocker) asks before leaving a dirty file.
+  function handleRowToggle(pet: Pet) {
     if (expandedPetId === pet.id) {
-      if (expandedPetDirty) {
-        const leave = await confirm(t('common.unsavedChangesConfirm'), {
-          confirmLabel: t('common.leaveWithoutSaving'),
-          cancelLabel: t('common.stay'),
-        })
-        if (!leave) return
-      }
-      collapsePet(pet.id)
+      navigate('/pets')
+      requestAnimationFrame(() => {
+        document.getElementById(`pet-row-${pet.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      })
       return
     }
-
-    if (expandedPetDirty) {
-      const leave = await confirm(t('common.unsavedChangesConfirm'), {
-        confirmLabel: t('common.leaveWithoutSaving'),
-        cancelLabel: t('common.stay'),
-      })
-      if (!leave) return
-    }
-    setExpandedPetDirty(false)
-    setExpandedPetId(pet.id)
+    navigate(`/pets/${pet.id}`)
   }
 
   const filteredPets = useMemo(() => {
@@ -312,7 +282,6 @@ function PetsPage() {
                 <PetDetail
                   pet={pet}
                   onUpdated={handlePetUpdated}
-                  onDirtyChange={setExpandedPetDirty}
                   onDelete={() => handleDeletePet(pet)}
                 />
               )}

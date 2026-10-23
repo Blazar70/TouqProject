@@ -286,6 +286,15 @@ function AppointmentsPage() {
   // Links from elsewhere (Dashboard) open one appointment: /appointments?open=<id>.
   const [searchParams, setSearchParams] = useSearchParams()
   const openId = searchParams.get('open')
+  // From the pet file's "New appointment": booking pop-up with that pet picked.
+  const bookPetId = searchParams.get('pet')
+  useEffect(() => {
+    if (!bookPetId || !isVet) return
+    setPetId(bookPetId)
+    openBooking()
+    setSearchParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookPetId])
   useEffect(() => {
     if (!openId) return
     supabase

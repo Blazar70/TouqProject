@@ -65,6 +65,8 @@ function PaymentsPage() {
   // "Bill this visit" on the appointment dialog opens /payments?bill=<appointment id>.
   const [searchParams, setSearchParams] = useSearchParams()
   const billId = searchParams.get('bill')
+  // From the pet file's "Take payment": start a bill for that pet.
+  const forPetId = searchParams.get('pet')
   const isManager = profile?.clinic_role === 'manager'
   const toast = useToast()
 
@@ -125,6 +127,13 @@ function PaymentsPage() {
     }
     load()
   }, [viewBranch, profile?.clinic_id])
+
+  useEffect(() => {
+    if (!forPetId) return
+    setPetId(forPetId)
+    setSearchParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forPetId])
 
   // Pre-fill the form from the visit: its pet, the visit link and one line per service.
   useEffect(() => {

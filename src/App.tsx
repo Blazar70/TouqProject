@@ -94,6 +94,7 @@ function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/pets" element={<PetsPage />} />
               <Route path="/pets/new" element={<RegisterPetPage />} />
+              <Route path="/pets/:id" element={<PetsPage />} />
               <Route path="/owners" element={<OwnersPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
               <Route path="/appointments/:id/session" element={<SessionPage />} />

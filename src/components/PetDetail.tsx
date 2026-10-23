@@ -318,6 +318,16 @@ function PetDetail({
         <p className="pet-owner">
           {t('pets.petId')}: <Ltr>{pet.pet_number}</Ltr>
         </p>
+        {isVet && (
+          <div className="pet-detail-quick">
+            <Link to={`/appointments?pet=${pet.id}`} className="primary-button">
+              {t('appointments.newAppointment')}
+            </Link>
+            <Link to={`/payments?pet=${pet.id}`} className="secondary-button">
+              {t('petDetail.takePayment')}
+            </Link>
+          </div>
+        )}
         <FormError message={petError} />
 
         <div className={`pet-photo-row${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>

@@ -341,7 +341,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
               <ul className="record-list">
                 {pets.map((pet) => (
                   <li key={pet.id} className="record-row owner-pet-row">
-                    <Link to={`/pets?highlight=${pet.id}`} className="owner-pet-link">
+                    <Link to={`/pets/${pet.id}`} className="owner-pet-link">
                       <PetAvatar pet={pet} size={40} />
                       <span>
                         <strong>{pet.name}</strong>

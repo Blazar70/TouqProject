@@ -147,7 +147,8 @@ function RegisterPetPage() {
     }
 
     toast.success(t('registerPet.registered', { name }))
-    navigate('/pets')
+    // Straight into the new pet's file: next steps (book, bill) start there.
+    navigate(`/pets/${newPet.id}`)
   }
 
   return (

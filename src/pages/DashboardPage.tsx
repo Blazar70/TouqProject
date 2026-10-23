@@ -245,7 +245,7 @@ function DashboardPage() {
               <ul className="dash-list">
                 {vaccinationsDue.map((pet) => (
                   <li key={pet.id}>
-                    <Link to={`/pets?highlight=${pet.id}`} className="dash-row">
+                    <Link to={`/pets/${pet.id}`} className="dash-row">
                       <span className="dash-row-main">
                         <strong>{pet.name}</strong>
                         <span className="dash-row-sub">
@@ -270,7 +270,7 @@ function DashboardPage() {
               <ul className="dash-list">
                 {recentRecords.map((record) => (
                   <li key={record.id}>
-                    <Link to={`/pets?highlight=${record.pet_id}`} className="dash-row">
+                    <Link to={`/pets/${record.pet_id}`} className="dash-row">
                       <span className="dash-row-main">
                         <strong>{record.pets?.name ?? t('dashboard.unknownPet')}</strong>
                         <span className="dash-row-sub">
