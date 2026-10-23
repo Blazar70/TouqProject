@@ -12,3 +12,15 @@ describe('friendlyErrorKey', () => {
     expect(friendlyErrorKey('something else')).toBeNull()
   })
 })
+
+describe('every database error has a friendly text', () => {
+  it('maps each raise exception message in the migrations', () => {
+    const sql = import.meta.glob('../../supabase/migrations/*.sql', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    const messages = Object.values(sql)
+      .flatMap((text) => [...text.matchAll(/raise exception '((?:[^']|'')+)'/g)])
+      .map((m) => m[1].replace(/''/g, "'"))
+    expect(messages.length).toBeGreaterThan(30)
+    // A new raise in a migration needs a line in friendlyError.ts.
+    expect(messages.filter((m) => !friendlyErrorKey(m))).toEqual([])
+  })
+})

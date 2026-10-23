@@ -1,7 +1,7 @@
 import type { TranslationKey } from './i18n/translations'
 
-// shortcut: matches known English texts (network, auth, push, user-facing DB raises);
-// anything else shows as-is. Upgrade to error codes from the SQL functions if this list grows.
+// shortcut: matches the English texts the DB/auth/network raise (every raise in migrations up to 0069);
+// a new raise needs a line here. Upgrade to error codes from the SQL functions if this list grows.
 const KNOWN: [string, TranslationKey][] = [
   ['Failed to fetch', 'errors.offline'],
   ['NetworkError', 'errors.offline'],
@@ -20,6 +20,27 @@ const KNOWN: [string, TranslationKey][] = [
   ['Only receptionists and managers can add balance', 'errors.balanceRole'],
   ['A payment time can', 'errors.paymentInFuture'],
   ['Only receptionists and managers can issue credit notes', 'errors.creditRole'],
+  ['A credit note can', 'payments.creditTooMuch'],
+  ['A dose can', 'errors.doseInFuture'],
+  ['Only the latest dose can be undone', 'errors.latestDoseOnly'],
+  ['Only the quantity of a visit service', 'errors.serviceQuantityOnly'],
+  ['The invoice code of a branch with invoices', 'errors.invoiceCodeLocked'],
+  ['Choose a pet', 'appointments.choosePet'],
+  ['Add at least one item', 'errors.addItem'],
+  ['Enter an amount', 'errors.enterAmount'],
+  ['not found', 'errors.notFound'],
+  ['Pick ', 'errors.invalidChoice'],
+  ['That appointment is not this pet', 'errors.invalidChoice'],
+  ['pet_number cannot be changed', 'errors.noPermission'],
+  ['Only clinic staff can', 'errors.noPermission'],
+  ['only an admin', 'errors.noPermission'],
+  ['only a manager', 'errors.noPermission'],
+  ['owners may only edit', 'errors.noPermission'],
+  ['row-level security', 'errors.noPermission'],
+  // Generic Postgres / auth texts last, after the specific ones above.
+  ['duplicate key value', 'errors.duplicate'],
+  ['violates foreign key constraint', 'errors.inUse'],
+  ['JWT expired', 'errors.sessionExpired'],
 ]
 
 export function friendlyErrorKey(message: string): TranslationKey | null {
