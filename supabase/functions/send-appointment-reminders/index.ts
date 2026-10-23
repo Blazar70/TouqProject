@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
+import { getsAlert } from '../_shared/alertRecipients.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -21,7 +22,7 @@ Deno.serve(async (req) => {
 
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, clinic_id, push_reminder_lead_minutes, clinics!inner(disabled)')
+    .select('id, clinic_id, clinic_role, push_reminder_lead_minutes, clinics!inner(disabled), staff_branches(branch_id)')
     .not('push_reminder_lead_minutes', 'is', null)
     .not('clinic_id', 'is', null)
     .eq('disabled', false)
@@ -33,13 +34,19 @@ Deno.serve(async (req) => {
 
     const { data: appointments } = await admin
       .from('appointments')
-      .select('id, pets(name, photo_url)')
+      .select('id, doctor_id, branch_id, pets(name, photo_url)')
       .eq('clinic_id', profile.clinic_id!)
       .in('status', ['requested', 'confirmed'])
       .gte('scheduled_at', new Date(now).toISOString())
       .lt('scheduled_at', windowEnd.toISOString())
 
-    for (const appointment of appointments ?? []) {
+    const me = {
+      id: profile.id,
+      clinic_role: profile.clinic_role,
+      branchIds: (profile.staff_branches as { branch_id: string }[]).map((b) => b.branch_id),
+    }
+    // Same rule as status alerts: the doctor's own appointments, or the branches they work at.
+    for (const appointment of (appointments ?? []).filter((a) => getsAlert(me, a))) {
       const { data: alreadySent } = await admin
         .from('appointment_reminders_sent')
         .select('appointment_id')

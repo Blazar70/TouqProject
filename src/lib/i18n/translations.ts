@@ -513,6 +513,10 @@ export const translations = {
     'staff.removeConfirm':
       'Remove {name}? They will no longer be able to sign in. Their name stays on past records, and you can restore them later.',
     'staff.removedTitle': 'Removed staff',
+    'staff.calendarOrder': 'Calendar column order',
+    'staff.calendarOrderHint': 'The order of doctor columns on the Appointments calendar, for everyone. Unassigned stays last.',
+    'staff.moveUp': 'Move {name} up',
+    'staff.moveDown': 'Move {name} down',
     'staff.timeOff': 'Time off',
     'timeOff.none': 'No upcoming time off.',
     'timeOff.reason': 'Reason (managers only)',
@@ -1440,6 +1444,10 @@ export const translations = {
     'staff.removeConfirm':
       'إزالة {name}؟ لن يتمكن من تسجيل الدخول بعد الآن. سيبقى اسمه في السجلات السابقة، ويمكنك استعادته لاحقًا.',
     'staff.removedTitle': 'الموظفون المُزالون',
+    'staff.calendarOrder': 'ترتيب أعمدة التقويم',
+    'staff.calendarOrderHint': 'ترتيب أعمدة الأطباء في تقويم المواعيد للجميع. يبقى «غير محدد» في الأخير.',
+    'staff.moveUp': 'نقل {name} للأعلى',
+    'staff.moveDown': 'نقل {name} للأسفل',
     'staff.timeOff': 'إجازة',
     'timeOff.none': 'لا توجد إجازات قادمة.',
     'timeOff.reason': 'السبب (للمديرين فقط)',

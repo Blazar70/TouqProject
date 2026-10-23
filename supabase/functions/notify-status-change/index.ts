@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
+import { getsAlert } from '../_shared/alertRecipients.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -26,7 +27,7 @@ Deno.serve(async (req) => {
 
   const { data: appointment } = await admin
     .from('appointments')
-    .select('id, clinic_id, status, pets(name, photo_url)')
+    .select('id, clinic_id, status, doctor_id, branch_id, pets(name, photo_url)')
     .eq('id', appointmentId)
     .maybeSingle()
   if (!appointment) return new Response('not found', { status: 404, headers: corsHeaders })
@@ -50,12 +51,19 @@ Deno.serve(async (req) => {
 
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, push_notify_statuses')
+    .select('id, push_notify_statuses, clinic_role, staff_branches(branch_id)')
     .eq('clinic_id', appointment.clinic_id)
     .eq('disabled', false)
 
   const recipientIds = (profiles ?? [])
     .filter((p) => (p.push_notify_statuses as string[] | null)?.includes(appointment.status))
+    // Only the people this appointment concerns: the doctor's own, or staff of its branch.
+    .filter((p) =>
+      getsAlert(
+        { id: p.id, clinic_role: p.clinic_role, branchIds: (p.staff_branches as { branch_id: string }[]).map((b) => b.branch_id) },
+        appointment,
+      ),
+    )
     .map((p) => p.id)
   if (recipientIds.length === 0) return new Response('ok', { headers: corsHeaders })
 

@@ -22,7 +22,7 @@ import FormError from '../components/FormError'
 type Branch = Database['public']['Tables']['branches']['Row']
 type Member = Pick<
   Database['public']['Tables']['profiles']['Row'],
-  'id' | 'full_name' | 'username' | 'email' | 'title' | 'phone' | 'clinic_role' | 'takes_appointments' | 'disabled'
+  'id' | 'full_name' | 'username' | 'email' | 'title' | 'phone' | 'clinic_role' | 'takes_appointments' | 'disabled' | 'calendar_order'
 > & { staff_branches: { branch_id: string }[] }
 
 type Draft = {
@@ -83,7 +83,7 @@ function StaffPage() {
     const [staffRes, branchRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, full_name, username, email, title, phone, clinic_role, takes_appointments, disabled, staff_branches(branch_id)')
+        .select('id, full_name, username, email, title, phone, clinic_role, takes_appointments, disabled, calendar_order, staff_branches(branch_id)')
         .eq('role', 'vet')
         .eq('clinic_id', profile?.clinic_id ?? '')
         .order('full_name', { ascending: true }),
@@ -150,6 +150,28 @@ function StaffPage() {
         Infinity,
       ) === null
     )
+  }
+
+  // Calendar column order (phase 5): same sort as the Appointments calendar, Unassigned stays last there.
+  const calendarDoctors = staff
+    .filter((m) => m.takes_appointments && !m.disabled)
+    .sort((a, b) => (a.calendar_order ?? Infinity) - (b.calendar_order ?? Infinity) || a.full_name.localeCompare(b.full_name))
+  const [reordering, setReordering] = useState(false)
+
+  async function moveDoctor(index: number, step: -1 | 1) {
+    const next = [...calendarDoctors]
+    ;[next[index], next[index + step]] = [next[index + step], next[index]]
+    setReordering(true)
+    // Number everyone 1..n so the order is explicit; only changed rows are saved, in parallel.
+    const failures = await Promise.all(
+      next.map((member, i) =>
+        member.calendar_order === i + 1 ? null : invokeStaff({ action: 'update_staff', userId: member.id, calendarOrder: i + 1 }),
+      ),
+    )
+    const failure = failures.find(Boolean)
+    if (failure) toast.error(failure)
+    await fetchAll()
+    setReordering(false)
   }
 
   async function invokeStaff(body: Record<string, unknown>) {
@@ -499,6 +521,42 @@ function StaffPage() {
             )
           })}
         </ul>
+      )}
+
+      {isManager && calendarDoctors.length > 1 && (
+        <section className="staff-calendar-order">
+          <h2>{t('staff.calendarOrder')}</h2>
+          <p className="pet-owner">{t('staff.calendarOrderHint')}</p>
+          <ol className="record-list">
+            {calendarDoctors.map((member, i) => (
+              <li key={member.id} className="record-row">
+                <span>
+                  {i + 1}. <strong>{member.full_name}</strong>
+                </span>
+                <span className="record-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    aria-label={t('staff.moveUp', { name: member.full_name })}
+                    disabled={i === 0 || reordering}
+                    onClick={() => moveDoctor(i, -1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    aria-label={t('staff.moveDown', { name: member.full_name })}
+                    disabled={i === calendarDoctors.length - 1 || reordering}
+                    onClick={() => moveDoctor(i, 1)}
+                  >
+                    ↓
+                  </button>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
 
       {isManager && (
