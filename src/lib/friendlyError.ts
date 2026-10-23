@@ -18,6 +18,7 @@ const KNOWN: [string, TranslationKey][] = [
   ['needs a reason', 'errors.needsReason'],
   ['One of these lines is already credited', 'errors.alreadyCredited'],
   ['Only receptionists and managers can add balance', 'errors.balanceRole'],
+  ['A payment time can', 'errors.paymentInFuture'],
 ]
 
 export function friendlyErrorKey(message: string): TranslationKey | null {

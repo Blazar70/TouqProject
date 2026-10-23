@@ -130,7 +130,8 @@ function DashboardPage() {
 
   const active = today.filter((a) => a.status !== 'cancelled')
   const done = active.filter((a) => a.status === 'completed').length
-  const toConfirm = active.filter((a) => a.status === 'requested').length
+  const requested = active.filter((a) => a.status === 'requested')
+  const toConfirm = requested.length
   const now = Date.now()
   // In-session visits are happening now, so "next" is the first one still waiting.
   const nextId = active.find(
@@ -167,7 +168,7 @@ function DashboardPage() {
           </div>
           <div className="stat-meta">{t('dashboard.doneLeft', { done: String(done), left: String(active.length - done) })}</div>
         </Link>
-        <Link to="/appointments" className="stat-tile stat-tile-link">
+        <Link to={requested[0] ? `/appointments?open=${requested[0].id}` : '/appointments'} className="stat-tile stat-tile-link">
           <div className="stat-label">{t('dashboard.toConfirm')}</div>
           <div className="stat-number" dir="ltr">
             {toConfirm}
@@ -207,7 +208,7 @@ function DashboardPage() {
               {today.map((appt) => (
                 <li key={appt.id}>
                   <Link
-                    to="/appointments"
+                    to={`/appointments?open=${appt.id}`}
                     className={`dash-row today-row${appt.id === nextId ? ' is-next' : ''}${
                       appt.status === 'completed' || appt.status === 'cancelled' ? ' is-past' : ''
                     }`}

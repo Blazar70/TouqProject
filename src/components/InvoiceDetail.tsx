@@ -12,6 +12,7 @@ import PaymentStatusBadge from './PaymentStatusBadge'
 import Ltr from './Ltr'
 import RequiredMark from './RequiredMark'
 import FormError from './FormError'
+import PaidAtField from './PaidAtField'
 
 type Props = {
   invoice: InvoiceFull
@@ -61,6 +62,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const [mode, setMode] = useState<'view' | 'pay' | 'credit'>('view')
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const [amount, setAmount] = useState('')
+  const [paidAt, setPaidAt] = useState('')
   const [creditItems, setCreditItems] = useState<string[]>([])
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
@@ -88,6 +90,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
 
   function open(next: 'pay' | 'credit') {
     setMode(next)
+    setPaidAt('')
     setMethod('cash')
     setAmount(next === 'pay' ? remaining.toFixed(2) : '')
     setCreditItems([])
@@ -120,7 +123,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       return
     }
     setSaving(true)
-    const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId })
+    const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId, ...(isManager && paidAt ? { p_paid_at: new Date(paidAt).toISOString() } : {}) })
     setSaving(false)
     if (rpcError) {
       setError(rpcError.message.startsWith('Not enough balance') ? t('owners.notEnoughBalance', { amount: balanceText }) : rpcError.message)
@@ -340,6 +343,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
               {t('payments.amount')}
               <input type="number" inputMode="decimal" className="no-spinner" dir="ltr" min="0.01" step="0.01" max={remaining} value={amount} onChange={(e) => setAmount(e.target.value)} required />
             </label>
+            {isManager && <PaidAtField value={paidAt} onChange={setPaidAt} />}
             <div className="record-edit-actions">
               <button type="submit" disabled={saving}>{saving ? t('common.saving') : t('payments.addPayment')}</button>
               <button type="button" className="cancel-button" onClick={() => setMode('view')}>{t('common.cancel')}</button>

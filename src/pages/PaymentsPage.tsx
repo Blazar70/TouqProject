@@ -31,6 +31,7 @@ import {
 } from '../lib/invoiceMath'
 import type { Discount, InvoiceFull, PaymentMethod } from '../lib/invoiceMath'
 import FormError from '../components/FormError'
+import PaidAtField from '../components/PaidAtField'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
@@ -54,12 +55,6 @@ function newLineItem(): LineItem {
 }
 
 const newPayRow = (): PayRow => ({ key: crypto.randomUUID(), method: 'cash', amount: '' })
-
-function toLocalDateTimeInput(iso: string) {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 
 function PaymentsPage() {
   const { profile } = useAuth()
@@ -90,7 +85,8 @@ function PaymentsPage() {
   const [items, setItems] = useState<LineItem[]>([newLineItem()])
   const [billDiscount, setBillDiscount] = useState<DiscountDraft | null>(null)
   const [payRows, setPayRows] = useState<PayRow[]>([newPayRow()])
-  const [paidAt, setPaidAt] = useState(() => toLocalDateTimeInput(new Date().toISOString()))
+  // Empty = timed when Create invoice is pressed. Only managers may enter an earlier time (DB enforces it, 0066).
+  const [paidAt, setPaidAt] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -299,7 +295,7 @@ function PaymentsPage() {
       })),
       p_discount: toDiscount(billDiscount),
       p_payments: paid.map((p) => ({ method: p.method, amount: p.amount })),
-      p_paid_at: new Date(paidAt).toISOString(),
+      ...(isManager && paidAt ? { p_paid_at: new Date(paidAt).toISOString() } : {}),
     })
 
     if (error || !id) {
@@ -332,7 +328,7 @@ function PaymentsPage() {
     setItems([newLineItem()])
     setBillDiscount(null)
     setPayRows([newPayRow()])
-    setPaidAt(toLocalDateTimeInput(new Date().toISOString()))
+    setPaidAt('')
     setNotes('')
     setSaving(false)
   }
@@ -628,11 +624,8 @@ function PaymentsPage() {
               </button>
             </div>
 
-            {payRows.length > 0 && (
-              <label>
-                {t('payments.paidAt')}
-                <input type="datetime-local" dir="ltr" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} required />
-              </label>
+            {isManager && payRows.length > 0 && (
+              <PaidAtField value={paidAt} onChange={setPaidAt} />
             )}
 
             <label>

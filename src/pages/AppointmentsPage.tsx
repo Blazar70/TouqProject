@@ -1,6 +1,6 @@
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType, CSSProperties, FormEvent, MouseEvent, ReactElement } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, dayjsLocalizer } from 'react-big-calendar'
 import type { View } from 'react-big-calendar'
 import dayjs from 'dayjs'
@@ -10,6 +10,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES, worksAt } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import { useConfirm } from '../lib/ConfirmContext'
 import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
 import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
@@ -121,6 +122,8 @@ function AppointmentsPage() {
   const navigate = useNavigate()
   const { printSummary } = usePrintSummary()
   const isVet = profile?.role === 'vet'
+  const confirm = useConfirm()
+  const isClinician = profile?.clinic_role === 'doctor' || profile?.clinic_role === 'nurse'
   const { branchId, branchName } = useBranch()
   // The calendar starts on the picked branch; anyone may look at another one or all (read-only overview).
   const [viewBranch, setViewBranch] = useBranchView()
@@ -172,7 +175,8 @@ function AppointmentsPage() {
   const [conflictAcknowledged, setConflictAcknowledged] = useState(false)
   const scheduleFormRef = useRef<HTMLFormElement>(null)
 
-  useUnsavedChangesWarning(Boolean(petId || scheduledDate || reason) || (selected !== null && panelMode !== 'details'))
+  // A slot click only fills date/time/doctor (one click to redo); warn for what was typed or picked by hand.
+  useUnsavedChangesWarning(Boolean(petId || reason.trim()) || (selected !== null && panelMode !== 'details'))
 
   const { start: rangeStart, end: rangeEnd } = visibleRange(date, view)
   const rangeKey = `${rangeStart.getTime()}-${rangeEnd.getTime()}-${viewBranch}`
@@ -275,6 +279,26 @@ function AppointmentsPage() {
     openAppointment(appointment)
   }
 
+  // Links from elsewhere (Dashboard) open one appointment: /appointments?open=<id>.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const openId = searchParams.get('open')
+  useEffect(() => {
+    if (!openId) return
+    supabase
+      .from('appointments')
+      .select(APPOINTMENT_SELECT)
+      .eq('id', openId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          window.scrollTo(0, 0)
+          jumpTo(data as Appointment)
+        }
+        setSearchParams({}, { replace: true })
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId])
+
   function startReschedule(appointment: Appointment) {
     const fields = toPickerFields(new Date(appointment.scheduled_at))
     setRescheduleDate(fields.date)
@@ -291,19 +315,22 @@ function AppointmentsPage() {
     setPanelMode('reschedule')
   }
 
-  async function handleConfirm(appointment: Appointment) {
-    const { error: updateError } = await supabase.from('appointments').update({ status: 'confirmed' }).eq('id', appointment.id)
+  // Confirm, or step back to requested (confirmed by mistake).
+  async function setRequestStatus(appointment: Appointment, status: 'confirmed' | 'requested') {
+    const { error: updateError } = await supabase.from('appointments').update({ status }).eq('id', appointment.id)
     if (updateError) {
       toast.error(updateError.message)
       return
     }
-    applyUpdate({ ...appointment, status: 'confirmed' })
-    toast.success(t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS.confirmed) }))
+    applyUpdate({ ...appointment, status })
+    toast.success(t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS[status]) }))
     notifyStatusChange(appointment.id)
   }
 
   // Undo a session started by mistake: back to confirmed, timer cleared.
   async function handleStopSession(appointment: Appointment) {
+    // Someone may be mid-way through the visit form on another screen.
+    if (!(await confirm(t('session.stopConfirm'), { confirmLabel: t('session.stop') }))) return
     const changes = { status: 'confirmed', started_at: null }
     const { error: updateError } = await supabase.from('appointments').update(changes).eq('id', appointment.id)
     if (updateError) {
@@ -511,19 +538,20 @@ function AppointmentsPage() {
   const events: CalendarEvent[] = useMemo(() => {
     const visible = appointments.filter((a) => a.status !== 'cancelled')
     if (view === 'week') {
-      const byHour = new Map<number, number>()
+      // The box shows the count (user: no more detail in week view); its tooltip lists who.
+      const byHour = new Map<number, string[]>()
       for (const a of visible) {
         const hour = dayjs(a.scheduled_at).startOf('hour').valueOf()
-        byHour.set(hour, (byHour.get(hour) ?? 0) + 1)
+        byHour.set(hour, [...(byHour.get(hour) ?? []), `${formatTime(a.scheduled_at)} ${a.pets?.name ?? t('dashboard.unknownPet')}`])
       }
-      return Array.from(byHour, ([hour, count]) => ({
+      return Array.from(byHour, ([hour, names]) => ({
         id: `hour-${hour}`,
-        title: String(count),
+        title: names.join('\n'),
+        count: names.length,
         start: new Date(hour),
         end: new Date(hour + 60 * 60_000),
         resourceId: UNASSIGNED,
         appointment: null,
-        count,
       }))
     }
     return visible.map((a) => {
@@ -615,7 +643,15 @@ function AppointmentsPage() {
               <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
               {appointment.pets && (
                 <p className="pet-owner">
-                  {t('pets.petId')}: <Ltr>{appointment.pets.pet_number}</Ltr>
+                  {t('pets.petId')}: <Ltr>{appointment.pets.pet_number}</Ltr> · {t('pets.owner')}: {appointment.pets.owner_name}
+                  {appointment.pets.owner_phone && (
+                    <>
+                      {' · '}
+                      <a href={`tel:${appointment.pets.owner_phone}`}>
+                        <Ltr>{appointment.pets.owner_phone}</Ltr>
+                      </a>
+                    </>
+                  )}
                 </p>
               )}
               <p className="pet-owner">
@@ -875,20 +911,26 @@ function AppointmentsPage() {
                       {t('session.stop')}
                     </button>
                     <button type="button" className="delete-button" onClick={() => setPanelMode('cancel')}>
-                      {t('appointments.cancel')}
+                      {t('appointments.cancelAppointment')}
                     </button>
                   </>
                 )}
                 {isVet && isActive && (
                   <>
                     {appointment.status === 'requested' && (
-                      <button type="button" className="secondary-button" onClick={() => handleConfirm(appointment)} autoFocus>
+                      <button
+                        type="button"
+                        className={isClinician ? 'secondary-button' : 'primary-button'}
+                        onClick={() => setRequestStatus(appointment, 'confirmed')}
+                        autoFocus
+                      >
                         {t('appointments.confirmAppointment')}
                       </button>
                     )}
+                    {/* Doctors and nurses run sessions; for reception, confirming is the main job. */}
                     <button
                       type="button"
-                      className="primary-button"
+                      className={isClinician ? 'primary-button' : 'secondary-button'}
                       onClick={() => navigate(`/appointments/${appointment.id}/session`)}
                     >
                       {t('session.start')}
@@ -896,8 +938,13 @@ function AppointmentsPage() {
                     <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
                       {t('appointments.reschedule')}
                     </button>
+                    {appointment.status === 'confirmed' && (
+                      <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'requested')}>
+                        {t('appointments.unconfirm')}
+                      </button>
+                    )}
                     <button type="button" className="delete-button" onClick={() => setPanelMode('cancel')}>
-                      {t('appointments.cancel')}
+                      {t('appointments.cancelAppointment')}
                     </button>
                   </>
                 )}
@@ -1050,6 +1097,7 @@ function AppointmentsPage() {
                 <span className="calendar-event-content">
                   <strong>
                     {event.title}
+                    {viewBranch === ALL_BRANCHES && ` · ${branchName(event.appointment.branch_id)}`}
                     {/* Beside the name: a 30-minute block has room for two lines only. */}
                     {event.appointment.status === 'completed' && event.appointment.invoice?.payment_status !== 'paid' && (
                       <>

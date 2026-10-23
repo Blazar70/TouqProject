@@ -217,8 +217,9 @@ function SessionPage() {
 
   // After the render that turns the unsaved-changes guard off, or it would block this.
   useEffect(() => {
-    if (done) navigate('/appointments')
-  }, [done, navigate])
+    // Back on the finished visit (its day, dialog open: Bill this visit), not today's page.
+    if (done) navigate(`/appointments?open=${id}`)
+  }, [done, navigate, id])
 
   if (loading) return <LoadingScreen />
 

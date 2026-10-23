@@ -1096,7 +1096,7 @@ export type Database = {
         Returns: string
       }
       add_invoice_payment: {
-        Args: { p_invoice: string; p_method: string; p_amount: number; p_branch?: string | null }
+        Args: { p_invoice: string; p_method: string; p_amount: number; p_branch?: string | null; p_paid_at?: string | null }
         Returns: undefined
       }
       create_credit_note: {

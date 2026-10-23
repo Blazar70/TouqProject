@@ -48,6 +48,28 @@ function TimeOffPanel({ doctorId }: { doctorId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reload per doctor
   }, [doctorId])
 
+  // How many bookings saving would move to Unassigned, before the manager commits.
+  const [willMove, setWillMove] = useState<number | null>(null)
+  useEffect(() => {
+    setWillMove(null)
+    if (!draft.fromDate || !draft.fromTime || !draft.toDate || !draft.toTime) return
+    const starts = clinicTimeToIso(draft.fromDate, draft.fromTime)
+    const ends = clinicTimeToIso(draft.toDate, draft.toTime)
+    if (ends <= starts) return
+    let stale = false
+    supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('doctor_id', doctorId)
+      .in('status', ['requested', 'confirmed'])
+      .gte('scheduled_at', starts)
+      .lt('scheduled_at', ends)
+      .then(({ count }) => !stale && setWillMove(count ?? 0))
+    return () => {
+      stale = true
+    }
+  }, [doctorId, draft.fromDate, draft.fromTime, draft.toDate, draft.toTime])
+
   function startEditing(entry: TimeOff) {
     const from = isoToClinicFields(entry.starts_at)
     const to = isoToClinicFields(entry.ends_at)
@@ -158,15 +180,18 @@ function TimeOffPanel({ doctorId }: { doctorId: string }) {
             <input type="time" value={draft.toTime} onChange={(e) => setDraft({ ...draft, toTime: e.target.value })} required />
           </div>
         </label>
+        {willMove !== null && (
+          <p className={willMove > 0 ? 'form-warning' : 'pet-owner'} role="status">
+            {t('timeOff.willMove', { count: String(willMove) })}
+          </p>
+        )}
         <div className="record-edit-actions">
           <button type="submit" disabled={saving}>
             {saving ? t('common.saving') : t('common.save')}
           </button>
-          {editingId && (
-            <button type="button" className="cancel-button" onClick={stopEditing}>
-              {t('common.cancel')}
-            </button>
-          )}
+          <button type="button" className="cancel-button" onClick={stopEditing}>
+            {t('common.cancel')}
+          </button>
         </div>
       </form>
     </div>
