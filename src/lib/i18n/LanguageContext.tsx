@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { translations } from './translations'
 import type { Language, TranslationKey } from './translations'
+import { setDisplayLanguage } from '../format'
 
 const STORAGE_KEY = 'touq-language'
 
@@ -20,6 +21,7 @@ function getInitialLanguage(): Language {
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(getInitialLanguage)
+  setDisplayLanguage(language)
 
   useEffect(() => {
     document.documentElement.lang = language

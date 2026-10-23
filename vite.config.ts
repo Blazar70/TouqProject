@@ -5,6 +5,8 @@ import { reticle } from '@reticlehq/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // The dayjs locale is a UMD file; pre-bundle it with dayjs or the dev server fails to load it.
+  optimizeDeps: { include: ['dayjs', 'dayjs/locale/ar-sa'] },
   plugins: [
     // Trial (branch try/reticle): dev-only bridge for in-app verification; absent from production builds.
     reticle(),

@@ -33,7 +33,7 @@ import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import VisitServices from '../components/VisitServices'
 import PaymentStatusBadge from '../components/PaymentStatusBadge'
-import { formatDateTime, formatTime } from '../lib/format'
+import { calendarCulture, formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
 import FormError from '../components/FormError'
 
@@ -1015,9 +1015,8 @@ function AppointmentsPage() {
         )}
       </div>
 
-      {/* Fixed left-to-right in both languages so time stays on the left. */}
-      {/* LTR so the month picker stays on the left in both languages, like the calendar. */}
-      <div className="appointments-layout" dir="ltr">
+      {/* Follows the page direction: Arabic mirrors the calendar (user, 2026-10-23). */}
+      <div className="appointments-layout">
       <div className="appointments-side">
         <MiniMonth value={date} onChange={setDate} />
         {/* Cancelled appointments never show on the calendar, so these colours cover it. */}
@@ -1040,7 +1039,6 @@ function AppointmentsPage() {
       {/* --now-cols centres the "Now" pill across all doctor columns (see App.css). */}
       <div
         className="appointments-calendar"
-        dir="ltr"
         onPointerDown={(e) => (lastPointer.current = e.pointerType)}
         onClick={isVet && viewBranch !== ALL_BRANCHES ? handleCalendarTap : undefined}
         style={
@@ -1053,6 +1051,10 @@ function AppointmentsPage() {
         <Calendar<CalendarEvent, CalendarResource>
           key={scrollKey}
           localizer={localizer}
+          culture={calendarCulture(language)}
+          rtl={language === 'ar'}
+          // 12-hour like the booking form, also in Arabic (its locale default is 24-hour).
+          formats={{ timeGutterFormat: 'h:mm A', eventTimeRangeFormat: ({ start, end }, culture, loc) => `${loc!.format(start, 'h:mm A', culture)} – ${loc!.format(end, 'h:mm A', culture)}` }}
           events={events}
           date={date}
           view={view}

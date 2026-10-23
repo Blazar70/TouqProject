@@ -3308,6 +3308,10 @@ button.cancel-button:disabled,
   box-shadow: var(--shadow);
 }
 
+[dir='rtl'] .appointments-calendar .rbc-current-time-indicator::after {
+  transform: translate(50%, -50%);
+}
+
 .appointments-calendar .rbc-time-view-resources .rbc-day-slot ~ .rbc-day-slot .rbc-current-time-indicator::after {
   display: none;
 }

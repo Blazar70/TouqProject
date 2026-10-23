@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clinicDay, formatDate, formatDateTime, formatIsoDate, formatMoney } from './format'
+import { clinicDay, formatDate, formatDateTime, formatIsoDate, formatMoney, setDisplayLanguage } from './format'
 
 describe('format', () => {
   it('gives the clinic day in Riyadh time, whatever the device zone', () => {
@@ -24,5 +24,11 @@ describe('format', () => {
     expect(formatMoney(1250)).toBe('1,250.00')
     expect(formatMoney(0)).toBe('0.00')
     expect(formatMoney(86.956)).toBe('86.96')
+  })
+  it('formats Arabic dates Gregorian with Latin digits', () => {
+    setDisplayLanguage('ar')
+    expect(formatDate('2026-10-23')).toBe('23 أكتوبر 2026')
+    setDisplayLanguage('en')
+    expect(formatDate('2026-10-23')).toBe('Oct 23, 2026')
   })
 })

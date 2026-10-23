@@ -3,13 +3,16 @@ import dayjs from 'dayjs'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { monthGrid } from '../lib/monthGrid'
+import { calendarCulture } from '../lib/format'
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+// A known Sunday: weekday headers in the current language, Sunday first like monthGrid.
+const SUNDAY = dayjs('2026-10-18')
 
 // Small month picker beside the appointments calendar: click a day to jump there.
-// English labels and LTR like the main calendar, which stays the same in both languages.
+// Same language and direction as the main calendar.
 function MiniMonth({ value, onChange }: { value: Date; onChange: (date: Date) => void }) {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const culture = calendarCulture(language)
   const [month, setMonth] = useState(() => dayjs(value).startOf('month'))
 
   // Follow the main calendar when it moves to another month.
@@ -18,20 +21,20 @@ function MiniMonth({ value, onChange }: { value: Date; onChange: (date: Date) =>
   }, [value])
 
   return (
-    <div className="mini-month" dir="ltr">
+    <div className="mini-month">
       <div className="mini-month-header">
         <button type="button" aria-label={t('calendar.prevMonth')} onClick={() => setMonth((m) => m.subtract(1, 'month'))}>
-          <ChevronLeft size={18} aria-hidden />
+          <ChevronLeft className="nav-icon-flip" size={18} aria-hidden />
         </button>
-        <strong>{month.format('MMMM YYYY')}</strong>
+        <strong>{month.locale(culture).format('MMMM YYYY')}</strong>
         <button type="button" aria-label={t('calendar.nextMonth')} onClick={() => setMonth((m) => m.add(1, 'month'))}>
-          <ChevronRight size={18} aria-hidden />
+          <ChevronRight className="nav-icon-flip" size={18} aria-hidden />
         </button>
       </div>
       <div className="mini-month-grid">
-        {WEEKDAYS.map((d) => (
-          <span key={d} className="mini-month-weekday" aria-hidden>
-            {d}
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <span key={i} className="mini-month-weekday" aria-hidden>
+            {SUNDAY.add(i, 'day').locale(culture).format('dd')}
           </span>
         ))}
         {monthGrid(month.toDate()).map((day) => {
@@ -47,7 +50,7 @@ function MiniMonth({ value, onChange }: { value: Date; onChange: (date: Date) =>
               key={day.getTime()}
               type="button"
               className={classes.filter(Boolean).join(' ')}
-              aria-label={d.format('dddd, D MMMM YYYY')}
+              aria-label={d.locale(culture).format('dddd, D MMMM YYYY')}
               aria-pressed={d.isSame(value, 'day')}
               onClick={() => onChange(day)}
             >
