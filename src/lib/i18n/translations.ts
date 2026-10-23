@@ -369,7 +369,10 @@ export const translations = {
     'status.confirmed': 'Confirmed',
     'status.completed': 'Completed',
     'status.cancelled': 'Cancelled',
+    'status.arrived': 'Arrived',
     'status.in_session': 'In session',
+    'appointments.markArrived': 'Arrived',
+    'appointments.notArrived': 'Not arrived yet',
 
     // Payments
     'payments.title': 'Payments',
@@ -1295,7 +1298,10 @@ export const translations = {
     'status.confirmed': 'مؤكد',
     'status.completed': 'مكتمل',
     'status.cancelled': 'ملغى',
+    'status.arrived': 'وصل',
     'status.in_session': 'قيد المعاينة',
+    'appointments.markArrived': 'وصل',
+    'appointments.notArrived': 'لم يصل بعد',
 
     'payments.title': 'المدفوعات',
     'payments.priceLookup': 'البحث عن سعر',

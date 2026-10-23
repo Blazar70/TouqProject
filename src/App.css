@@ -2232,6 +2232,13 @@ input[type='checkbox']:focus-visible {
   color: var(--status-fg);
 }
 
+.status-arrived {
+  --status-bg: var(--status-purple-bg);
+  --status-fg: var(--status-purple-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
+}
+
 .status-in_session {
   --status-bg: var(--status-red-bg);
   --status-fg: var(--status-red-fg);

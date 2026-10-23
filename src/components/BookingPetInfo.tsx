@@ -35,7 +35,7 @@ function BookingPetInfo({ pet }: { pet: Pet }) {
         .from('appointments')
         .select('id, scheduled_at, doctor:profiles!appointments_doctor_fkey(full_name)')
         .eq('pet_id', pet.id)
-        .in('status', ['requested', 'confirmed'])
+        .in('status', ['requested', 'confirmed', 'arrived'])
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at')
         .limit(3),

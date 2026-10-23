@@ -6,6 +6,16 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
+// Same words as the app's status labels (src/lib/i18n/translations.ts, status.*).
+const STATUS_AR: Record<string, string> = {
+  requested: 'قيد الطلب',
+  confirmed: 'مؤكد',
+  arrived: 'وصل',
+  in_session: 'قيد المعاينة',
+  completed: 'مكتمل',
+  cancelled: 'ملغى',
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
@@ -54,8 +64,10 @@ Deno.serve(async (req) => {
   const pet = appointment.pets as { name: string; photo_url: string | null } | null
   const payload = {
     title: 'Touq',
-    // shortcut: English only, staff language isn't stored; upgrade when profiles get a language column.
-    body: `${pet?.name ?? 'A pet'}'s appointment is now ${appointment.status.replace('_', ' ')}.`,
+    // Both languages: a staff member's language lives on their device, not their account (user, 2026-10-23).
+    body: appointment.status === 'arrived'
+      ? `${pet?.name ?? 'A pet'} has arrived.\n${pet?.name ?? 'الحيوان'} وصل.`
+      : `${pet?.name ?? 'A pet'}'s appointment is now ${appointment.status.replace('_', ' ')}.\nموعد ${pet?.name ?? 'الحيوان'} الآن: ${STATUS_AR[appointment.status] ?? appointment.status}.`,
     url: '/appointments',
     icon: await petPhotoIcon(admin, pet?.photo_url),
   }

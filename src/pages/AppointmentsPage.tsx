@@ -330,7 +330,7 @@ function AppointmentsPage() {
   }
 
   // Confirm, or step back to requested (confirmed by mistake).
-  async function setRequestStatus(appointment: Appointment, status: 'confirmed' | 'requested') {
+  async function setRequestStatus(appointment: Appointment, status: 'confirmed' | 'requested' | 'arrived') {
     const { error: updateError } = await supabase.from('appointments').update({ status }).eq('id', appointment.id)
     if (updateError) {
       toast.error(updateError.message)
@@ -643,7 +643,7 @@ function AppointmentsPage() {
   if (loading) return <LoadingScreen />
 
   function renderPanel(appointment: Appointment) {
-    const isActive = appointment.status === 'requested' || appointment.status === 'confirmed'
+    const isActive = ['requested', 'confirmed', 'arrived'].includes(appointment.status)
     const inSession = appointment.status === 'in_session'
     return (
       <Modal onClose={() => !savingPanel && setSelected(null)} labelledBy="appointment-panel-title" className="appointment-panel">
@@ -947,6 +947,17 @@ function AppointmentsPage() {
                     <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
                       {t('appointments.reschedule')}
                     </button>
+                    {/* Check-in: reception marks the pet as here, so doctors see who is waiting (P3). */}
+                    {appointment.status !== 'arrived' && (
+                      <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'arrived')}>
+                        {t('appointments.markArrived')}
+                      </button>
+                    )}
+                    {appointment.status === 'arrived' && (
+                      <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'confirmed')}>
+                        {t('appointments.notArrived')}
+                      </button>
+                    )}
                     {appointment.status === 'confirmed' && (
                       <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'requested')}>
                         {t('appointments.unconfirm')}
@@ -1031,7 +1042,7 @@ function AppointmentsPage() {
         <div className="calendar-legend" dir={language === 'ar' ? 'rtl' : 'ltr'}>
           <h2>{t('appointments.legend')}</h2>
           <ul>
-            {(['requested', 'confirmed', 'in_session', 'completed'] as const).map((status) => (
+            {(['requested', 'confirmed', 'arrived', 'in_session', 'completed'] as const).map((status) => (
               <li key={status}>
                 <span className={`calendar-legend-swatch status-${status}`} aria-hidden />
                 {t(STATUS_LABEL_KEYS[status])}

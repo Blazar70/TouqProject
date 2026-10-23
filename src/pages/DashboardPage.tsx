@@ -128,7 +128,7 @@ function DashboardPage() {
   const now = Date.now()
   // In-session visits are happening now, so "next" is the first one still waiting.
   const nextId = active.find(
-    (a) => (a.status === 'requested' || a.status === 'confirmed') && new Date(a.scheduled_at).getTime() >= now,
+    (a) => ['requested', 'confirmed', 'arrived'].includes(a.status) && new Date(a.scheduled_at).getTime() >= now,
   )?.id
   const overdue = vaccinationsDue.filter((due) => vaccinationStatus(due.next_due_date) === 'overdue').length
   const paymentsTotal = paymentsToday.reduce((sum, amount) => sum + amount, 0)

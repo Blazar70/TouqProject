@@ -85,12 +85,12 @@ function SessionPage() {
         if (loadError) setError(loadError.message)
         // Opening the session starts it: in_session (with its start time) until Finish,
         // so everyone sees the pet is being worked on and the timer survives other devices.
-        if (data && (data.status === 'requested' || data.status === 'confirmed')) {
+        if (data && ['requested', 'confirmed', 'arrived'].includes(data.status)) {
           const { data: started, error: startError } = await supabase
             .from('appointments')
             .update({ status: 'in_session', started_at: new Date().toISOString() })
             .eq('id', data.id)
-            .in('status', ['requested', 'confirmed'])
+            .in('status', ['requested', 'confirmed', 'arrived'])
             .select(SESSION_SELECT)
             .maybeSingle()
           if (startError) setError(startError.message)

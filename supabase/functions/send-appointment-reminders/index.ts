@@ -53,7 +53,8 @@ Deno.serve(async (req) => {
       const pet = appointment.pets as { name: string; photo_url: string | null } | null
       const payload = {
         title: 'Touq',
-        body: `Reminder: ${pet?.name ?? 'A pet'}'s appointment is coming up.`,
+        // Both languages: staff language lives on the device, not the account (user, 2026-10-23).
+        body: `Reminder: ${pet?.name ?? 'A pet'}'s appointment is coming up.\nتذكير: موعد ${pet?.name ?? 'الحيوان'} قريب.`,
         url: '/appointments',
         icon: await petPhotoIcon(admin, pet?.photo_url),
       }
