@@ -12,6 +12,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import Ltr from '../components/Ltr'
 import ClinicPicker from '../components/ClinicPicker'
 import { formatDate, formatIsoDate, formatMoney } from '../lib/format'
+import FormError from '../components/FormError'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
 type Payment = Database['public']['Tables']['payments']['Row']
@@ -242,7 +243,7 @@ function AdminBillingPage() {
 
       {showNewPaymentForm && (
         <form onSubmit={handleCreatePayment} className="pet-form pet-form-grid">
-          {paymentError && <p className="form-error">{paymentError}</p>}
+          <FormError message={paymentError} />
           <label>
             {t('admin.paymentClinic')}
             <RequiredMark />

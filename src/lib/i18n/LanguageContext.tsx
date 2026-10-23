@@ -32,7 +32,9 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }
 
   function t(key: TranslationKey, vars?: Record<string, string>) {
-    let text: string = translations[language][key] ?? translations.en[key] ?? key
+    // "1 pet" not "1 pets": a `<key>_one` variant, when this language has one, wins for count 1.
+    const one = vars?.count === '1' ? (translations[language] as Record<string, string>)[`${key}_one`] : undefined
+    let text: string = one ?? translations[language][key] ?? translations.en[key] ?? key
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
         text = text.replaceAll(`{${k}}`, v)

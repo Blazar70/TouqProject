@@ -4,6 +4,7 @@ import { useLanguage } from './i18n/LanguageContext'
 import { translations } from './i18n/translations'
 import type { TranslationKey } from './i18n/translations'
 import { useAuth } from './AuthContext'
+import { useToast } from './ToastContext'
 import { visitRecordFields } from './clinicalFields'
 import { signPhotoUrl } from './photoUrl'
 import type { VisitRecordFields } from './clinicalFields'
@@ -42,6 +43,9 @@ export type InvoiceDoc = {
 export type VisitSummary = {
   date: string
   visitType?: string
+  doctor?: string | null
+  /** Owner name and phone, printed under the pet (single summary only). */
+  owner?: string | null
   record: VisitRecordFields
   // Omitted entirely (not just falsy) when the caller's "include photo"
   // checkbox is unchecked — see PetDetail / AppointmentsPage print buttons.
@@ -155,6 +159,7 @@ function buildDocument(
               <div class="print-history-entry-header">
                 <span class="print-history-date">${escapeHtml(formatDate(visit.date))}</span>
                 ${visit.visitType ? `<span class="print-badge">${escapeHtml(visit.visitType)}</span>` : ''}
+                ${visit.doctor ? `<span class="print-hero-id">${escapeHtml(t('printSummary.doctor'))}: ${escapeHtml(visit.doctor)}</span>` : ''}
               </div>
               ${fieldsHtml(t, visit)}
             </div>
@@ -188,6 +193,8 @@ function buildDocument(
       <div>
         <div class="print-hero-name">${escapeHtml(petName)}</div>
         ${petNumber ? `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${petNumber}</span></div>` : ''}
+        ${!isHistory && visits[0].owner ? `<div class="print-hero-id">${escapeHtml(t('pets.owner'))}: ${escapeHtml(visits[0].owner)}</div>` : ''}
+        ${!isHistory && visits[0].doctor ? `<div class="print-hero-id">${escapeHtml(t('printSummary.doctor'))}: ${escapeHtml(visits[0].doctor)}</div>` : ''}
       </div>
       ${heroDate}
     </div>
@@ -349,6 +356,7 @@ function buildReportDocument(doc: ReportDoc, clinicLabel: string, printedOn: str
 export function PrintProvider({ children }: { children: ReactNode }) {
   const { t, language } = useLanguage()
   const { clinicName, clinicPhone, clinicLogoUrl: logo } = useAuth()
+  const toast = useToast()
 
   const runPrint = useCallback(
     async (petName: string, visits: VisitSummary[], petNumber?: number) => {
@@ -360,7 +368,10 @@ export function PrintProvider({ children }: { children: ReactNode }) {
       // rest of the app via print media queries.
       // Opened before any await: popup blockers only allow it inside the click.
       const printWindow = window.open('', '_blank', 'width=800,height=1000')
-      if (!printWindow) return
+      if (!printWindow) {
+        toast.error(t('printSummary.popupBlocked'))
+        return
+      }
 
       const signedVisits = await Promise.all(
         visits.map(async (visit) => (visit.photoUrl ? { ...visit, photoUrl: await signPhotoUrl(visit.photoUrl) } : visit)),
@@ -374,7 +385,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
         printWindow.print()
       }
     },
-    [clinicName, clinicPhone, t],
+    [clinicName, clinicPhone, t, toast],
   )
 
   const printSummary = useCallback((petName: string, visit: VisitSummary, petNumber?: number) => runPrint(petName, [visit], petNumber), [runPrint])
@@ -383,7 +394,10 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const printInvoice = useCallback(
     (doc: InvoiceDoc) => {
       const printWindow = window.open('', '_blank', 'width=800,height=1000')
-      if (!printWindow) return
+      if (!printWindow) {
+        toast.error(t('printSummary.popupBlocked'))
+        return
+      }
       printWindow.document.open()
       printWindow.document.write(buildInvoiceDocument(doc, clinicName ?? t('auth.brand'), clinicPhone, logo ? clinicLogoUrl(logo) : null, language === 'ar'))
       printWindow.document.close()
@@ -392,13 +406,16 @@ export function PrintProvider({ children }: { children: ReactNode }) {
         printWindow.print()
       }
     },
-    [clinicName, clinicPhone, logo, language, t],
+    [clinicName, clinicPhone, logo, language, t, toast],
   )
 
   const printReport = useCallback(
     (doc: ReportDoc) => {
       const printWindow = window.open('', '_blank', 'width=1000,height=1000')
-      if (!printWindow) return
+      if (!printWindow) {
+        toast.error(t('printSummary.popupBlocked'))
+        return
+      }
       printWindow.document.open()
       printWindow.document.write(buildReportDocument(doc, clinicName ?? t('auth.brand'), t('printSummary.printedOn'), language === 'ar'))
       printWindow.document.close()
@@ -407,7 +424,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
         printWindow.print()
       }
     },
-    [clinicName, language, t],
+    [clinicName, language, t, toast],
   )
 
   return <PrintContext.Provider value={{ printInvoice, printSummary, printHistory, printReport }}>{children}</PrintContext.Provider>

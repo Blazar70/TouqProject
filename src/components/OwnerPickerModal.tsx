@@ -9,6 +9,7 @@ import { formatMoney } from '../lib/format'
 import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
 import Ltr from './Ltr'
+import FormError from './FormError'
 
 export type PickedOwner = { id: string; name: string; phone: string | null; email: string | null; balance: number }
 
@@ -81,7 +82,7 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
     <div className="admin-modal-backdrop" onClick={onClose}>
       <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="owner-picker-title" onClick={(e) => e.stopPropagation()}>
         <h2 id="owner-picker-title">{title}</h2>
-        {error && <p className="form-error">{error}</p>}
+        <FormError message={error} />
         {creating ? (
           <form onSubmit={handleCreate} className="pet-form">
             <label>

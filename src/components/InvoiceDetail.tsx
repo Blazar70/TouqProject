@@ -11,6 +11,7 @@ import type { InvoiceFull, PaymentMethod } from '../lib/invoiceMath'
 import PaymentStatusBadge from './PaymentStatusBadge'
 import Ltr from './Ltr'
 import RequiredMark from './RequiredMark'
+import FormError from './FormError'
 
 type Props = {
   invoice: InvoiceFull
@@ -332,7 +333,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
 
         {mode === 'pay' && (
           <form className="pet-form invoice-action-form" onSubmit={handlePay}>
-            {error && <p className="form-error">{error}</p>}
+            <FormError message={error} />
             <MethodToggle value={method} onChange={setMethod} methods={methodsFor(ownerBalance)} />
             {ownerBalance !== null && <p className="owner-balance-note">{t('owners.ownerBalance', { amount: balanceText })}</p>}
             <label>
@@ -348,7 +349,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
 
         {mode === 'credit' && (
           <form className="pet-form invoice-action-form" onSubmit={handleCredit}>
-            {error && <p className="form-error">{error}</p>}
+            <FormError message={error} />
             <fieldset className="invoice-credit-lines">
               <legend>{t('payments.creditLines')}</legend>
               {items.map((i) => (

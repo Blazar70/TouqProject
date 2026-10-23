@@ -34,15 +34,17 @@ import VisitServices from '../components/VisitServices'
 import PaymentStatusBadge from '../components/PaymentStatusBadge'
 import { formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
+import FormError from '../components/FormError'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
-  pets: { name: string; owner_phone: string | null; pet_number: number } | null
+  pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number } | null
   doctor: { full_name: string } | null
   invoice: { id: string; invoice_number: string; payment_status: string } | null // set = the visit is billed (one invoice per appointment, 0059)
 }
 type Pet = Database['public']['Tables']['pets']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
-type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
+type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null }
+const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name)'
 // Day view: one event per appointment. Week view: one event per busy hour,
 // carrying only the count (appointment is null).
 type CalendarEvent = {
@@ -60,7 +62,7 @@ type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Re
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status)'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -258,7 +260,7 @@ function AppointmentsPage() {
     if (appointment.status === 'completed') {
       supabase
         .from('medical_records')
-        .select('*')
+        .select(RECORD_SELECT)
         .eq('appointment_id', appointment.id)
         .maybeSingle()
         .then(({ data }) => setRecord(data ?? null))
@@ -621,7 +623,7 @@ function AppointmentsPage() {
             <span className={`status-badge status-${appointment.status}`}>{t(STATUS_LABEL_KEYS[appointment.status])}</span>
           </div>
 
-          {panelError && <p className="form-error">{panelError}</p>}
+          <FormError message={panelError} />
 
           {panelMode === 'cancel' ? (
             <>
@@ -810,6 +812,8 @@ function AppointmentsPage() {
                           printSummary(appointment.pets?.name ?? t('dashboard.unknownPet'), {
                             date: record.visit_date,
                             visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
+                            doctor: record.vet?.full_name,
+                            owner: [appointment.pets?.owner_name, appointment.pets?.owner_phone && `⁦${appointment.pets.owner_phone}⁩`].filter(Boolean).join(' · '),
                             record,
                             photoUrl: includePhoto ? record.photo_url : null,
                           }, appointment.pets?.pet_number)
@@ -908,7 +912,7 @@ function AppointmentsPage() {
         </p>
       )}
 
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       <div className="appointment-search">
         <input

@@ -10,6 +10,7 @@ import { formatDateTime } from '../lib/format'
 import Ltr from './Ltr'
 import RequiredMark from './RequiredMark'
 import { ListSkeleton } from './Skeleton'
+import FormError from './FormError'
 
 type TimeOff = Database['public']['Tables']['doctor_time_off']['Row']
 type Draft = { reason: string; fromDate: string; fromTime: string; toDate: string; toTime: string }
@@ -135,7 +136,7 @@ function TimeOffPanel({ doctorId }: { doctorId: string }) {
       <form onSubmit={handleSave} className="pet-form">
         <h3>{editingId ? t('common.edit') : t('timeOff.add')}</h3>
         <p className="pet-owner">{t('timeOff.hint')}</p>
-        {error && <p className="form-error">{error}</p>}
+        <FormError message={error} />
         <label>
           {t('timeOff.reason')}
           <RequiredMark />

@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import LanguageToggle from '../components/LanguageToggle'
+import FormError from '../components/FormError'
 
 // Shown instead of the normal app when Supabase's auth listener reports a
 // PASSWORD_RECOVERY event (the user arrived via the "reset your password"
@@ -45,7 +46,7 @@ function ResetPasswordPage() {
 
       <h2>{t('auth.setNewPassword')}</h2>
       <form onSubmit={handleSubmit} className="login-form">
-        {error && <p className="form-error">{error}</p>}
+        <FormError message={error} />
         <label>
           {t('settings.newPassword')}
           <input

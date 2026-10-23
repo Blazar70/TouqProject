@@ -22,6 +22,7 @@ import ClinicLogoField from '../components/ClinicLogoField'
 import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
 import { isValidVatNumber } from '../lib/invoiceMath'
 import { CLINIC_ROLES, parseStaffLogin } from '../../supabase/functions/_shared/staffRules'
+import FormError from '../components/FormError'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -1001,7 +1002,7 @@ function AdminPage() {
 
       {showNewClinicForm && (
         <form onSubmit={handleCreateClinic} className="pet-form pet-form-grid">
-          {createError && <p className="form-error">{createError}</p>}
+          <FormError message={createError} />
           <label>
             {t('admin.clinicNameField')}
             <RequiredMark />
@@ -1240,7 +1241,7 @@ function AdminPage() {
                     />
                     {addStaffClinicId === clinic.id && (
                       <form onSubmit={(e) => handleAddStaff(e, clinic.id)} className="pet-form pet-form-grid">
-                        {addStaffError && <p className="form-error">{addStaffError}</p>}
+                        <FormError message={addStaffError} />
                         <label>
                           {t('common.name')}
                           <RequiredMark />
@@ -1390,7 +1391,7 @@ function AdminPage() {
 
                 {editingPetFields ? (
                   <form onSubmit={(e) => handleSavePetEdit(e, petModalData)} className="pet-form">
-                    {petEditError && <p className="form-error">{petEditError}</p>}
+                    <FormError message={petEditError} />
                     <label>
                       {t('common.name')}
                       <RequiredMark />
@@ -1527,7 +1528,7 @@ function AdminPage() {
 
                     {editingUserFields ? (
                       <form onSubmit={(e) => handleSaveUserEdit(e, userModalProfile)} className="pet-form">
-                        {userEditError && <p className="form-error">{userEditError}</p>}
+                        <FormError message={userEditError} />
                         <label>
                           {t('common.name')}
                           <RequiredMark />
@@ -1604,7 +1605,7 @@ function AdminPage() {
                       </form>
                     ) : showResetPassword ? (
                       <form onSubmit={(e) => handleResetPassword(e, userModalProfile.id)} className="pet-form">
-                        {resetPasswordError && <p className="form-error">{resetPasswordError}</p>}
+                        <FormError message={resetPasswordError} />
                         <label>
                           {t('admin.newPasswordField')}
                           <RequiredMark />

@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { CheckCircle2, XCircle } from 'lucide-react'
+import { useLanguage } from './i18n/LanguageContext'
+import { friendlyErrorKey } from './friendlyError'
 
 type ToastType = 'success' | 'error'
 type Toast = { id: number; type: ToastType; message: string }
@@ -15,6 +17,7 @@ const ToastContext = createContext<ToastContextValue | null>(null)
 const AUTO_DISMISS_MS = 4000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t } = useLanguage()
   const [toasts, setToasts] = useState<Toast[]>([])
   const nextId = useRef(0)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
@@ -57,7 +60,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const value: ToastContextValue = {
     success: (message) => push('success', message),
-    error: (message) => push('error', message),
+    error: (message) => {
+      const key = friendlyErrorKey(message)
+      push('error', key ? t(key) : message)
+    },
   }
 
   return (

@@ -9,6 +9,7 @@ import { defaultInvoiceCode, isValidInvoiceCode } from '../lib/invoiceMath'
 import type { Database } from '../lib/database.types'
 import Ltr from './Ltr'
 import RequiredMark from './RequiredMark'
+import FormError from './FormError'
 
 type Branch = Database['public']['Tables']['branches']['Row']
 
@@ -210,7 +211,7 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
       </ul>
       {formOpen ? (
         <form onSubmit={handleSave} className="pet-form pet-form-grid">
-          {error && <p className="form-error">{error}</p>}
+          <FormError message={error} />
           <label>
             {t('admin.branchName')}
             <RequiredMark />

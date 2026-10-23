@@ -11,6 +11,7 @@ import { clinicDay, formatDate, formatMoney } from '../lib/format'
 import type { Database } from '../lib/database.types'
 import BranchFilter from '../components/BranchFilter'
 import Ltr from '../components/Ltr'
+import FormError from '../components/FormError'
 
 type Fn = Database['public']['Functions']
 type ReportKey = 'cashUp' | 'unpaid' | 'income' | 'vat'
@@ -298,7 +299,7 @@ function ReportsPage() {
             )}
           </div>
           {built && <p className="report-note">{built.note}</p>}
-          {error && <p className="form-error">{error}</p>}
+          <FormError message={error} />
           {!built && !error && <p className="data-muted">{t('common.loading')}</p>}
 
           {built?.tiles && (

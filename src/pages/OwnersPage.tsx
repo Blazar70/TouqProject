@@ -7,6 +7,7 @@ import { matchesOwner } from '../lib/owners'
 import LoadingScreen from '../components/LoadingScreen'
 import OwnerDetail from '../components/OwnerDetail'
 import Ltr from '../components/Ltr'
+import FormError from '../components/FormError'
 
 type OwnerRow = { id: string; name: string; phone: string | null; balance: number; pets: { count: number }[] }
 
@@ -47,7 +48,7 @@ function OwnersPage() {
       <div className="page-header">
         <h1>{t('owners.title')}</h1>
       </div>
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
       <input
         type="search"
         className="search-input"

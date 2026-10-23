@@ -17,6 +17,7 @@ import PhoneInput from '../components/PhoneInput'
 import RefreshButton from '../components/RefreshButton'
 import RequiredMark from '../components/RequiredMark'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
+import FormError from '../components/FormError'
 
 type Branch = Database['public']['Tables']['branches']['Row']
 type Member = Pick<
@@ -420,7 +421,7 @@ function StaffPage() {
         <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       {active.length === 0 ? (
         <p>{t('staff.none')}</p>

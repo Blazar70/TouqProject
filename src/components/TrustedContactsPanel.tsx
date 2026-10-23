@@ -11,6 +11,7 @@ import Ltr from './Ltr'
 import { ListSkeleton } from './Skeleton'
 import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
+import FormError from './FormError'
 
 type TrustedContact = Database['public']['Tables']['pet_trusted_contacts']['Row']
 
@@ -52,7 +53,7 @@ function TrustedContactsPanel({ petId }: { petId: string }) {
     setError(null)
 
     if (phone && !isValidSaudiMobile(phone)) {
-      setError(t('registerPet.invalidPhone'))
+      setError(t('trustedContacts.invalidPhone'))
       return
     }
 
@@ -104,12 +105,12 @@ function TrustedContactsPanel({ petId }: { petId: string }) {
       </div>
       <p className="pet-owner">{t('trustedContacts.description')}</p>
 
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       {loading ? (
         <ListSkeleton rows={2} />
       ) : contacts.length === 0 ? (
-        <p>{t('trustedContacts.none')}</p>
+        !error && <p>{t('trustedContacts.none')}</p>
       ) : (
         <ul className="record-list">
           {contacts.map((contact) => (
@@ -143,7 +144,7 @@ function TrustedContactsPanel({ petId }: { petId: string }) {
           </label>
           <label>
             {t('common.phone')}
-            <PhoneInput value={phone} onChange={setPhone} invalidMessage={t('registerPet.invalidPhone')} />
+            <PhoneInput value={phone} onChange={setPhone} invalidMessage={t('trustedContacts.invalidPhone')} />
           </label>
           <div className="record-edit-actions">
             <button type="submit" disabled={saving}>

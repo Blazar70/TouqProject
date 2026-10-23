@@ -30,6 +30,7 @@ import {
   isDiscountValid,
 } from '../lib/invoiceMath'
 import type { Discount, InvoiceFull, PaymentMethod } from '../lib/invoiceMath'
+import FormError from '../components/FormError'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
@@ -435,7 +436,7 @@ function PaymentsPage() {
         <div className="settings-section">
           <h2>{t('payments.newInvoice')}</h2>
           <form onSubmit={handleCreateInvoice} className="pet-form payments-record-form">
-            {formError && <p className="form-error" role="alert">{formError}</p>}
+            <FormError message={formError} />
 
             <label>
               {t('payments.pet')}

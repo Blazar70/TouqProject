@@ -23,6 +23,7 @@ import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
 import LoadingScreen from './LoadingScreen'
 import Ltr from './Ltr'
+import FormError from './FormError'
 
 type Tables = Database['public']['Tables']
 type Owner = Tables['owner_files']['Row']
@@ -271,7 +272,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
           )}
         </div>
       </div>
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       <div className="owner-detail-grid">
         <div>
@@ -438,7 +439,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
               </div>
             ) : (
               <form onSubmit={handleBalance} className="pet-form">
-                {modalError && <p className="form-error" role="alert">{modalError}</p>}
+                <FormError message={modalError} />
                 <label>
                   {t('payments.amount')}
                   <RequiredMark />

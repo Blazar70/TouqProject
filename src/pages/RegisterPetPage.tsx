@@ -16,6 +16,7 @@ import OwnerPickerModal from '../components/OwnerPickerModal'
 import type { PickedOwner } from '../components/OwnerPickerModal'
 import Ltr from '../components/Ltr'
 import { handleEnterAdvance } from '../lib/formEnterNav'
+import FormError from '../components/FormError'
 
 function RegisterPetPage() {
   const { profile } = useAuth()
@@ -154,7 +155,7 @@ function RegisterPetPage() {
       <h1>{t('registerPet.title')}</h1>
 
       <form onSubmit={handleSubmit} onKeyDown={handleEnterAdvance} className="pet-form pet-form-grid">
-        {error && <p className="form-error">{error}</p>}
+        <FormError message={error} />
         <div className={`pet-photo-row${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
           {photoPreviewUrl ? (
             <img src={photoPreviewUrl} alt="" className="pet-avatar" style={{ width: 72, height: 72 }} />

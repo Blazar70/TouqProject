@@ -27,9 +27,11 @@ import PhotoThumbnail from './PhotoThumbnail'
 import OwnerPickerModal from './OwnerPickerModal'
 import type { PickedOwner } from './OwnerPickerModal'
 import { formatDate } from '../lib/format'
+import FormError from './FormError'
 
 type Pet = Database['public']['Tables']['pets']['Row']
-type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
+type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null }
+const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name)'
 
 // The edit form's fields as typed text; vitals are parsed on save.
 function recordToEdit(record: MedicalRecord) {
@@ -116,7 +118,7 @@ function PetDetail({
     setLoadingRecords(true)
     const { data, error } = await supabase
       .from('medical_records')
-      .select('*')
+      .select(RECORD_SELECT)
       .eq('pet_id', pet.id)
       .order('visit_date', { ascending: false })
     if (error) setRecordError(error.message)
@@ -316,7 +318,7 @@ function PetDetail({
         <p className="pet-owner">
           {t('pets.petId')}: <Ltr>{pet.pet_number}</Ltr>
         </p>
-        {petError && <p className="form-error">{petError}</p>}
+        <FormError message={petError} />
 
         <div className={`pet-photo-row${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
           <PetAvatar pet={pet} size={72} />
@@ -417,6 +419,7 @@ function PetDetail({
                       records.map((record) => ({
                         date: record.visit_date,
                         visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
+                        doctor: record.vet?.full_name,
                         record,
                         photoUrl: includeHistoryPhotos ? record.photo_url : null,
                       })),
@@ -429,7 +432,7 @@ function PetDetail({
               </div>
             )}
           </div>
-          {recordError && <p className="form-error">{recordError}</p>}
+          <FormError message={recordError} />
 
           {loadingRecords ? (
             <ListSkeleton rows={2} />
@@ -585,6 +588,8 @@ function PetDetail({
                               printSummary(pet.name, {
                                 date: record.visit_date,
                                 visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
+                                doctor: record.vet?.full_name,
+                                owner: [pet.owner_name, pet.owner_phone && `⁦${pet.owner_phone}⁩`].filter(Boolean).join(' · '),
                                 record,
                                 photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,
                               }, pet.pet_number)

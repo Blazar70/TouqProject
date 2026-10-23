@@ -17,6 +17,7 @@ import RefreshButton from '../components/RefreshButton'
 import { vaccinationStatus, nextVaccinationDateAfterDose } from '../lib/vaccination'
 import { formatDate } from '../lib/format'
 import { matchesPetSearch } from '../lib/appointmentSearch'
+import FormError from '../components/FormError'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -231,7 +232,7 @@ function PetsPage() {
         </div>
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       <input
         type="search"

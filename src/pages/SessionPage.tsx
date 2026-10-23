@@ -19,9 +19,13 @@ import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
 import Ltr from '../components/Ltr'
 import VisitServices from '../components/VisitServices'
+import FormError from '../components/FormError'
+
+const SESSION_SELECT = '*, pets(name, species, breed, owner_name, owner_phone), invoice:invoices(id)'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
+  invoice: { id: string } | null
 }
 
 function formatElapsed(ms: number) {
@@ -73,7 +77,7 @@ function SessionPage() {
   useEffect(() => {
     supabase
       .from('appointments')
-      .select('*, pets(name, species, breed, owner_name, owner_phone)')
+      .select(SESSION_SELECT)
       .eq('id', id)
       .maybeSingle()
       .then(async ({ data, error: loadError }) => {
@@ -86,12 +90,16 @@ function SessionPage() {
             .update({ status: 'in_session', started_at: new Date().toISOString() })
             .eq('id', data.id)
             .in('status', ['requested', 'confirmed'])
-            .select('*, pets(name, species, breed, owner_name, owner_phone)')
+            .select(SESSION_SELECT)
             .maybeSingle()
           if (startError) setError(startError.message)
           if (started) {
             notifyStatusChange(started.id)
             data = started
+          } else if (!startError) {
+            // Another open (second device, StrictMode re-run) started it first: use its started_at.
+            const { data: current } = await supabase.from('appointments').select(SESSION_SELECT).eq('id', data.id).maybeSingle()
+            if (current) data = current
           }
         }
         setAppointment(data)
@@ -158,6 +166,8 @@ function SessionPage() {
         clinic_id: profile.clinic_id,
         vet_id: profile.id,
         appointment_id: appointment.id,
+        // The visit happened when the session started, not when Finish was pressed (may be the next day).
+        visit_date: appointment.started_at ?? undefined,
         branch_id: branchId,
         visit_type: visitType,
         presenting_complaint: complaint.trim() || null,
@@ -214,7 +224,7 @@ function SessionPage() {
   if (!appointment || appointment.status === 'completed' || appointment.status === 'cancelled') {
     return (
       <div>
-        {error && <p className="form-error">{error}</p>}
+        <FormError message={error} />
         <p>{appointment ? t('session.notActive') : t('session.notFound')}</p>
         <button type="button" className="secondary-button" onClick={() => navigate('/appointments')}>
           {t('session.backToAppointments')}
@@ -251,10 +261,10 @@ function SessionPage() {
         </div>
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       {/* Outside the form: Enter in a quantity box must not finish the session. Saved as they're added. */}
-      <VisitServices appointmentId={appointment.id} locked={false} />
+      <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.invoice)} />
 
       <form onSubmit={handleSubmit} className="pet-form session-form">
         <label>

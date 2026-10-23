@@ -9,6 +9,7 @@ import { REPEAT_INTERVAL_OPTIONS, vaccinationStatus, nextVaccinationDateAfterDos
 import Ltr from './Ltr'
 import { useToast } from '../lib/ToastContext'
 import { formatDate } from '../lib/format'
+import FormError from './FormError'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -129,7 +130,7 @@ function VaccinationPanel({ pet, onUpdated }: { pet: Pet; onUpdated: (pet: Pet) 
         </p>
       )}
 
-      {error && <p className="form-error">{error}</p>}
+      <FormError message={error} />
 
       {isVet && (status === 'due-soon' || status === 'overdue') && pet.vaccination_interval_days && (
         <button type="button" className="secondary-button" onClick={handleMarkGiven} disabled={saving}>

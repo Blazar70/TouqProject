@@ -16,6 +16,7 @@ import { isValidVatNumber } from '../lib/invoiceMath'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
+import FormError from '../components/FormError'
 
 type Service = Database['public']['Tables']['services']['Row']
 
@@ -410,7 +411,7 @@ function SettingsPage() {
           </div>
           <div className="settings-body">
           <form onSubmit={handleSaveClinic} className="pet-form">
-            {clinicError && <p className="form-error">{clinicError}</p>}
+            <FormError message={clinicError} />
             <label>
               {t('settings.clinicName')}
               <input value={clinicName} onChange={(e) => setClinicName(e.target.value)} required />
@@ -435,7 +436,7 @@ function SettingsPage() {
           </div>
           <div className="settings-body">
             <form onSubmit={handleSaveBilling} className="pet-form">
-              {billingError && <p className="form-error">{billingError}</p>}
+              <FormError message={billingError} />
               <label>
                 {t('settings.vatNumber')}
                 <input
@@ -587,7 +588,7 @@ function SettingsPage() {
           )}
 
           <form onSubmit={handleAddService} className="pet-form pet-form-grid">
-            {serviceError && <p className="form-error">{serviceError}</p>}
+            <FormError message={serviceError} />
             <label>
               {t('settings.serviceName')}
               <input value={newServiceName} onChange={(e) => setNewServiceName(e.target.value)} required />
@@ -607,7 +608,7 @@ function SettingsPage() {
         </div>
         <div className="settings-body">
         <form onSubmit={handleSaveAccount} className="pet-form">
-          {accountError && <p className="form-error">{accountError}</p>}
+          <FormError message={accountError} />
           <label>
             {t('settings.yourName')}
             <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
@@ -633,7 +634,7 @@ function SettingsPage() {
 
         <form onSubmit={handleChangePassword} className="pet-form">
           <h3>{t('settings.changePassword')}</h3>
-          {passwordError && <p className="form-error">{passwordError}</p>}
+          <FormError message={passwordError} />
           <label>
             {t('settings.newPassword')}
             <input
@@ -655,6 +656,7 @@ function SettingsPage() {
         <div className="settings-section">
           <div className="settings-intro">
             <h2>{t('settings.notifications')}</h2>
+            <p className="pet-owner">{t('settings.notificationsHint')}</p>
           </div>
           <div className="settings-body">
           {!isPushSupported() ? (
@@ -667,7 +669,7 @@ function SettingsPage() {
 
               {pushEnabled && (
                 <form onSubmit={handleSaveNotifications} className="pet-form">
-                  {notificationsError && <p className="form-error">{notificationsError}</p>}
+                  <FormError message={notificationsError} />
                   <label>
                     {t('settings.reminderLead')}
                     <select value={reminderLead} onChange={(e) => setReminderLead(e.target.value)}>
