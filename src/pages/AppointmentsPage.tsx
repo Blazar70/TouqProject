@@ -36,6 +36,7 @@ import PaymentStatusBadge from '../components/PaymentStatusBadge'
 import { calendarCulture, formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
 import FormError from '../components/FormError'
+import Modal from '../components/Modal'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number } | null
@@ -174,6 +175,9 @@ function AppointmentsPage() {
   const [conflicts, setConflicts] = useState<Appointment[]>([])
   const [conflictAcknowledged, setConflictAcknowledged] = useState(false)
   const scheduleFormRef = useRef<HTMLFormElement>(null)
+  // Booking form is a pop-up: "New appointment" or a slot click opens it (no scrolling to a form under the calendar).
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [bookingError, setBookingError] = useState<string | null>(null)
 
   // A slot click only fills date/time/doctor (one click to redo); warn for what was typed or picked by hand.
   useUnsavedChangesWarning(Boolean(petId || reason.trim()) || (selected !== null && panelMode !== 'details'))
@@ -400,22 +404,22 @@ function AppointmentsPage() {
 
   async function handleAddAppointment(e: FormEvent) {
     e.preventDefault()
-    setError(null)
+    setBookingError(null)
 
     if (!profile || !profile.clinic_id) {
-      setError(t('appointments.onlyStaffSchedule'))
+      setBookingError(t('appointments.onlyStaffSchedule'))
       return
     }
     if (!petId) {
-      setError(t('appointments.choosePet'))
+      setBookingError(t('appointments.choosePet'))
       return
     }
     if (!doctorId) {
-      setError(t('appointments.chooseStaff'))
+      setBookingError(t('appointments.chooseStaff'))
       return
     }
     if (!scheduledDate || !scheduledHour || !scheduledMinute) {
-      setError(t('appointments.chooseDateTime'))
+      setBookingError(t('appointments.chooseDateTime'))
       return
     }
 
@@ -446,7 +450,7 @@ function AppointmentsPage() {
       .single()
 
     if (insertError) {
-      setError(insertError.message)
+      setBookingError(insertError.message)
       setSubmitting(false)
       return
     }
@@ -462,6 +466,7 @@ function AppointmentsPage() {
     setConflicts([])
     setConflictAcknowledged(false)
     setSubmitting(false)
+    setBookingOpen(false)
     toast.success(t('appointments.scheduled'))
     setAppointments((current) => mergeById(current, [newAppointment]))
     setSearchPool(null)
@@ -478,13 +483,22 @@ function AppointmentsPage() {
     setScheduledMinute(fields.minute)
     setScheduledPeriod(fields.period)
     if (resourceId && bookingStaff.some((s) => s.id === resourceId)) setDoctorId(String(resourceId))
-    focusBookingForm()
+    openBooking()
   }
 
-  function focusBookingForm() {
-    scheduleFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    // Ready to type the pet; preventScroll so it doesn't cut the smooth scroll short.
-    scheduleFormRef.current?.querySelector<HTMLInputElement>('.pet-picker > input')?.focus({ preventScroll: true })
+  function openBooking() {
+    setBookingError(null)
+    setBookingOpen(true)
+    // After the pop-up renders: ready to type the pet.
+    requestAnimationFrame(() => scheduleFormRef.current?.querySelector<HTMLInputElement>('.pet-picker > input')?.focus())
+  }
+
+  async function closeBooking() {
+    // Typed a pet or reason: ask before dropping it (date/time/doctor are one click to redo).
+    if ((petId || reason.trim()) && !(await confirm(t('common.unsavedChangesConfirm')))) return
+    setPetId('')
+    setReason('')
+    setBookingOpen(false)
   }
 
   // rbc only selects a slot after a long press on touch screens; a plain tap books too.
@@ -967,7 +981,7 @@ function AppointmentsPage() {
           <BranchFilter value={viewBranch} onChange={setViewBranch} />
           <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
           {isVet && (
-            <button type="button" className="primary-button" onClick={focusBookingForm}>
+            <button type="button" className="primary-button" onClick={openBooking}>
               + {t('appointments.newAppointment')}
             </button>
           )}
@@ -1145,9 +1159,11 @@ function AppointmentsPage() {
 
       {selected && renderPanel(selected)}
 
-      {isVet && (
+      {isVet && bookingOpen && (
+        <Modal onClose={closeBooking} labelledBy="booking-title" className="booking-modal">
         <form ref={scheduleFormRef} onSubmit={handleAddAppointment} className="pet-form pet-form-grid">
-          <h2>{t('appointments.schedule')}</h2>
+          <h2 id="booking-title">{t('appointments.schedule')}</h2>
+          <FormError message={bookingError} />
           {bookingElsewhere && (
             <p className="pet-owner appointment-schedule-hint">{t('branch.bookingAt', { name: branchName(bookingBranchId) })}</p>
           )}
@@ -1242,10 +1258,16 @@ function AppointmentsPage() {
               </button>
             </div>
           )}
-          <button type="submit" disabled={submitting}>
-            {submitting ? t('common.saving') : t('appointments.scheduleSubmit')}
-          </button>
+          <div className="record-edit-actions">
+            <button type="submit" disabled={submitting}>
+              {submitting ? t('common.saving') : t('appointments.scheduleSubmit')}
+            </button>
+            <button type="button" className="cancel-button" onClick={closeBooking}>
+              {t('common.cancel')}
+            </button>
+          </div>
         </form>
+        </Modal>
       )}
     </div>
   )

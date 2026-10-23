@@ -1992,6 +1992,20 @@ input[type='checkbox']:focus-visible {
   padding: 1rem;
 }
 
+.admin-modal-card.booking-modal {
+  max-width: 680px;
+}
+
+/* The pop-up is the card; the form inside drops its own panel look. */
+.booking-modal .pet-form {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+
 .admin-modal-card:focus {
   outline: none;
 }
