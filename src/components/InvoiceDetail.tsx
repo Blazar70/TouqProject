@@ -182,7 +182,10 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
     reload()
   }
 
-  const pet = invoice.pets ? { name: invoice.pets.name, number: invoice.pets.pet_number } : null
+  // A purged pet's bill keeps the name and number saved on it (0069).
+  const petName = invoice.pets?.name ?? invoice.pet_name
+  const petNumber = invoice.pets?.pet_number ?? invoice.pet_number
+  const pet = petName && petNumber ? { name: petName, number: petNumber } : null
 
   function printThis() {
     printInvoice({
@@ -244,11 +247,11 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
           <PaymentStatusBadge status={invoice.payment_status} />
         </div>
         <p className="pet-owner">
-          {invoice.pets?.name ?? '—'}
-          {invoice.pets && (
+          {petName ?? '—'}
+          {petNumber && (
             <>
               {' · '}
-              {t('pets.petId')} <Ltr>{invoice.pets.pet_number}</Ltr>
+              {t('pets.petId')} <Ltr>{petNumber}</Ltr>
             </>
           )}
           {' · '}

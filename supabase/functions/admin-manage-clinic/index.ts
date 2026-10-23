@@ -70,6 +70,22 @@ Deno.serve(async (req) => {
   // The actual cascading delete — every table that references the clinic,
   // then every staff auth account (which cascades to its profiles row via
   // the ON DELETE CASCADE FK), then the clinic row itself.
+  // Files live under "<clinicId>/" in each bucket; deleting rows doesn't remove them (nightly S5).
+  // Folders have no id in a listing: recurse into them, remove files a page at a time.
+  async function removeFolder(bucket: string, prefix: string): Promise<void> {
+    for (;;) {
+      const { data, error } = await admin.storage.from(bucket).list(prefix, { limit: 1000 })
+      if (error || !data?.length) return
+      for (const folder of data.filter((item) => !item.id)) await removeFolder(bucket, `${prefix}/${folder.name}`)
+      const files = data.filter((item) => item.id).map((item) => `${prefix}/${item.name}`)
+      if (files.length) {
+        const { error: removeError } = await admin.storage.from(bucket).remove(files)
+        if (removeError) return
+      }
+      if (data.length < 1000) return
+    }
+  }
+
   async function purgeClinic(clinicId: string, clinicName: string) {
     const { data: pets } = await admin.from('pets').select('id').eq('clinic_id', clinicId)
     const petIds = (pets ?? []).map((p) => p.id)
@@ -95,6 +111,9 @@ Deno.serve(async (req) => {
 
     const { error } = await admin.from('clinics').delete().eq('id', clinicId)
     if (error) return error.message
+
+    // After the rows are gone, so a failed purge never leaves records pointing at missing files.
+    for (const bucket of ['pet-photos', 'clinic-logos', 'payment-documents']) await removeFolder(bucket, clinicId)
 
     await logAction('clinic_purged', 'clinic', clinicName, clinicId)
     return null

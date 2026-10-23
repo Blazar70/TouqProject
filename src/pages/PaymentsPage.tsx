@@ -725,10 +725,10 @@ function PaymentsPage() {
                     <Ltr>{invoice.invoice_number}</Ltr>
                   </span>
                   <span className="data-cell-wide">
-                    <strong className="data-strong">{invoice.pets?.name ?? '—'}</strong>
-                    {invoice.pets && (
+                    <strong className="data-strong">{invoice.pets?.name ?? invoice.pet_name ?? '—'}</strong>
+                    {(invoice.pets?.pet_number ?? invoice.pet_number) && (
                       <div className="pet-owner">
-                        {t('pets.petId')}: <Ltr>{invoice.pets.pet_number}</Ltr>
+                        {t('pets.petId')}: <Ltr>{invoice.pets?.pet_number ?? invoice.pet_number}</Ltr>
                       </div>
                     )}
                   </span>

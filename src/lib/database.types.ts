@@ -449,7 +449,9 @@ export type Database = {
           invoice_number: string
           notes: string | null
           payment_status: string
-          pet_id: string
+          pet_id: string | null
+          pet_name: string | null
+          pet_number: number | null
           vat_total: number
         }
         Insert: never
