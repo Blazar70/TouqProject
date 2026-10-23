@@ -15,7 +15,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import VaccinationBadge from '../components/VaccinationBadge'
 import RefreshButton from '../components/RefreshButton'
 import BranchFilter from '../components/BranchFilter'
-import { clinicDay, formatDate, formatMoney, formatTime } from '../lib/format'
+import { clinicDay, clinicMidnight, formatDate, formatMoney, formatTime } from '../lib/format'
 
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & {
   pets: { name: string } | null
@@ -46,12 +46,10 @@ function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
 
   async function load() {
-    const dayStart = new Date()
-    dayStart.setHours(0, 0, 0, 0)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
-    const monthStart = new Date(dayStart)
-    monthStart.setDate(1)
+    // Clinic days, not the device clock (nightly B4): matches the cash-up report.
+    const dayStart = clinicMidnight()
+    const dayEnd = new Date(dayStart.getTime() + 86_400_000)
+    const monthStart = clinicMidnight(`${clinicDay().slice(0, 8)}01`)
 
     // Pets and vaccinations stay clinic-wide (pets have no branch); appointments, money and
     // recent visits follow the branch filter (visits saved before phase 3 have no branch).

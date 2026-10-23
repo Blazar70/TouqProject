@@ -36,6 +36,9 @@ export const formatIsoDate = (value: string | Date) => toDate(value).toLocaleDat
 // shortcut: fixed to Asia/Riyadh (every clinic's clinics.timezone today), read clinics.timezone once a clinic outside KSA joins.
 export const clinicDay = (value: string | Date = new Date()) => new Date(value).toLocaleDateString('en-CA', { timeZone: 'Asia/Riyadh' })
 
+// The instant a clinic day (yyyy-mm-dd) starts. shortcut: Riyadh is UTC+3 all year (no DST); same upgrade as clinicDay.
+export const clinicMidnight = (day: string = clinicDay()) => new Date(`${day}T00:00:00+03:00`)
+
 export const formatMoney =(amount: number) =>
   amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 

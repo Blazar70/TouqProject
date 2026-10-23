@@ -3,6 +3,8 @@ import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
+import { useConfirm } from '../lib/ConfirmContext'
+import { useAuth } from '../lib/AuthContext'
 import { usePrintSummary } from '../lib/PrintContext'
 import type { InvoiceDoc } from '../lib/PrintContext'
 import { formatDateTime, formatMoney } from '../lib/format'
@@ -58,6 +60,8 @@ function MethodToggle({ value, onChange, methods }: { value: PaymentMethod; onCh
 function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, onChanged, onClose }: Props) {
   const { t } = useLanguage()
   const toast = useToast()
+  const confirm = useConfirm()
+  const { profile } = useAuth()
   const { printInvoice } = usePrintSummary()
   const [mode, setMode] = useState<'view' | 'pay' | 'credit'>('view')
   const [method, setMethod] = useState<PaymentMethod>('cash')
@@ -81,6 +85,8 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
 
   const items = [...invoice.invoice_items].sort((a, b) => a.position - b.position)
   const remaining = amountRemaining(invoice)
+  // Money roles only (0068); doctors and nurses don't issue credit notes.
+  const canCredit = profile?.clinic_role === 'receptionist' || profile?.clinic_role === 'manager'
   const creditable = Math.round((invoice.amount_total - invoice.amount_credited) * 100) / 100
   const credited = new Set(invoice.credit_notes.flatMap((c) => c.item_ids))
   const rates = new Set(items.map((i) => i.vat_rate))
@@ -145,6 +151,17 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       setError(t('payments.creditTooMuch'))
       return
     }
+    // Can't be undone: say in one sentence what happens before it does (nightly H10).
+    const creditAmount = value ?? (creditItems.length ? null : creditable)
+    const ok = await confirm(
+      t('payments.creditConfirm', {
+        number: invoice.invoice_number,
+        amount: creditAmount === null ? t('payments.creditSelectedLines') : `${formatMoney(creditAmount)} ${t('common.currency')}`,
+        method: t(METHOD_LABEL_KEYS[method]),
+      }),
+      { confirmLabel: t('payments.issueCreditNote') },
+    )
+    if (!ok) return
     setSaving(true)
     const { data, error: rpcError } = await supabase.rpc('create_credit_note', {
       p_invoice: invoice.id,
@@ -399,7 +416,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
             <button type="button" className="secondary-button" onClick={printThis}>
               {t('payments.print')}
             </button>
-            {creditable > 0 && (
+            {creditable > 0 && canCredit && (
               <button type="button" className="secondary-button" onClick={() => open('credit')}>
                 {t('payments.issueCreditNote')}
               </button>

@@ -10,6 +10,9 @@ import { ThemeProvider } from './lib/ThemeContext'
 import { ConfirmProvider } from './lib/ConfirmContext'
 import { ToastProvider } from './lib/ToastContext'
 import { PrintProvider } from './lib/PrintContext'
+import { installArabicDigitInput } from './lib/arabicDigits'
+
+installArabicDigitInput()
 import OfflineBanner from './components/OfflineBanner'
 import UpdatePrompt from './components/UpdatePrompt'
 

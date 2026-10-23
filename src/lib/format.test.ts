@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clinicDay, formatDate, formatDateTime, formatIsoDate, formatMoney, setDisplayLanguage } from './format'
+import { clinicDay, formatDate, formatDateTime, formatIsoDate, formatMoney, setDisplayLanguage, clinicMidnight } from './format'
 
 describe('format', () => {
   it('gives the clinic day in Riyadh time, whatever the device zone', () => {
@@ -30,5 +30,8 @@ describe('format', () => {
     expect(formatDate('2026-10-23')).toBe('23 أكتوبر 2026')
     setDisplayLanguage('en')
     expect(formatDate('2026-10-23')).toBe('Oct 23, 2026')
+  })
+  it('clinic midnight is 21:00 UTC the day before', () => {
+    expect(clinicMidnight('2026-10-23').toISOString()).toBe('2026-10-22T21:00:00.000Z')
   })
 })

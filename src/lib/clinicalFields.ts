@@ -1,4 +1,5 @@
 import type { TranslationKey } from './i18n/translations'
+import { toLatinDigits } from './arabicDigits'
 
 // Same limits as the check constraints in
 // supabase/migrations/0040_medical_record_clinical_fields.sql — keep in sync.
@@ -19,14 +20,8 @@ export type Vitals = {
 
 export type VitalsResult = { ok: true; vitals: Vitals } | { ok: false; errorKey: TranslationKey }
 
-// Tablets set to Arabic can type Arabic-Indic digits (٣٨٫٥) or a comma as
-// the decimal separator; turn those into a plain "38.5" before parsing.
 function normalizeNumber(raw: string): string {
-  return raw
-    .trim()
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-    .replace(/[٫,]/g, '.')
+  return toLatinDigits(raw.trim())
 }
 
 // undefined = invalid, null = left empty.

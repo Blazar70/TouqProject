@@ -17,7 +17,7 @@ import PaymentStatusBadge from '../components/PaymentStatusBadge'
 import InvoiceDetail from '../components/InvoiceDetail'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
-import { clinicDay, formatDateTime, formatMoney } from '../lib/format'
+import { clinicDay, clinicMidnight, formatDateTime, formatMoney } from '../lib/format'
 import { toPaymentLines } from '../lib/visitServices'
 import { matchesPetSearch } from '../lib/appointmentSearch'
 import {
@@ -101,8 +101,7 @@ function PaymentsPage() {
 
   useEffect(() => {
     async function load() {
-      const dayStart = new Date()
-      dayStart.setHours(0, 0, 0, 0)
+      const dayStart = clinicMidnight() // clinic day, like the cash-up report
       let invoicesQuery = supabase.from('invoices').select(INVOICE_SELECT)
       let todayQuery = supabase.from('invoice_payments').select('method, amount').gte('paid_at', dayStart.toISOString())
       if (viewBranch !== ALL_BRANCHES) {
