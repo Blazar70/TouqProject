@@ -160,7 +160,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
   function printReceipt(entry: Entry, balanceAfter: number) {
     printInvoice({
       kind: 'deposit',
-      number: entry.id.slice(0, 8).toUpperCase(),
+      number: entry.receipt_number ?? entry.id.slice(0, 8).toUpperCase(),
       date: entry.created_at,
       branch: entry.branch_id ? branchName(entry.branch_id) : '—',
       vatNumber: null,

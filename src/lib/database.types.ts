@@ -452,6 +452,9 @@ export type Database = {
           pet_id: string | null
           pet_name: string | null
           pet_number: number | null
+          zatca_icv: number | null
+          zatca_previous_hash: string | null
+          zatca_uuid: string | null
           vat_total: number
         }
         Insert: never
@@ -614,6 +617,7 @@ export type Database = {
           method: string | null
           owner_file_id: string
           reason: string | null
+          receipt_number: string | null
         }
         Insert: never
         Update: never

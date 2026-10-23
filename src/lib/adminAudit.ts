@@ -29,6 +29,7 @@ export const AUDIT_ACTION_LABEL_KEYS: Record<string, TranslationKey> = {
   staff_login_changed: 'admin.action.staffLoginChanged',
   branch_added: 'admin.action.branchAdded',
   branch_updated: 'admin.action.branchUpdated',
+  branch_invoice_code_changed: 'admin.action.branchInvoiceCodeChanged',
   branch_closed: 'admin.action.branchClosed',
   branch_reopened: 'admin.action.branchReopened',
   branch_made_main: 'admin.action.branchMadeMain',
