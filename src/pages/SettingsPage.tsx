@@ -17,6 +17,7 @@ import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
 import FormError from '../components/FormError'
+import VaccinesSettings from '../components/VaccinesSettings'
 
 type Service = Database['public']['Tables']['services']['Row']
 
@@ -598,6 +599,18 @@ function SettingsPage() {
               {addingService ? t('common.saving') : t('settings.addService')}
             </button>
           </form>
+          </div>
+        </div>
+      )}
+
+      {isVet && profile?.clinic_id && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('settings.vaccines')}</h2>
+            <p className="pet-owner">{t(isManager ? 'settings.vaccinesHint' : 'settings.vaccinesHintReadOnly')}</p>
+          </div>
+          <div className="settings-body">
+            <VaccinesSettings clinicId={profile.clinic_id} canEdit={isManager} />
           </div>
         </div>
       )}

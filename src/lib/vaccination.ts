@@ -1,12 +1,19 @@
 import type { TranslationKey } from './i18n/translations'
+import { clinicDay } from './format'
 
 export type VaccinationStatus = 'none' | 'ok' | 'due-soon' | 'overdue'
 
 export const DUE_SOON_WINDOW_DAYS = 14
 
-export function vaccinationStatus(nextDate: string | null): VaccinationStatus {
+// yyyy-mm-dd + n days. Both are calendar days, so UTC arithmetic is exact.
+export function addDays(day: string, days: number): string {
+  return new Date(Date.parse(day) + days * 86_400_000).toISOString().slice(0, 10)
+}
+
+// Compared with the clinic's calendar day, not the device clock or UTC (U26).
+export function vaccinationStatus(nextDate: string | null, today: string = clinicDay()): VaccinationStatus {
   if (!nextDate) return 'none'
-  const daysUntil = Math.ceil((new Date(nextDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const daysUntil = (Date.parse(nextDate) - Date.parse(today)) / 86_400_000
   if (daysUntil < 0) return 'overdue'
   if (daysUntil <= DUE_SOON_WINDOW_DAYS) return 'due-soon'
   return 'ok'
@@ -21,20 +28,4 @@ const VACCINATION_STATUS_KEYS: Record<VaccinationStatus, TranslationKey> = {
 
 export function vaccinationStatusLabel(t: (key: TranslationKey) => string, status: VaccinationStatus): string {
   return t(VACCINATION_STATUS_KEYS[status])
-}
-
-export const REPEAT_INTERVAL_OPTIONS: { labelKey: TranslationKey; days: number }[] = [
-  { labelKey: 'vaccination.every30', days: 30 },
-  { labelKey: 'vaccination.every90', days: 90 },
-  { labelKey: 'vaccination.every6mo', days: 182 },
-  { labelKey: 'vaccination.everyYear', days: 365 },
-]
-
-// The date a dose given "today" pushes the next one out to, as a
-// YYYY-MM-DD string ready to store — shared by VaccinationPanel's own
-// "mark given" action and the quick one-click version on the pets list.
-export function nextVaccinationDateAfterDose(intervalDays: number): string {
-  const next = new Date()
-  next.setDate(next.getDate() + intervalDays)
-  return next.toISOString().slice(0, 10)
 }

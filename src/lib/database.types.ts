@@ -810,7 +810,6 @@ export type Database = {
           pet_number: number
           photo_url: string | null
           species: string
-          vaccination_interval_days: number | null
         }
         Insert: {
           breed?: string | null
@@ -830,7 +829,6 @@ export type Database = {
           pet_number?: number
           photo_url?: string | null
           species: string
-          vaccination_interval_days?: number | null
         }
         Update: {
           breed?: string | null
@@ -850,7 +848,6 @@ export type Database = {
           pet_number?: number
           photo_url?: string | null
           species?: string
-          vaccination_interval_days?: number | null
         }
         Relationships: [
           {
@@ -1058,11 +1055,152 @@ export type Database = {
           },
         ]
       }
+      vaccines: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          interval_days: number
+          name: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          interval_days: number
+          name: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          interval_days?: number
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vaccines_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pet_vaccines: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          id: string
+          interval_days: number
+          next_due_date: string
+          pet_id: string
+          vaccine_id: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          id?: string
+          interval_days: number
+          next_due_date: string
+          pet_id: string
+          vaccine_id: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          id?: string
+          interval_days?: number
+          next_due_date?: string
+          pet_id?: string
+          vaccine_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_vaccines_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_vaccines_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_vaccines_vaccine_id_clinic_id_fkey"
+            columns: ["vaccine_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "vaccines"
+            referencedColumns: ["id", "clinic_id"]
+          },
+        ]
+      }
+      vaccine_doses: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          given_by: string | null
+          given_on: string
+          id: string
+          pet_vaccine_id: string
+          previous_due_date: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          given_by?: string | null
+          given_on: string
+          id?: string
+          pet_vaccine_id: string
+          previous_due_date: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          given_by?: string | null
+          given_on?: string
+          id?: string
+          pet_vaccine_id?: string
+          previous_due_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vaccine_doses_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vaccine_doses_given_by_fkey"
+            columns: ["given_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vaccine_doses_pet_vaccine_id_fkey"
+            columns: ["pet_vaccine_id"]
+            isOneToOne: false
+            referencedRelation: "pet_vaccines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      mark_vaccine_given: {
+        Args: { p_given_on?: string; p_pet_vaccine: string }
+        Returns: string
+      }
+      undo_vaccine_dose: { Args: { p_dose: string }; Returns: undefined }
       admin_clinic_counts: {
         Args: never
         Returns: {

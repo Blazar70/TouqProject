@@ -14,7 +14,6 @@ import VaccinationBadge from '../components/VaccinationBadge'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
-import { vaccinationStatus, nextVaccinationDateAfterDose } from '../lib/vaccination'
 import { formatDate } from '../lib/format'
 import { matchesPetSearch } from '../lib/appointmentSearch'
 import FormError from '../components/FormError'
@@ -152,23 +151,6 @@ function PetsPage() {
     setPets((current) => current.map((p) => (p.id === updated.id ? updated : p)))
   }
 
-  async function handleQuickMarkGiven(pet: Pet) {
-    if (!pet.vaccination_interval_days) return
-    const nextDateStr = nextVaccinationDateAfterDose(pet.vaccination_interval_days)
-    const { data, error } = await supabase
-      .from('pets')
-      .update({ next_vaccination_date: nextDateStr })
-      .eq('id', pet.id)
-      .select()
-      .single()
-    if (error || !data) {
-      toast.error(error?.message ?? t('common.couldNotSave'))
-      return
-    }
-    handlePetUpdated(data)
-    toast.success(t('vaccination.markedGiven'))
-  }
-
   // Real navigation now, so PetDetail's unsaved-changes guard (useBlocker) asks before leaving a dirty file.
   function handleRowToggle(pet: Pet) {
     if (expandedPetId === pet.id) {
@@ -271,11 +253,6 @@ function PetsPage() {
                   <VaccinationBadge nextDate={pet.next_vaccination_date} />
                 </div>
                 <div className="data-end">
-                  {profile?.role === 'vet' && pet.vaccination_interval_days && ['due-soon', 'overdue'].includes(vaccinationStatus(pet.next_vaccination_date)) && (
-                    <button type="button" className="secondary-button" onClick={() => handleQuickMarkGiven(pet)}>
-                      {t('vaccination.markGiven')}
-                    </button>
-                  )}
                 </div>
               </div>
               {expandedPetId === pet.id && (

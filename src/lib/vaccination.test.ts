@@ -1,40 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { vaccinationStatus, nextVaccinationDateAfterDose } from './vaccination'
+import { addDays, vaccinationStatus } from './vaccination'
 
-function daysFromNow(days: number) {
-  const d = new Date()
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
+const TODAY = '2026-10-23'
 
 describe('vaccinationStatus', () => {
   it('returns "none" when there is no next date', () => {
-    expect(vaccinationStatus(null)).toBe('none')
+    expect(vaccinationStatus(null, TODAY)).toBe('none')
   })
 
-  it('returns "overdue" for a date in the past', () => {
-    expect(vaccinationStatus(daysFromNow(-1))).toBe('overdue')
-    expect(vaccinationStatus(daysFromNow(-30))).toBe('overdue')
+  it('returns "overdue" for a day before today', () => {
+    expect(vaccinationStatus('2026-10-22', TODAY)).toBe('overdue')
+    expect(vaccinationStatus('2026-09-23', TODAY)).toBe('overdue')
   })
 
-  it('returns "due-soon" within the 14-day window', () => {
-    expect(vaccinationStatus(daysFromNow(0))).toBe('due-soon')
-    expect(vaccinationStatus(daysFromNow(14))).toBe('due-soon')
+  it('returns "due-soon" from today through the 14-day window', () => {
+    expect(vaccinationStatus(TODAY, TODAY)).toBe('due-soon')
+    expect(vaccinationStatus('2026-11-06', TODAY)).toBe('due-soon')
   })
 
   it('returns "ok" beyond the 14-day window', () => {
-    expect(vaccinationStatus(daysFromNow(15))).toBe('ok')
-    expect(vaccinationStatus(daysFromNow(365))).toBe('ok')
+    expect(vaccinationStatus('2026-11-07', TODAY)).toBe('ok')
   })
 })
 
-describe('nextVaccinationDateAfterDose', () => {
-  it('returns today + the interval, as YYYY-MM-DD', () => {
-    expect(nextVaccinationDateAfterDose(30)).toBe(daysFromNow(30))
-  })
-
-  it('marking the result due-soon or later, never overdue', () => {
-    const status = vaccinationStatus(nextVaccinationDateAfterDose(30))
-    expect(status === 'due-soon' || status === 'ok').toBe(true)
+describe('addDays', () => {
+  it('adds calendar days across months and years', () => {
+    expect(addDays('2026-10-23', 14)).toBe('2026-11-06')
+    expect(addDays('2026-12-25', 365)).toBe('2027-12-25')
   })
 })

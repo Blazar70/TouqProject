@@ -7,7 +7,7 @@ import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
-import { DUE_SOON_WINDOW_DAYS, nextVaccinationDateAfterDose, vaccinationStatus } from '../lib/vaccination'
+import { DUE_SOON_WINDOW_DAYS, addDays, vaccinationStatus } from '../lib/vaccination'
 import { cancellationCategoryLabel, groupCancellationCounts } from '../lib/cancellation'
 import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import Ltr from '../components/Ltr'
@@ -15,12 +15,11 @@ import LoadingScreen from '../components/LoadingScreen'
 import VaccinationBadge from '../components/VaccinationBadge'
 import RefreshButton from '../components/RefreshButton'
 import BranchFilter from '../components/BranchFilter'
-import { formatDate, formatMoney, formatTime } from '../lib/format'
+import { clinicDay, formatDate, formatMoney, formatTime } from '../lib/format'
 
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & {
   pets: { name: string } | null
 }
-type Pet = Database['public']['Tables']['pets']['Row']
 type TodayAppointment = {
   id: string
   scheduled_at: string
@@ -29,6 +28,8 @@ type TodayAppointment = {
   pets: { name: string; owner_name: string } | null
   doctor: { full_name: string } | null
 }
+
+type DueVaccine = { id: string; next_due_date: string; vaccine: { name: string } | null; pet: { id: string; name: string; owner_name: string } }
 
 function DashboardPage() {
   const { profile } = useAuth()
@@ -39,7 +40,7 @@ function DashboardPage() {
   const [today, setToday] = useState<TodayAppointment[]>([])
   const [paymentsToday, setPaymentsToday] = useState<number[]>([])
   const [recentRecords, setRecentRecords] = useState<MedicalRecord[]>([])
-  const [vaccinationsDue, setVaccinationsDue] = useState<Pet[]>([])
+  const [vaccinationsDue, setVaccinationsDue] = useState<DueVaccine[]>([])
   const [cancellationCounts, setCancellationCounts] = useState<{ category: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -74,14 +75,13 @@ function DashboardPage() {
       byBranch(supabase.from('medical_records').select('*, pets(name)'))
         .order('visit_date', { ascending: false })
         .limit(5),
+      // One row per vaccine due (a pet with two due vaccines shows twice, each named).
       supabase
-        .from('pets')
-        .select('*')
-        .is('deleted_at', null)
-        .not('next_vaccination_date', 'is', null)
-        // One day of slack for timezones; vaccinationStatus() below decides exactly.
-        .lte('next_vaccination_date', nextVaccinationDateAfterDose(DUE_SOON_WINDOW_DAYS + 1))
-        .order('next_vaccination_date', { ascending: true }),
+        .from('pet_vaccines')
+        .select('id, next_due_date, vaccine:vaccines(name), pet:pets!inner(id, name, owner_name, deleted_at)')
+        .is('pet.deleted_at', null)
+        .lte('next_due_date', addDays(clinicDay(), DUE_SOON_WINDOW_DAYS))
+        .order('next_due_date', { ascending: true }),
       byBranch(
         supabase
           .from('appointments')
@@ -93,12 +93,7 @@ function DashboardPage() {
     setToday(todayRes.data ?? [])
     setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount))
     setRecentRecords(recordsRes.data ?? [])
-    setVaccinationsDue(
-      (petsRes.data ?? []).filter((pet) => {
-        const status = vaccinationStatus(pet.next_vaccination_date)
-        return status === 'due-soon' || status === 'overdue'
-      }),
-    )
+    setVaccinationsDue((petsRes.data as DueVaccine[] | null) ?? [])
     setCancellationCounts(groupCancellationCounts((cancellationsRes.data ?? []).map((c) => c.cancellation_category)))
   }
 
@@ -137,7 +132,7 @@ function DashboardPage() {
   const nextId = active.find(
     (a) => (a.status === 'requested' || a.status === 'confirmed') && new Date(a.scheduled_at).getTime() >= now,
   )?.id
-  const overdue = vaccinationsDue.filter((pet) => vaccinationStatus(pet.next_vaccination_date) === 'overdue').length
+  const overdue = vaccinationsDue.filter((due) => vaccinationStatus(due.next_due_date) === 'overdue').length
   const paymentsTotal = paymentsToday.reduce((sum, amount) => sum + amount, 0)
   // Latin digits in both languages, matching the rest of the app.
   const todayLabel = new Date().toLocaleDateString(language === 'ar' ? 'ar-u-nu-latn' : 'en-US', {
@@ -243,16 +238,18 @@ function DashboardPage() {
               <p className="dash-empty">{t('dashboard.noneDue')}</p>
             ) : (
               <ul className="dash-list">
-                {vaccinationsDue.map((pet) => (
-                  <li key={pet.id}>
-                    <Link to={`/pets/${pet.id}`} className="dash-row">
+                {vaccinationsDue.map((due) => (
+                  <li key={due.id}>
+                    <Link to={`/pets/${due.pet.id}`} className="dash-row">
                       <span className="dash-row-main">
-                        <strong>{pet.name}</strong>
+                        <strong>
+                          {due.pet.name} · {due.vaccine?.name}
+                        </strong>
                         <span className="dash-row-sub">
-                          {pet.owner_name} · <Ltr>{formatDate(pet.next_vaccination_date!)}</Ltr>
+                          {due.pet.owner_name} · <Ltr>{formatDate(due.next_due_date)}</Ltr>
                         </span>
                       </span>
-                      <VaccinationBadge nextDate={pet.next_vaccination_date} />
+                      <VaccinationBadge nextDate={due.next_due_date} />
                     </Link>
                   </li>
                 ))}

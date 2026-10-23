@@ -19,7 +19,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 | Routes and role gate | `src/App.tsx` (admin vs clinic route sets) |
 | Pages | `src/pages/` |
 | Business rules | `src/lib/` (cancellation, vaccination, appointmentConflicts, ...) |
-| DB schema | `supabase/migrations/` (0001-0065, applied in order; rollbacks in `supabase/rollbacks/`) |
+| DB schema | `supabase/migrations/` (0001-0067, applied in order; rollbacks in `supabase/rollbacks/`) |
 | Generated DB types | `src/lib/database.types.ts` |
 | Edge functions | `supabase/functions/` |
 
@@ -31,7 +31,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 - **Clinic role** = `profiles.clinic_role` (0045): manager / doctor / nurse / receptionist, inside a `vet` account. No policy uses it yet.
 - **Branch** = table `branches` (0044), a location of a clinic. Not a data wall: isolation is still by `clinic_id`. The branch someone works at right now is client state (`BranchContext`), not a DB column.
 - **Pet owner** = table `owner_files` (0063), the customer, not a profile; `pets.owner_file_id` links it. `pets.owner_name/phone/email` stay as a trigger-synced copy. `pets.owner_id` (-> profiles) is the old unused owner login, not this.
-- **Vaccination** = columns on `pets`, not a table.
+- **Vaccination** = tables `vaccines` (clinic list), `pet_vaccines` (per-pet schedule), `vaccine_doses` (history; written only via `mark_vaccine_given` / `undo_vaccine_dose`), 0067. `pets.next_vaccination_date` is a trigger-kept cache (earliest due).
 - **Trash** = soft delete (`deleted_at`), 7 days, UI-filtered, pets only. Staff are never trashed: removing = disable (`profiles.disabled` + auth ban).
 
 ## Route by task
