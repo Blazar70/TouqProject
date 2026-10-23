@@ -705,6 +705,43 @@
   border: 1px solid var(--border);
 }
 
+.branch-picker-logout {
+  margin-top: 1rem;
+}
+
+.app-clinic-badge-wrap {
+  position: relative;
+  flex: none;
+}
+
+/* Working branch tag on the clinic badge; stays visible in the collapsed rail. */
+.app-clinic-branch {
+  position: absolute;
+  left: 50%;
+  bottom: -0.55rem;
+  transform: translateX(-50%);
+  max-width: 3.5rem;
+  padding: 0 0.3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.app-clinic:has(.app-clinic-branch) {
+  padding-bottom: 1.1rem;
+}
+
+/* The clinic badge is the identity once a clinic is shown; no second (app) logo above it. */
+.app-sidebar:has(.app-clinic) .app-brand-mark {
+  display: none;
+}
+
 .app-clinic-name {
   min-width: 0;
   color: var(--text-h);

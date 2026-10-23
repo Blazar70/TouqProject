@@ -111,7 +111,7 @@ type Props = {
 function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   const { t } = useLanguage()
   const { profile, clinicLogoUrl: logo } = useAuth()
-  const { branchId, branchName, pickable } = useBranch()
+  const { branchId, branchName, pickable, branches } = useBranch()
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
   const overlayOpen = menuOpen && !isDesktop
@@ -149,6 +149,8 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   // With 2+ branches the branch shows in the dropdown instead.
   const branchLabel = isAdmin || hasBranchMenu ? null : branchName(branchId)
   const userMeta = [roleLabel, branchLabel].filter(Boolean).join(' · ')
+  // Saves go to this branch: keep it in sight, also in the collapsed rail.
+  const workingBranch = !isAdmin && branches.filter((b) => b.active).length > 1 ? branchName(branchId) : null
 
   return (
     <div className={`app app-shell${overlayOpen ? ' menu-open' : ''}`}>
@@ -207,13 +209,20 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
 
         {clinicName && (
           <div className="app-clinic" title={clinicName}>
-            {logo ? (
-              <img className="app-clinic-badge app-clinic-logo" src={clinicLogoUrl(logo)} alt="" />
-            ) : (
-              <span className="app-clinic-badge" aria-hidden>
-                {initials(clinicName)}
-              </span>
-            )}
+            <span className="app-clinic-badge-wrap">
+              {logo ? (
+                <img className="app-clinic-badge app-clinic-logo" src={clinicLogoUrl(logo)} alt="" />
+              ) : (
+                <span className="app-clinic-badge" aria-hidden>
+                  {initials(clinicName)}
+                </span>
+              )}
+              {workingBranch && (
+                <span className="app-clinic-branch" title={t('branch.workingAt', { name: workingBranch })}>
+                  {workingBranch}
+                </span>
+              )}
+            </span>
             <span className="app-clinic-name">{clinicName}</span>
           </div>
         )}
