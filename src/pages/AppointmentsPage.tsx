@@ -795,8 +795,8 @@ function AppointmentsPage() {
                       setRescheduleConflicts([])
                     }}
                   >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
+                    <option value="AM">{t('time.am')}</option>
+                    <option value="PM">{t('time.pm')}</option>
                   </select>
                 </div>
               </label>
@@ -1214,8 +1214,8 @@ function AppointmentsPage() {
                 ))}
               </select>
               <select aria-label={t('appointments.amPm')} value={scheduledPeriod} onChange={(e) => setScheduledPeriod(e.target.value as 'AM' | 'PM')}>
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
+                <option value="AM">{t('time.am')}</option>
+                <option value="PM">{t('time.pm')}</option>
               </select>
             </div>
           </label>

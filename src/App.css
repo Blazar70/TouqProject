@@ -2466,11 +2466,17 @@ input[type='checkbox']:focus-visible {
   border-bottom: none;
 }
 
+/* flex-wrap: in narrow columns (phone, pet file panels) the actions drop under the text instead of overflowing. */
 .record-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.record-row .record-actions {
+  flex-wrap: wrap;
 }
 
 .record-actions {
