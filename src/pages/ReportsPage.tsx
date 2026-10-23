@@ -12,6 +12,7 @@ import type { Database } from '../lib/database.types'
 import BranchFilter from '../components/BranchFilter'
 import Ltr from '../components/Ltr'
 import FormError from '../components/FormError'
+import CashCountPanel from '../components/CashCountPanel'
 
 type Fn = Database['public']['Functions']
 type ReportKey = 'cashUp' | 'unpaid' | 'income' | 'vat'
@@ -46,7 +47,7 @@ const sum = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) *
 function ReportsPage() {
   const { t } = useLanguage()
   const { profile } = useAuth()
-  const { branchName } = useBranch()
+  const { branchName, branches } = useBranch()
   const { printReport } = usePrintSummary()
   const isManager = profile?.clinic_role === 'manager'
   const [viewBranch, setViewBranch] = useBranchView(isManager)
@@ -313,6 +314,14 @@ function ReportsPage() {
                 </div>
               ))}
             </div>
+          )}
+
+          {data?.key === 'cashUp' && report === 'cashUp' && (
+            <CashCountPanel
+              day={day}
+              branchIds={branch ? [branch] : branches.filter((b) => b.active).map((b) => b.id)}
+              expected={(id) => data.rows.find((r) => r.branch_id === id && r.method === 'cash')?.net ?? 0}
+            />
           )}
 
           {built?.sections.map((s, si) => (

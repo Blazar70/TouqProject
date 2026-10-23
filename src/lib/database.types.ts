@@ -1197,6 +1197,58 @@ export type Database = {
           },
         ]
       }
+      cash_counts: {
+        Row: {
+          branch_id: string
+          clinic_id: string
+          counted: number
+          counted_at: string
+          counted_by: string | null
+          day: string
+          id: string
+        }
+        Insert: {
+          branch_id: string
+          clinic_id: string
+          counted: number
+          counted_at?: string
+          counted_by?: string | null
+          day: string
+          id?: string
+        }
+        Update: {
+          branch_id?: string
+          clinic_id?: string
+          counted?: number
+          counted_at?: string
+          counted_by?: string | null
+          day?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_counts_branch_id_clinic_id_fkey"
+            columns: ["branch_id", "clinic_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "cash_counts_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_counts_counted_by_fkey"
+            columns: ["counted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -1957,6 +1957,18 @@ input[type='checkbox']:focus-visible {
   font-size: 0.82rem;
 }
 
+.cash-count-input {
+  width: 8rem;
+}
+
+.cash-diff-ok {
+  color: var(--status-green-fg);
+}
+
+.cash-diff-off {
+  color: var(--danger);
+}
+
 .pet-detail-quick {
   display: flex;
   flex-wrap: wrap;
