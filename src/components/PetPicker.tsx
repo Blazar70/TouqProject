@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import type { Database } from '../lib/database.types'
 import { speciesIcon, speciesLabel } from '../lib/species'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -26,6 +27,8 @@ function PetPicker({
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const listId = useId()
 
   const selectedPet = pets.find((p) => p.id === value)
 
@@ -41,6 +44,22 @@ function PetPicker({
   }, [pets, query, selectedPet])
 
   const matches = useMemo(() => allMatches.slice(0, 8), [allMatches])
+  const showList = open && matches.length > 0
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Escape' && open) {
+      e.preventDefault()
+      setOpen(false)
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      setOpen(true)
+      if (matches.length) setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : matches.length - 1)) % matches.length)
+    } else if (e.key === 'Enter' && showList) {
+      // Pick the highlighted pet instead of submitting the form.
+      e.preventDefault()
+      handleSelect(matches[active] ?? matches[0])
+    }
+  }
 
   function handleSelect(pet: Pet) {
     onChange(pet.id)
@@ -52,29 +71,46 @@ function PetPicker({
     setQuery(next)
     if (value) onChange('')
     setOpen(true)
+    setActive(0)
   }
 
   return (
     <div className="pet-picker">
       <input
         type="text"
+        role="combobox"
+        aria-expanded={showList}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={showList ? `${listId}-${active}` : undefined}
+        onKeyDown={handleKeyDown}
         value={query}
         onChange={(e) => handleChange(e.target.value)}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder={t('appointments.searchPlaceholder')}
+        placeholder={t('pets.searchPlaceholder')}
         autoComplete="off"
       />
-      {open && matches.length > 0 && (
-        <ul className="pet-picker-results">
+      {showList && (
+        <ul className="pet-picker-results" role="listbox" id={listId}>
           {allMatches.length > matches.length && (
-            <li className="pet-picker-count">{t('pets.resultCount', { count: String(matches.length), total: String(allMatches.length) })}</li>
+            <li className="pet-picker-count" role="presentation">{t('pets.resultCount', { count: String(matches.length), total: String(allMatches.length) })}</li>
           )}
-          {matches.map((pet) => {
+          {matches.map((pet, i) => {
             const Icon = speciesIcon(pet.species)
             return (
-              <li key={pet.id}>
-                <button type="button" onMouseDown={() => handleSelect(pet)}>
+              <li
+                key={pet.id}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                className={`pet-picker-option${i === active ? ' pet-picker-option-active' : ''}`}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  handleSelect(pet)
+                }}
+                onMouseEnter={() => setActive(i)}
+              >
                   <span className="pet-picker-title">
                     <Icon className="species-icon" size={16} aria-hidden />
                     <strong>{pet.name}</strong>
@@ -94,7 +130,6 @@ function PetPicker({
                       ''
                     )}
                   </span>
-                </button>
               </li>
             )
           })}

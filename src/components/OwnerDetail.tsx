@@ -24,6 +24,7 @@ import RequiredMark from './RequiredMark'
 import LoadingScreen from './LoadingScreen'
 import Ltr from './Ltr'
 import FormError from './FormError'
+import Modal from './Modal'
 
 type Tables = Database['public']['Tables']
 type Owner = Tables['owner_files']['Row']
@@ -422,8 +423,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
       </div>
 
       {(modal === 'topup' || modal === 'adjust') && (
-        <div className="admin-modal-backdrop" onClick={() => setModal(null)}>
-          <div className="admin-modal-card" role="dialog" aria-modal="true" aria-labelledby="balance-title" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={() => setModal(null)} labelledBy="balance-title">
             <h2 id="balance-title">{t(modal === 'topup' ? 'owners.addBalance' : 'owners.adjust')}</h2>
             <p className="pet-owner">
               {current.name} · {t('owners.balance')} <Money amount={current.balance} />
@@ -490,8 +490,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
                 </div>
               </form>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
 
       {modal === 'merge' && (

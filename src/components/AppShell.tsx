@@ -152,6 +152,9 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
 
   return (
     <div className={`app app-shell${overlayOpen ? ' menu-open' : ''}`}>
+      <a href="#main-content" className="skip-link">
+        {t('nav.skipToContent')}
+      </a>
       <header className="app-topbar" inert={overlayOpen}>
         <button
           type="button"
@@ -261,7 +264,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
         </div>
       </aside>
 
-      <div className="app-content" inert={overlayOpen}>
+      <div className="app-content" id="main-content" tabIndex={-1} inert={overlayOpen}>
         {children}
       </div>
     </div>

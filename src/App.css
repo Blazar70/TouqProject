@@ -61,6 +61,27 @@
   align-items: flex-start;
 }
 
+/* Keyboard users: first Tab stop, visible only when focused. */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 0.5rem;
+  top: -3rem;
+  z-index: 300;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--text-h);
+  border: 2px solid var(--accent);
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+.app-content:focus {
+  outline: none;
+}
+
 .app-content {
   flex: 1 1 auto;
   min-width: 0;
@@ -1218,7 +1239,7 @@
   font-size: 0.78rem;
 }
 
-.pet-picker-results li button {
+.pet-picker-option {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -1232,7 +1253,7 @@
   color: var(--text-h);
 }
 
-.pet-picker-results li button:hover {
+.pet-picker-option-active {
   background: var(--bg-tint);
 }
 
@@ -1407,7 +1428,7 @@
   overflow-y: auto;
 }
 
-.species-select-options li button {
+.species-select-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1422,7 +1443,7 @@
   color: var(--text-h);
 }
 
-.species-select-options li button:hover {
+.species-select-option-active {
   background: var(--bg-tint);
 }
 
@@ -1874,6 +1895,13 @@ input[type='checkbox']:focus-visible {
   cursor: pointer;
 }
 
+.pets-trash-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+}
+
 .admin-trash-fab:hover {
   border-color: var(--danger);
   color: var(--danger);
@@ -1905,6 +1933,10 @@ input[type='checkbox']:focus-visible {
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
   padding: 1rem;
+}
+
+.admin-modal-card:focus {
+  outline: none;
 }
 
 .admin-modal-card {
@@ -2781,6 +2813,20 @@ input[type='checkbox']:focus-visible {
   color: var(--danger-deep);
 }
 
+/* Disabled actions read as unavailable (not a faded but still-red Delete), and don't react to hover. */
+button.delete-button:disabled,
+button.secondary-button:disabled,
+button.cancel-button:disabled,
+.pet-form button.delete-button:disabled,
+.pet-form button.secondary-button:disabled,
+.pet-form button.cancel-button:disabled {
+  background: var(--bg-tint);
+  border-color: var(--border);
+  color: var(--text-muted);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
 /* Touch screens get 44px targets; mouse users keep the compact size. */
 @media (pointer: coarse) {
   .secondary-button,
@@ -2796,12 +2842,29 @@ input[type='checkbox']:focus-visible {
   align-self: flex-start;
 }
 
-.admin-file-label input[type='file'] {
-  display: none;
+/* File pickers: the input stays focusable (visually hidden) so uploads are reachable by keyboard. */
+.admin-file-label input[type='file'],
+.pet-photo-upload input[type='file'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
-/* Clinic logo on the admin Clinics page. The file input stays focusable
-   (visually hidden) so the upload is reachable by keyboard. */
+.admin-file-label,
+.pet-photo-upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.admin-file-label:focus-within,
+.pet-photo-upload:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Clinic logo on the admin Clinics page. */
 .admin-clinic-logo {
   display: flex;
   align-items: center;
@@ -2832,25 +2895,6 @@ input[type='checkbox']:focus-visible {
 .admin-clinic-logo-preview img {
   width: 100%;
   height: 100%;
-}
-
-.admin-clinic-logo .admin-file-label input[type='file'] {
-  display: block;
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-
-.admin-clinic-logo .admin-file-label {
-  position: relative;
-  cursor: pointer;
-}
-
-.admin-clinic-logo .admin-file-label:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .admin-clinic-logo-thumb {

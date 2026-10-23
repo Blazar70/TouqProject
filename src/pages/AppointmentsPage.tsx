@@ -1088,7 +1088,7 @@ function AppointmentsPage() {
             {t('appointments.time')}
             <RequiredMark />
             <div className="time-select" dir="ltr">
-              <select value={scheduledHour} onChange={(e) => setScheduledHour(e.target.value)} required>
+              <select aria-label={t('appointments.hour')} value={scheduledHour} onChange={(e) => setScheduledHour(e.target.value)} required>
                 <option value="" disabled>
                   {t('appointments.hour')}
                 </option>
@@ -1099,7 +1099,7 @@ function AppointmentsPage() {
                 ))}
               </select>
               <span>:</span>
-              <select value={scheduledMinute} onChange={(e) => setScheduledMinute(e.target.value)} required>
+              <select aria-label={t('appointments.minute')} value={scheduledMinute} onChange={(e) => setScheduledMinute(e.target.value)} required>
                 <option value="" disabled>
                   {t('appointments.min')}
                 </option>
@@ -1109,7 +1109,7 @@ function AppointmentsPage() {
                   </option>
                 ))}
               </select>
-              <select value={scheduledPeriod} onChange={(e) => setScheduledPeriod(e.target.value as 'AM' | 'PM')}>
+              <select aria-label={t('appointments.amPm')} value={scheduledPeriod} onChange={(e) => setScheduledPeriod(e.target.value as 'AM' | 'PM')}>
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
               </select>

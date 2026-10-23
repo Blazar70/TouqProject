@@ -23,6 +23,7 @@ import { formatDate, formatDateTime, formatIsoDate } from '../lib/format'
 import { isValidVatNumber } from '../lib/invoiceMath'
 import { CLINIC_ROLES, parseStaffLogin } from '../../supabase/functions/_shared/staffRules'
 import FormError from '../components/FormError'
+import Modal from '../components/Modal'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -976,6 +977,7 @@ function AdminPage() {
           type="search"
           className="search-input"
           placeholder={t('admin.globalSearchPlaceholder')}
+          aria-label={t('admin.globalSearchPlaceholder')}
           value={globalQuery}
           onChange={(e) => setGlobalQuery(e.target.value)}
         />
@@ -1051,6 +1053,7 @@ function AdminPage() {
         type="search"
         className="search-input"
         placeholder={t('admin.searchClinics')}
+        aria-label={t('admin.searchClinics')}
         value={clinicSearch}
         onChange={(e) => setClinicSearch(e.target.value)}
       />
@@ -1345,15 +1348,14 @@ function AdminPage() {
       </button>
 
       {petModalOpen && (
-        <div className="admin-modal-backdrop" onClick={closePetModal}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+        <Modal onClose={closePetModal} labelledBy="admin-pet-title">
             {petModalLoading ? (
               <p>{t('common.loading')}</p>
             ) : !petModalData ? (
               <p>{t('admin.petNotFound')}</p>
             ) : (
               <>
-                <h2>{petModalData.name}</h2>
+                <h2 id="admin-pet-title">{petModalData.name}</h2>
                 <p className="pet-owner">{speciesLabel(t, petModalData.species)}{petModalData.breed ? ` · ${petModalData.breed}` : ''}</p>
 
                 {!editingPetFields && (
@@ -1456,21 +1458,19 @@ function AdminPage() {
                 )}
               </>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
 
       {userModalId &&
         (() => {
           const userModalProfile = profiles.find((p) => p.id === userModalId)
           return (
-            <div className="admin-modal-backdrop" onClick={closeUserModal}>
-              <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+            <Modal onClose={closeUserModal} labelledBy="admin-user-title">
                 {!userModalProfile ? (
                   <p>{t('admin.userNotFound')}</p>
                 ) : (
                   <>
-                    <h2>
+                    <h2 id="admin-user-title">
                       {userModalProfile.full_name}{' '}
                       {userModalProfile.disabled && (
                         <span className="status-badge status-cancelled">{t('admin.disabledBadge')}</span>
@@ -1672,15 +1672,13 @@ function AdminPage() {
                     )}
                   </>
                 )}
-              </div>
-            </div>
+            </Modal>
           )
         })()}
 
       {trashModalOpen && (
-        <div className="admin-modal-backdrop" onClick={() => setTrashModalOpen(false)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h2>
+        <Modal onClose={() => setTrashModalOpen(false)} labelledBy="admin-trash-title">
+            <h2 id="admin-trash-title">
               {t('admin.trash')} ({trashedClinics.length})
             </h2>
             {trashedClinics.length === 0 ? (
@@ -1732,14 +1730,12 @@ function AdminPage() {
                 {t('common.close')}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {activityModalClinicId && (
-        <div className="admin-modal-backdrop" onClick={() => setActivityModalClinicId(null)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h2>
+        <Modal onClose={() => setActivityModalClinicId(null)} labelledBy="admin-activity-title">
+            <h2 id="admin-activity-title">
               {t('admin.activityLog')} — {clinicNameById[activityModalClinicId] ?? ''}
             </h2>
             {loadingClinicActivity ? (
@@ -1764,8 +1760,7 @@ function AdminPage() {
                 {t('common.close')}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

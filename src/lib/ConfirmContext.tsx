@@ -54,17 +54,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const confirmDisabled = Boolean(state?.danger) && secondsLeft > 0
 
-  // A disabled button can't receive autoFocus, so a fresh danger dialog
-  // would otherwise open with nothing focused — land on Cancel instead
-  // until the countdown clears, then move focus to Confirm.
+  // Destructive dialogs open (and stay) on Cancel so a stray Enter never deletes.
   useEffect(() => {
     if (!state) return
-    if (confirmDisabled) cancelButtonRef.current?.focus()
+    if (state.danger) cancelButtonRef.current?.focus()
     else confirmButtonRef.current?.focus()
-  }, [state, confirmDisabled])
+  }, [state])
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === 'Escape') {
+      // Only this dialog: a Modal underneath listens for Escape on document.
+      e.stopPropagation()
       handle(false)
       return
     }
@@ -84,8 +84,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       {state && (
         <div className="confirm-backdrop" onClick={() => handle(false)}>
-          <div className="confirm-dialog" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
-            <p>{state.message}</p>
+          <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-describedby="confirm-message" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+            <p id="confirm-message">{state.message}</p>
             <div className="record-edit-actions">
               <button
                 ref={confirmButtonRef}

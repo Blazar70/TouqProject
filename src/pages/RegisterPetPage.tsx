@@ -166,7 +166,7 @@ function RegisterPetPage() {
             <div className="pet-photo-actions">
               <label className="secondary-button pet-photo-upload">
                 {photoFile ? t('petDetail.changePhoto') : t('petDetail.addPhoto')}
-                <input type="file" accept="image/*" onChange={handlePhotoChange} hidden />
+                <input type="file" accept="image/*" onChange={handlePhotoChange} />
               </label>
             </div>
             <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>

@@ -17,7 +17,7 @@ import PaymentStatusBadge from '../components/PaymentStatusBadge'
 import InvoiceDetail from '../components/InvoiceDetail'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
-import { formatDateTime, formatMoney } from '../lib/format'
+import { clinicDay, formatDateTime, formatMoney } from '../lib/format'
 import { toPaymentLines } from '../lib/visitServices'
 import { matchesPetSearch } from '../lib/appointmentSearch'
 import {
@@ -80,7 +80,7 @@ function PaymentsPage() {
   const [invoices, setInvoices] = useState<InvoiceFull[]>([])
   const [todayPayments, setTodayPayments] = useState<{ method: string; amount: number }[]>([])
   const [clinic, setClinic] = useState<{ vat_number: string | null; max_staff_discount_percent: number } | null>(null)
-  const [petAppointments, setPetAppointments] = useState<Appointment[]>([])
+  const [petAppointments, setPetAppointments] = useState<(Appointment & { invoice: { id: string } | null })[]>([])
   // The picked pet's owner's prepaid balance (0064); null = no pet picked.
   const [ownerBalance, setOwnerBalance] = useState<number | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -168,11 +168,16 @@ function PaymentsPage() {
     }
     supabase
       .from('appointments')
-      .select('*')
+      .select('*, invoice:invoices(id)')
       .eq('pet_id', petId)
       .order('scheduled_at', { ascending: false })
       .limit(10)
-      .then(({ data }) => setPetAppointments(data ?? []))
+      .then(({ data }) => {
+        setPetAppointments(data ?? [])
+        // Most bills are for today's visit: pick it unless one was chosen (e.g. "Bill this visit").
+        const today = (data ?? []).find((a) => !a.invoice && a.status !== 'cancelled' && clinicDay(a.scheduled_at) === clinicDay())
+        if (today) setAppointmentId((current) => current || today.id)
+      })
   }, [petId])
 
   function updateItem(key: string, patch: Partial<LineItem>) {

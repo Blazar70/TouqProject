@@ -278,7 +278,6 @@ function AdminBillingPage() {
               <input
                 type="file"
                 accept="application/pdf"
-                hidden
                 onChange={(e) => setNewPaymentFile(e.target.files?.[0] ?? null)}
               />
             </label>

@@ -18,6 +18,7 @@ import { vaccinationStatus, nextVaccinationDateAfterDose } from '../lib/vaccinat
 import { formatDate } from '../lib/format'
 import { matchesPetSearch } from '../lib/appointmentSearch'
 import FormError from '../components/FormError'
+import Modal from '../components/Modal'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -238,6 +239,7 @@ function PetsPage() {
         type="search"
         className="search-input"
         placeholder={t('pets.searchPlaceholder')}
+        aria-label={t('pets.searchPlaceholder')}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
@@ -320,15 +322,14 @@ function PetsPage() {
       )}
 
       {profile?.role === 'vet' && (
-        <button type="button" className="admin-trash-fab" onClick={openTrash} aria-label={t('trash.title')}>
-          <Trash2 size={20} aria-hidden />
+        <button type="button" className="secondary-button pets-trash-button" onClick={openTrash}>
+          <Trash2 size={16} aria-hidden /> {t('trash.deletedPets')}
         </button>
       )}
 
       {trashModalOpen && (
-        <div className="admin-modal-backdrop" onClick={() => setTrashModalOpen(false)}>
-          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
-            <h2>
+        <Modal onClose={() => setTrashModalOpen(false)} labelledBy="pets-trash-title">
+            <h2 id="pets-trash-title">
               {t('trash.title')} ({trashedPets.length})
             </h2>
             {loadingTrash ? (
@@ -382,8 +383,7 @@ function PetsPage() {
                 {t('common.close')}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

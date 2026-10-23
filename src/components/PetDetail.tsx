@@ -327,7 +327,7 @@ function PetDetail({
               <div className="pet-photo-actions">
                 <label className="secondary-button pet-photo-upload">
                   {uploadingPhoto ? t('petDetail.uploading') : pet.photo_url ? t('petDetail.changePhoto') : t('petDetail.addPhoto')}
-                  <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploadingPhoto} hidden />
+                  <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploadingPhoto} />
                 </label>
               </div>
               <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
