@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent } from 'react'
+import { cloneElement, useEffect, useMemo, useRef, useState } from 'react'
+import type { ComponentType, CSSProperties, FormEvent, MouseEvent, ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Calendar, dayjsLocalizer } from 'react-big-calendar'
 import type { View } from 'react-big-calendar'
@@ -451,7 +451,24 @@ function AppointmentsPage() {
     setScheduledMinute(fields.minute)
     setScheduledPeriod(fields.period)
     if (resourceId && bookingStaff.some((s) => s.id === resourceId)) setDoctorId(String(resourceId))
+    focusBookingForm()
+  }
+
+  function focusBookingForm() {
     scheduleFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // Ready to type the pet; preventScroll so it doesn't cut the smooth scroll short.
+    scheduleFormRef.current?.querySelector<HTMLInputElement>('.pet-picker > input')?.focus({ preventScroll: true })
+  }
+
+  // rbc only selects a slot after a long press on touch screens; a plain tap books too.
+  // Slots carry their time + doctor (timeSlotWrapper below); find the one under the finger.
+  const lastPointer = useRef('mouse')
+  function handleCalendarTap(e: MouseEvent) {
+    if (lastPointer.current !== 'touch' || (e.target as Element).closest('.rbc-event, .rbc-time-gutter, .rbc-time-header')) return
+    const slot = document
+      .elementsFromPoint(e.clientX, e.clientY)
+      .find((el): el is HTMLElement => el instanceof HTMLElement && Boolean(el.dataset.slot) && Boolean(el.closest('.rbc-day-slot')))
+    if (slot) handleSelectSlot({ start: new Date(slot.dataset.slot!), resourceId: slot.dataset.resource || undefined })
   }
 
   useEffect(() => {
@@ -902,8 +919,14 @@ function AppointmentsPage() {
         <div className="page-header-actions">
           <BranchFilter value={viewBranch} onChange={setViewBranch} />
           <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
+          {isVet && (
+            <button type="button" className="primary-button" onClick={focusBookingForm}>
+              + {t('appointments.newAppointment')}
+            </button>
+          )}
         </div>
       </div>
+      {isVet && viewBranch !== ALL_BRANCHES && <p className="pet-owner">{t('calendar.slotHint')}</p>}
       {viewingOther && (
         <p className="pet-owner">
           {viewBranch === ALL_BRANCHES
@@ -971,6 +994,8 @@ function AppointmentsPage() {
       <div
         className="appointments-calendar"
         dir="ltr"
+        onPointerDown={(e) => (lastPointer.current = e.pointerType)}
+        onClick={isVet && viewBranch !== ALL_BRANCHES ? handleCalendarTap : undefined}
         style={
           {
             '--now-label': JSON.stringify(t('calendar.now')),
@@ -1013,6 +1038,8 @@ function AppointmentsPage() {
                 : 'calendar-hour-count',
           })}
           components={{
+            timeSlotWrapper: (({ value, resource, children }: { value: Date; resource?: string | number | null; children: ReactElement }) =>
+              cloneElement(children as ReactElement<Record<string, string>>, { 'data-slot': value.toISOString(), 'data-resource': resource ? String(resource) : '' })) as ComponentType,
             event: ({ event }) =>
               event.away ? (
                 <span className="calendar-event-content">
@@ -1071,9 +1098,9 @@ function AppointmentsPage() {
       {isVet && (
         <form ref={scheduleFormRef} onSubmit={handleAddAppointment} className="pet-form pet-form-grid">
           <h2>{t('appointments.schedule')}</h2>
-          <p className="pet-owner appointment-schedule-hint">
-            {bookingElsewhere ? t('branch.bookingAt', { name: branchName(bookingBranchId) }) : t('calendar.slotHint')}
-          </p>
+          {bookingElsewhere && (
+            <p className="pet-owner appointment-schedule-hint">{t('branch.bookingAt', { name: branchName(bookingBranchId) })}</p>
+          )}
           <label>
             {t('appointments.pet')}
             <RequiredMark />

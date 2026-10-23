@@ -20,6 +20,7 @@ import RequiredMark from '../components/RequiredMark'
 import Ltr from '../components/Ltr'
 import VisitServices from '../components/VisitServices'
 import FormError from '../components/FormError'
+import SessionHistory from '../components/SessionHistory'
 
 const SESSION_SELECT = '*, pets(name, species, breed, owner_name, owner_phone), invoice:invoices(id)'
 
@@ -263,6 +264,8 @@ function SessionPage() {
 
       <FormError message={error} />
 
+      <div className="session-body">
+      <div className="session-main">
       {/* Outside the form: Enter in a quantity box must not finish the session. Saved as they're added. */}
       <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.invoice)} />
 
@@ -349,6 +352,9 @@ function SessionPage() {
           </button>
         </div>
       </form>
+      </div>
+      <SessionHistory petId={appointment.pet_id} />
+      </div>
     </div>
   )
 }
