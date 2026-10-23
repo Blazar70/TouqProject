@@ -18,4 +18,4 @@ Bilingual (EN/AR) vet-clinic PWA. React + Vite + Supabase. Commands: `npm run de
 | If | Go to |
 |---|---|
 | "what is X" / "what does changing X hit" | `map/CLAUDE.md` |
-| schema change | add a new numbered file in `supabase/migrations/` |
+| schema change | add a new numbered file in `supabase/migrations/` (overrides the `supabase` skill's `migration new` / `db pull --local` workflow: there is no local Supabase project here) |
