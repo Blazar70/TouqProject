@@ -16,6 +16,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import { formatDate } from '../lib/format'
 import { matchesPetSearch } from '../lib/appointmentSearch'
+import { INPATIENT_MEDIA_BUCKET } from '../lib/inpatient'
 import FormError from '../components/FormError'
 import Modal from '../components/Modal'
 
@@ -141,13 +142,19 @@ function PetsPage() {
     const photoPaths = [pet.photo_url, ...(records ?? []).map((r) => r.photo_url)]
       .filter((path): path is string => !!path)
       .map((path) => path.split('?')[0])
+    const { data: stayUpdates } = await supabase.from('inpatient_updates').select('media, stay:inpatient_stays!inner(pet_id)').eq('stay.pet_id', pet.id)
+    const stayMedia = (stayUpdates ?? []).flatMap((u) => u.media)
     const { error } = await supabase.from('pets').delete().eq('id', pet.id)
     if (error) {
       toast.error(error.message)
       setPurgingPetId(null)
       return
     }
-    const { error: removeError } = photoPaths.length ? await supabase.storage.from('pet-photos').remove(photoPaths) : { error: null }
+    const results = await Promise.all([
+      photoPaths.length ? supabase.storage.from('pet-photos').remove(photoPaths) : { error: null },
+      stayMedia.length ? supabase.storage.from(INPATIENT_MEDIA_BUCKET).remove(stayMedia) : { error: null },
+    ])
+    const removeError = results.find((r) => r.error)?.error
     setTrashedPets((current) => current.filter((p) => p.id !== pet.id))
     if (removeError) toast.error(t('trash.purgedPhotosLeft', { name: pet.name }))
     else toast.success(t('trash.purged', { name: pet.name }))

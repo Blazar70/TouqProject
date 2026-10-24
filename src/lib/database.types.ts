@@ -383,6 +383,105 @@ export type Database = {
           },
         ]
       }
+      inpatient_stays: {
+        Row: {
+          admitted_at: string
+          admitted_by: string | null
+          branch_id: string
+          clinic_id: string
+          discharge_note: string | null
+          discharged_at: string | null
+          discharged_by: string | null
+          id: string
+          pet_id: string
+          reason: string | null
+        }
+        Insert: {
+          admitted_at?: string
+          admitted_by?: string | null
+          branch_id: string
+          clinic_id: string
+          discharge_note?: string | null
+          discharged_at?: string | null
+          discharged_by?: string | null
+          id?: string
+          pet_id: string
+          reason?: string | null
+        }
+        // 0081: only the discharge columns are client-writable.
+        Update: {
+          discharge_note?: string | null
+          discharged_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inpatient_stays_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inpatient_stays_admitted_by_fkey"
+            columns: ["admitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inpatient_stays_discharged_by_fkey"
+            columns: ["discharged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inpatient_updates: {
+        Row: {
+          author_id: string | null
+          branch_id: string
+          clinic_id: string
+          created_at: string
+          heart_rate: number | null
+          id: string
+          media: string[]
+          note: string | null
+          stay_id: string
+          temperature_c: number | null
+          weight_kg: number | null
+        }
+        Insert: {
+          author_id: string
+          branch_id: string
+          clinic_id: string
+          created_at?: string
+          heart_rate?: number | null
+          id?: string
+          media?: string[]
+          note?: string | null
+          stay_id: string
+          temperature_c?: number | null
+          weight_kg?: number | null
+        }
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "inpatient_updates_stay_id_fkey"
+            columns: ["stay_id"]
+            isOneToOne: false
+            referencedRelation: "inpatient_stays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inpatient_updates_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           bill_discount_share: number

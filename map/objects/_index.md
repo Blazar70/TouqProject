@@ -10,6 +10,7 @@ All cards verified 2026-10-14 @ 583fe57. Line numbers in `database.types.ts` are
 - [staff](people/staff.md) — clinic logins (`profiles` role vet + clinic_role); caregivers retired in 0047
 
 ## care
+- [inpatients](care/inpatients.md) — phase 6 stays + timed updates with vitals/photos/videos; location = branch of the latest update (0081)
 - [pets](care/pets.md) — the animal; vaccination columns; owner contact text; soft delete
 - [appointments](care/appointments.md) — status machine; cancellation category; assignee
 - [medical-records](care/medical-records.md) — visit note written on completion

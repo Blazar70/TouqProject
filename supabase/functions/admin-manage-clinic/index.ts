@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
 
     // After the rows are gone, so a failed purge never leaves records pointing at missing files.
     let storageFailures = 0
-    for (const bucket of ['pet-photos', 'clinic-logos', 'payment-documents']) storageFailures += await removeFolder(bucket, clinicId)
+    for (const bucket of ['pet-photos', 'clinic-logos', 'payment-documents', 'inpatient-media']) storageFailures += await removeFolder(bucket, clinicId)
 
     const label = storageFailures ? `${clinicName} (files not fully removed: ${storageFailures} storage errors)` : clinicName
     await logAction('clinic_purged', 'clinic', label, clinicId)
@@ -253,11 +253,18 @@ Deno.serve(async (req) => {
       const paths = [...(expiredPets ?? []).map((p) => p.photo_url), ...(records ?? []).map((r) => r.photo_url)]
         .filter((path): path is string => !!path)
         .map((path) => path.split('?')[0])
+      // Inpatient photos/videos (0081) live in their own bucket.
+      const { data: stayUpdates } = await admin.from('inpatient_updates').select('media, stay:inpatient_stays!inner(pet_id)').in('stay.pet_id', petIds)
+      const stayMedia = (stayUpdates ?? []).flatMap((u) => u.media as string[])
       const { error: petError } = await admin.from('pets').delete().in('id', petIds)
       if (petError) return jsonError(petError.message, 500)
       if (paths.length) {
         const { error: removeError } = await admin.storage.from('pet-photos').remove(paths)
         if (removeError) petStorageFailures = 1
+      }
+      if (stayMedia.length) {
+        const { error: removeError } = await admin.storage.from('inpatient-media').remove(stayMedia)
+        if (removeError) petStorageFailures += 1
       }
     }
 

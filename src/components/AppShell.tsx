@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Activity,
   BarChart3,
+  BedDouble,
   Building2,
   Gauge,
   CalendarDays,
@@ -54,6 +55,7 @@ const CLINIC_SECTIONS: NavSection[] = [
       { to: '/appointments', label: 'nav.appointments', icon: CalendarDays },
       { to: '/pets', label: 'nav.pets', icon: PawPrint },
       { to: '/owners', label: 'nav.owners', icon: ContactRound },
+      { to: '/inpatients', label: 'nav.inpatients', icon: BedDouble },
     ],
   },
   {
