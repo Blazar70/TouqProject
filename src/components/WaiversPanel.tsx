@@ -99,7 +99,7 @@ function WaiversPanel({ pet }: { pet: Pet }) {
       {suggested && canSign && (
         <div className="waiver-suggest">
           <span>{t('waivers.staySuggest')}</span>
-          <button type="button" onClick={() => setSigning({ templateId: suggested.id, link: `stay:${openStayId}` })}>
+          <button type="button" className="primary-button" onClick={() => setSigning({ templateId: suggested.id, link: `stay:${openStayId}` })}>
             {t('waivers.collectNamed', { name: title(suggested) })}
           </button>
         </div>

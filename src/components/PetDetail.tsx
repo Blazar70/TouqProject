@@ -17,6 +17,10 @@ import SpeciesSelect from './SpeciesSelect'
 import TrustedContactsPanel from './TrustedContactsPanel'
 import VaccinationPanel from './VaccinationPanel'
 import InpatientPanel from './InpatientPanel'
+import type { OpenStay } from './InpatientPanel'
+import VaccinationBadge from './VaccinationBadge'
+import { speciesLabel } from '../lib/species'
+import { stayDay } from '../lib/inpatient'
 import WaiversPanel from './WaiversPanel'
 import PetAvatar from './PetAvatar'
 import Ltr from './Ltr'
@@ -65,6 +69,8 @@ function PetDetail({
   const [petError, setPetError] = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [pickingOwner, setPickingOwner] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [stay, setStay] = useState<OpenStay | null>(null)
 
   const [records, setRecords] = useState<MedicalRecord[]>([])
   const [loadingRecords, setLoadingRecords] = useState(true)
@@ -149,6 +155,7 @@ function PetDetail({
 
     onUpdated(data)
     setSavingPet(false)
+    setEditingDetails(false)
     toast.success(t('petDetail.petSaved', { name: data.name }))
   }
 
@@ -290,15 +297,47 @@ function PetDetail({
     toast.success(t('petDetail.recordDeleted'))
   }
 
+  function cancelEditingDetails() {
+    setName(pet.name)
+    setSpecies(pet.species)
+    setBreed(pet.breed ?? '')
+    setDateOfBirth(pet.date_of_birth ?? '')
+    setPetError(null)
+    setEditingDetails(false)
+  }
+
   return (
-    <div className="pet-detail">
-      <form onSubmit={handleSavePet} className="pet-form pet-detail-sidebar">
-        <h3>{t('petDetail.title')}</h3>
-        <p className="pet-owner">
-          {t('pets.petId')}: <Ltr>{pet.pet_number}</Ltr>
-        </p>
+    <div className="pet-file">
+      {/* Who this is and what is going on, then the two things people open a file to do. Drop a photo anywhere here. */}
+      <header className={`pet-file-header${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
+        <PetAvatar pet={pet} size={72} />
+        <div className="pet-file-identity">
+          <h2>{pet.name}</h2>
+          <p className="pet-file-meta">
+            {[speciesLabel(t, pet.species), pet.breed].filter(Boolean).join(' · ')} · {t('pets.petId')} <Ltr>{pet.pet_number}</Ltr>
+          </p>
+          <p className="pet-file-owner">
+            {isVet ? <Link to={`/owners?id=${pet.owner_file_id}`}>{pet.owner_name}</Link> : pet.owner_name}
+            {pet.owner_phone && (
+              <span className="pet-file-meta">
+                {' · '}
+                <Ltr>{pet.owner_phone}</Ltr>
+              </span>
+            )}
+          </p>
+          {(stay || pet.next_vaccination_date) && (
+            <div className="pet-file-chips">
+              {stay && (
+                <a href="#pet-inpatient" className="status-badge pet-file-stay-chip">
+                  {t('inpatient.title')} · {t('inpatient.day', { count: String(stayDay(stay.admitted_at)) })} · {branchName(stay.branch_id)}
+                </a>
+              )}
+              {pet.next_vaccination_date && <VaccinationBadge nextDate={pet.next_vaccination_date} />}
+            </div>
+          )}
+        </div>
         {isVet && (
-          <div className="pet-detail-quick">
+          <div className="pet-file-actions">
             <Link to={`/appointments?pet=${pet.id}`} className="primary-button">
               {t('appointments.newAppointment')}
             </Link>
@@ -309,85 +348,10 @@ function PetDetail({
             )}
           </div>
         )}
-        <FormError message={petError} />
+      </header>
 
-        <div className={`pet-photo-row${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
-          <PetAvatar pet={pet} size={72} />
-          {isVet && (
-            <div>
-              <div className="pet-photo-actions">
-                <label className="secondary-button pet-photo-upload">
-                  {uploadingPhoto ? t('petDetail.uploading') : pet.photo_url ? t('petDetail.changePhoto') : t('petDetail.addPhoto')}
-                  <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploadingPhoto} />
-                </label>
-              </div>
-              <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
-            </div>
-          )}
-        </div>
-
-        <label>
-          {t('common.name')}
-          <RequiredMark />
-          <input value={name} onChange={(e) => setName(e.target.value)} required disabled={!isVet} />
-        </label>
-        <label>
-          {t('registerPet.species')}
-          <SpeciesSelect value={species} onChange={setSpecies} disabled={!isVet} />
-        </label>
-        <label>
-          {t('registerPet.breed')}
-          <input value={breed} onChange={(e) => setBreed(e.target.value)} disabled={!isVet} />
-        </label>
-        <label>
-          {t('registerPet.dateOfBirth')}
-          <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} disabled={!isVet} />
-        </label>
-        <div className="pet-detail-owner">
-          <span className="pet-owner">{t('pets.owner')}</span>
-          {isVet ? (
-            <Link to={`/owners?id=${pet.owner_file_id}`}>
-              <strong>{pet.owner_name}</strong>
-            </Link>
-          ) : (
-            <strong>{pet.owner_name}</strong>
-          )}
-          {pet.owner_phone && (
-            <span className="pet-owner">
-              <Ltr>{pet.owner_phone}</Ltr>
-            </span>
-          )}
-          {handlesMoney && (
-            <button type="button" className="secondary-button" onClick={() => setPickingOwner(true)}>
-              {t('owners.changeOwner')}
-            </button>
-          )}
-        </div>
-        {isVet && (
-          <>
-            <button type="submit" disabled={savingPet}>
-              {savingPet ? t('common.saving') : t('common.saveChanges')}
-            </button>
-            {/* Kept inside the open pet file, not on the list row, so deleting takes a deliberate extra step. Nurses can't delete (0075). */}
-            {!isNurse && (
-              <button type="button" className="delete-button" onClick={onDelete}>
-                {t('common.delete')}
-              </button>
-            )}
-          </>
-        )}
-      </form>
-      {pickingOwner && (
-        <OwnerPickerModal
-          title={t('owners.moveTitle', { pet: pet.name })}
-          excludeId={pet.owner_file_id}
-          allowNew
-          onPick={handleChangeOwner}
-          onClose={() => setPickingOwner(false)}
-        />
-      )}
-
-      <div className="pet-detail-main">
+      <div className="pet-file-body">
+      <div className="pet-file-main">
         <div className="medical-records">
           <div className="panel-header">
             <h3>{t('petDetail.medicalRecords')}</h3>
@@ -616,11 +580,100 @@ function PetDetail({
           )}
         </div>
 
-        <InpatientPanel pet={pet} />
-        <WaiversPanel pet={pet} />
-        <VaccinationPanel pet={pet} onUpdated={onUpdated} />
-        <TrustedContactsPanel petId={pet.id} />
+        <InpatientPanel pet={pet} onOpenStayChange={setStay} />
       </div>
+
+      <aside className="pet-file-side">
+        <VaccinationPanel pet={pet} onUpdated={onUpdated} />
+        <WaiversPanel pet={pet} />
+        <TrustedContactsPanel petId={pet.id} />
+
+        <section className="pet-file-details">
+          <div className="panel-header">
+            <h3>{t('petDetail.title')}</h3>
+            {isVet && !editingDetails && (
+              <button type="button" className="secondary-button" onClick={() => setEditingDetails(true)}>
+                {t('common.edit')}
+              </button>
+            )}
+          </div>
+          {editingDetails ? (
+            <form onSubmit={handleSavePet} className="pet-form">
+              <FormError message={petError} />
+              <div className="pet-photo-actions">
+                <label className="secondary-button pet-photo-upload">
+                  {uploadingPhoto ? t('petDetail.uploading') : pet.photo_url ? t('petDetail.changePhoto') : t('petDetail.addPhoto')}
+                  <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploadingPhoto} />
+                </label>
+              </div>
+              <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
+              <label>
+                {t('common.name')}
+                <RequiredMark />
+                <input value={name} onChange={(e) => setName(e.target.value)} required />
+              </label>
+              <label>
+                {t('registerPet.species')}
+                <SpeciesSelect value={species} onChange={setSpecies} />
+              </label>
+              <label>
+                {t('registerPet.breed')}
+                <input value={breed} onChange={(e) => setBreed(e.target.value)} />
+              </label>
+              <label>
+                {t('registerPet.dateOfBirth')}
+                <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+              </label>
+              <div className="record-edit-actions">
+                <button type="submit" disabled={savingPet}>
+                  {savingPet ? t('common.saving') : t('common.saveChanges')}
+                </button>
+                <button type="button" className="cancel-button" onClick={cancelEditingDetails}>
+                  {t('common.cancel')}
+                </button>
+              </div>
+              {/* Only inside the edit form, so deleting takes a deliberate extra step. Nurses can't delete (0075). */}
+              {!isNurse && (
+                <button type="button" className="delete-button pet-file-delete" onClick={onDelete}>
+                  {t('petDetail.deletePet')}
+                </button>
+              )}
+            </form>
+          ) : (
+            <>
+              <FormError message={petError} />
+              <dl className="pet-facts">
+                <dt>{t('registerPet.species')}</dt>
+                <dd>{speciesLabel(t, pet.species)}</dd>
+                <dt>{t('registerPet.breed')}</dt>
+                <dd>{pet.breed || '—'}</dd>
+                <dt>{t('registerPet.dateOfBirth')}</dt>
+                <dd>{pet.date_of_birth ? <Ltr>{formatDate(pet.date_of_birth)}</Ltr> : '—'}</dd>
+                <dt>{t('pets.owner')}</dt>
+                <dd>
+                  {pet.owner_name}
+                  {handlesMoney && (
+                    <button type="button" className="secondary-button" onClick={() => setPickingOwner(true)}>
+                      {t('owners.changeOwner')}
+                    </button>
+                  )}
+                </dd>
+              </dl>
+            </>
+          )}
+        </section>
+      </aside>
+      </div>
+
+      {pickingOwner && (
+        <OwnerPickerModal
+          title={t('owners.moveTitle', { pet: pet.name })}
+          excludeId={pet.owner_file_id}
+          allowNew
+          onPick={handleChangeOwner}
+          onClose={() => setPickingOwner(false)}
+        />
+      )}
     </div>
   )
 }

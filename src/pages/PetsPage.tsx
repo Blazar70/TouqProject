@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Trash2 } from 'lucide-react'
+import { ArrowLeft, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -75,16 +75,16 @@ function PetsPage() {
     loadPets()
   }, [])
 
-  // Opened by URL (link, Back/Forward, reload): bring the pet into view; an unknown or deleted pet falls back to the list.
+  const openPet = pets.find((pet) => pet.id === expandedPetId) ?? null
+
+  // Opened by URL (link, Back/Forward, reload): the file starts at the top; an unknown or deleted pet falls back to the list.
   useEffect(() => {
     if (loading || !expandedPetId) return
-    if (!pets.some((pet) => pet.id === expandedPetId)) {
+    if (!openPet) {
       navigate('/pets', { replace: true })
       return
     }
-    requestAnimationFrame(() => {
-      document.getElementById(`pet-row-${expandedPetId}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    })
+    window.scrollTo({ top: 0 })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, expandedPetId])
 
@@ -165,16 +165,11 @@ function PetsPage() {
     setPets((current) => current.map((p) => (p.id === updated.id ? updated : p)))
   }
 
-  // Real navigation now, so PetDetail's unsaved-changes guard (useBlocker) asks before leaving a dirty file.
-  function handleRowToggle(pet: Pet) {
-    if (expandedPetId === pet.id) {
-      navigate('/pets')
-      requestAnimationFrame(() => {
-        document.getElementById(`pet-row-${pet.id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-      })
-      return
-    }
-    navigate(`/pets/${pet.id}`)
+  // Real navigation, so PetDetail's unsaved-changes guard (useBlocker) asks before leaving a dirty file.
+  // Back to the list lands on the pet's row; the search box keeps what was typed.
+  function closePet(petId: string) {
+    navigate('/pets')
+    requestAnimationFrame(() => document.getElementById(`pet-row-${petId}`)?.scrollIntoView({ block: 'center' }))
   }
 
   const filteredPets = useMemo(() => {
@@ -184,6 +179,17 @@ function PetsPage() {
   }, [pets, search])
 
   if (loading) return <LoadingScreen />
+
+  if (openPet) {
+    return (
+      <div>
+        <button type="button" className="back-link" onClick={() => closePet(openPet.id)}>
+          <ArrowLeft size={16} aria-hidden className="nav-icon-flip" /> {t('pets.allPets')}
+        </button>
+        <PetDetail key={openPet.id} pet={openPet} onUpdated={handlePetUpdated} onDelete={() => handleDeletePet(openPet)} />
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -238,11 +244,11 @@ function PetsPage() {
             <span />
           </li>
           {filteredPets.map((pet) => (
-            <li key={pet.id} id={`pet-row-${pet.id}`} className={`pet-list-item${expandedPetId === pet.id ? ' is-open' : ''}`}>
+            <li key={pet.id} id={`pet-row-${pet.id}`} className="pet-list-item">
               <div className="pet-row data-row">
                 <div className="pet-row-toggle-with-avatar data-cell-wide">
                   <PetAvatar pet={pet} size={40} />
-                  <button type="button" className="pet-row-toggle" onClick={() => handleRowToggle(pet)}>
+                  <button type="button" className="pet-row-toggle" onClick={() => navigate(`/pets/${pet.id}`)}>
                     <strong>{pet.name}</strong>
                     <div className="pet-owner">
                       {speciesLabel(t, pet.species)}
@@ -269,13 +275,6 @@ function PetsPage() {
                 <div className="data-end">
                 </div>
               </div>
-              {expandedPetId === pet.id && (
-                <PetDetail
-                  pet={pet}
-                  onUpdated={handlePetUpdated}
-                  onDelete={() => handleDeletePet(pet)}
-                />
-              )}
             </li>
           ))}
         </ul>

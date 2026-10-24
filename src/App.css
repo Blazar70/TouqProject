@@ -1870,7 +1870,7 @@ input[type='checkbox']:focus-visible {
   display: block;
 }
 
-:is(.pet-photo-row, .pet-row-toggle-with-avatar) .pet-avatar-button {
+:is(.pet-photo-row, .pet-row-toggle-with-avatar, .pet-file-header) .pet-avatar-button {
   display: inline-block;
   padding: 0;
   border: none;
@@ -1881,7 +1881,7 @@ input[type='checkbox']:focus-visible {
   line-height: 0;
 }
 
-:is(.pet-photo-row, .pet-row-toggle-with-avatar) .pet-avatar-button:hover {
+:is(.pet-photo-row, .pet-row-toggle-with-avatar, .pet-file-header) .pet-avatar-button:hover {
   filter: none;
 }
 
@@ -1967,13 +1967,6 @@ input[type='checkbox']:focus-visible {
 
 .cash-diff-off {
   color: var(--danger);
-}
-
-.pet-detail-quick {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
 }
 
 .pets-trash-button {
@@ -2395,39 +2388,6 @@ input[type='checkbox']:focus-visible {
   }
 }
 
-.pet-detail {
-  margin: 1rem 0 0;
-  padding: 1rem;
-  background: var(--bg);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  display: grid;
-  grid-template-columns: minmax(220px, 280px) 1fr;
-  gap: 1.25rem;
-  align-items: start;
-}
-
-.pet-detail-sidebar {
-  margin: 0;
-  max-width: none;
-}
-
-.pet-detail-main {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  min-width: 0;
-}
-
-.medical-records,
-.vaccination-panel,
-.trusted-contacts {
-  padding: 1rem;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
 /* InpatientPanel (0081): the update note keeps its line breaks; media as a row of thumbnails. */
 .inpatient-note {
   white-space: pre-wrap;
@@ -2478,12 +2438,6 @@ input[type='checkbox']:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-}
-
-@media (max-width: 700px) {
-  .pet-detail {
-    grid-template-columns: 1fr;
-  }
 }
 
 .panel-header {
@@ -4265,26 +4219,6 @@ button.cancel-button:disabled,
   background: var(--status-bg);
 }
 
-/* Open pet file: tint the whole item, mark its row with a start-edge bar and
-   ring the photo, so the row reads as the header of the panel below it. */
-.pet-list-item.is-open {
-  position: relative;
-  background: var(--bg-tint);
-}
-
-.pet-list-item.is-open::before {
-  content: '';
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 3px;
-  background: var(--accent);
-}
-
-.pet-list-item.is-open > .data-row :is(.pet-avatar, .pet-avatar-fallback) {
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
 /* ---- Batch 4: forms ---- */
 /* Submit buttons fit their label instead of spanning the whole card. */
 .pet-form > button[type='submit'] {
@@ -4532,18 +4466,6 @@ button.cancel-button:disabled,
   margin-bottom: 0.85rem;
 }
 
-.pet-detail-owner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.pet-detail-owner > .pet-owner:first-child {
-  flex-basis: 100%;
-}
-
 .owner-chosen strong {
   display: block;
   color: var(--text-h);
@@ -4613,4 +4535,195 @@ img.waiver-signature {
   border-radius: 6px;
   background: #fff;
   border: 1px solid var(--border);
+}
+
+/* ---- Pet file (opens in place of the Pets list) ----
+   Header = who + what's going on + the two main actions. Below: the clinical story on the left,
+   supporting facts in one quiet side column. Sections are separated by space, not boxes. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-end: 1rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
+.pet-file-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem 1.5rem;
+  padding: 0.5rem;
+  margin-block-end: 2rem;
+  border: 2px dashed transparent;
+  border-radius: 10px;
+}
+
+.pet-file-identity {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.pet-file-identity h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  color: var(--text-h);
+}
+
+.pet-file-meta {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.pet-file-owner {
+  margin: 0.25rem 0 0;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.pet-file-owner .pet-file-meta {
+  font-weight: 400;
+}
+
+.pet-file-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-start: 0.75rem;
+}
+
+.pet-file-stay-chip {
+  --status-bg: var(--status-amber-bg);
+  --status-fg: var(--status-amber-fg);
+  background: var(--status-bg);
+  color: var(--status-fg);
+  text-decoration: none;
+}
+
+.pet-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pet-file-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 2rem;
+  align-items: start;
+}
+
+.pet-file-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  min-width: 0;
+}
+
+/* An admitted pet's stay is the most urgent thing in the file. */
+.pet-file-main > .inpatient-panel.is-admitted {
+  order: -1;
+}
+
+.pet-file-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.pet-file-side > * + * {
+  padding-block-start: 1.5rem;
+  border-block-start: 1px solid var(--border);
+}
+
+.pet-file .panel-header {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block-end: 0.5rem;
+}
+
+.pet-file .panel-header h3 {
+  font-size: 1rem;
+}
+
+/* One size for every secondary action in the file (the base rule's font: inherit cancels its own 0.85rem). */
+.pet-file :is(.secondary-button, .delete-button, .cancel-button) {
+  font-size: 0.85rem;
+}
+
+/* Forms inside sections sit flat on the section instead of becoming another card. */
+.pet-file .pet-form {
+  max-width: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.pet-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.pet-facts dt {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.pet-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--text-h);
+}
+
+.pet-file-delete {
+  align-self: flex-start;
+  margin-block-start: 1rem;
+}
+
+@media (max-width: 1023.98px) {
+  .pet-file-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The global .status-badge rule pushes badges to the row end; in the header they stay with the name. */
+.pet-file-chips .status-badge {
+  margin-inline-start: 0;
+}
+
+.pet-file a.secondary-button {
+  text-decoration: none;
+}
+
+/* Long inputs are hard to scan; the stay update form keeps a readable width. */
+.pet-file-main .pet-form {
+  max-width: 40rem;
+}
+
+.pet-facts {
+  align-items: baseline;
 }

@@ -26,7 +26,9 @@ const num = (value: string) => (value.trim() ? Number(toLatinDigits(value)) : nu
 
 // Phase 6 inpatient stay of one pet (0081): admit, timed updates with vitals and photos/videos,
 // copy today's updates as text for the owner, discharge. The pet is "at" the branch of the latest update.
-function InpatientPanel({ pet }: { pet: Pet }) {
+export type OpenStay = Pick<Stay, 'admitted_at' | 'branch_id'>
+
+function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?: (stay: OpenStay | null) => void }) {
   const { profile } = useAuth()
   const { branchId, branchName, canWriteAt } = useBranch()
   const { t } = useLanguage()
@@ -59,6 +61,7 @@ function InpatientPanel({ pet }: { pet: Pet }) {
     const rows = (data as Stay[] | null) ?? []
     setStays(rows)
     const current = rows.find((s) => !s.discharged_at)
+    onOpenStayChange?.(current ?? null)
     if (!current) return setUpdates([])
     const { data: ups, error: upError } = await supabase
       .from('inpatient_updates')
@@ -183,7 +186,7 @@ function InpatientPanel({ pet }: { pet: Pet }) {
   if (stays === null) return null
 
   return (
-    <div className="vaccination-panel inpatient-panel">
+    <div id="pet-inpatient" className={`vaccination-panel inpatient-panel${open ? ' is-admitted' : ''}`}>
       <div className="panel-header">
         <h3>{t('inpatient.title')}</h3>
         {open ? (
