@@ -5,16 +5,19 @@ import { useLanguage } from './i18n/LanguageContext'
 import { friendlyErrorKey } from './friendlyError'
 
 type ToastType = 'success' | 'error'
-type Toast = { id: number; type: ToastType; message: string }
+type ToastAction = { label: string; onClick: () => void }
+type Toast = { id: number; type: ToastType; message: string; action?: ToastAction }
 
 type ToastContextValue = {
-  success: (message: string) => void
+  // An action (e.g. Undo) keeps the toast up longer so there is time to reach it.
+  success: (message: string, action?: ToastAction) => void
   error: (message: string) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
 const AUTO_DISMISS_MS = 4000
+const ACTION_DISMISS_MS = 6000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { t } = useLanguage()
@@ -29,20 +32,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const schedule = useCallback(
-    (id: number) => {
+    (id: number, ms = AUTO_DISMISS_MS) => {
       timers.current.set(
         id,
-        setTimeout(() => dismiss(id), AUTO_DISMISS_MS),
+        setTimeout(() => dismiss(id), ms),
       )
     },
     [dismiss],
   )
 
   const push = useCallback(
-    (type: ToastType, message: string) => {
+    (type: ToastType, message: string, action?: ToastAction) => {
       const id = nextId.current++
-      setToasts((current) => [...current, { id, type, message }])
-      schedule(id)
+      setToasts((current) => [...current, { id, type, message, action }])
+      schedule(id, action ? ACTION_DISMISS_MS : AUTO_DISMISS_MS)
     },
     [schedule],
   )
@@ -54,12 +57,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     clearTimeout(timers.current.get(id))
   }
 
-  function handleMouseLeave(id: number) {
-    schedule(id)
+  function handleMouseLeave(toast: Toast) {
+    schedule(toast.id, toast.action ? ACTION_DISMISS_MS : AUTO_DISMISS_MS)
   }
 
   const value: ToastContextValue = {
-    success: (message) => push('success', message),
+    success: (message, action) => push('success', message, action),
     error: (message) => {
       const key = friendlyErrorKey(message)
       push('error', key ? t(key) : message)
@@ -78,7 +81,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             className={`toast toast-${toast.type}`}
             onClick={() => dismiss(toast.id)}
             onMouseEnter={() => handleMouseEnter(toast.id)}
-            onMouseLeave={() => handleMouseLeave(toast.id)}
+            onMouseLeave={() => handleMouseLeave(toast)}
+            // Keyboard users tabbing to the action get the same pause as a hovering mouse.
+            onFocus={() => handleMouseEnter(toast.id)}
+            onBlur={() => handleMouseLeave(toast)}
           >
             {toast.type === 'success' ? (
               <CheckCircle2 size={18} aria-hidden />
@@ -86,6 +92,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <XCircle size={18} aria-hidden />
             )}
             <span>{toast.message}</span>
+            {toast.action && (
+              // The toast's own click dismisses it, so the action runs and the toast closes in one click.
+              <button type="button" className="toast-action" onClick={toast.action.onClick}>
+                {toast.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

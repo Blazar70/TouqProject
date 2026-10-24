@@ -2135,6 +2135,24 @@ input[type='checkbox']:focus-visible {
   color: var(--status-green-fg);
 }
 
+.toast-action {
+  margin-inline-start: auto;
+  padding: 0.25rem 0.75rem;
+  min-height: 2rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toast-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .toast-error {
   background: linear-gradient(var(--danger-bg), var(--danger-bg)) var(--bg-raised);
   color: var(--danger);

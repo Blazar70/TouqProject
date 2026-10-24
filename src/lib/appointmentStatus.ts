@@ -18,3 +18,13 @@ export function canWorkSession(role: string | null | undefined, userId: string |
   if (role !== 'doctor' && role !== 'nurse') return false
   return !startedBy || startedBy === userId || starterRole !== role
 }
+
+// Dashboard "Next": the pet waiting longest (earliest slot among arrived; there is no arrived_at),
+// else the next booked slot still to come. Arrived pets count even when their slot has passed (H12).
+export function nextAppointmentId(appointments: { id: string; status: string; scheduled_at: string }[], now: number) {
+  const byTime = [...appointments].sort((a, b) => Date.parse(a.scheduled_at) - Date.parse(b.scheduled_at))
+  return (
+    byTime.find((a) => a.status === 'arrived') ??
+    byTime.find((a) => (a.status === 'requested' || a.status === 'confirmed') && Date.parse(a.scheduled_at) >= now)
+  )?.id
+}
