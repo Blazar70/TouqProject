@@ -48,7 +48,7 @@ const sum = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) *
 function ReportsPage() {
   const { t } = useLanguage()
   const { profile } = useAuth()
-  const { branchName, branches } = useBranch()
+  const { branchName, branches, canWriteAt } = useBranch()
   const { printReport } = usePrintSummary()
   const isManager = profile?.clinic_role === 'manager'
   const [viewBranch, setViewBranch] = useBranchView(isManager)
@@ -103,7 +103,7 @@ function ReportsPage() {
   const [countedIds, setCountedIds] = useState<string[]>([])
   const cashBranchIds = branch ? [branch] : branches.filter((b) => b.active).map((b) => b.id)
   const blind =
-    report === 'cashUp' && profile?.clinic_role === 'receptionist' && day === today && cashBranchIds.some((id) => !countedIds.includes(id))
+    report === 'cashUp' && profile?.clinic_role === 'receptionist' && day === today && cashBranchIds.some((id) => canWriteAt(id) && !countedIds.includes(id))
 
   const branchLabel = branch ? branchName(branch) : t('staff.allBranches')
   const rangeLabel = report === 'cashUp' ? formatDate(day) : `${formatDate(from)} – ${formatDate(to)}`

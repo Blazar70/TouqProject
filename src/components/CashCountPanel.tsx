@@ -27,7 +27,7 @@ function CashCountPanel({
   const { t } = useLanguage()
   const toast = useToast()
   const { profile } = useAuth()
-  const { branchName } = useBranch()
+  const { branchName, canWriteAt } = useBranch()
   const [counts, setCounts] = useState<Count[]>([])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
@@ -79,7 +79,9 @@ function CashCountPanel({
           const count = history[0]
           const expectedCash = expected(id)
           const diff = count ? Math.round((count.counted - expectedCash) * 100) / 100 : null
-          const blind = role === 'receptionist' && canEdit && !count
+          // Only your own branches can be counted (0076); others show their totals read-only.
+          const canCount = canEdit && canWriteAt(id)
+          const blind = role === 'receptionist' && canCount && !count
           return (
             <li key={id}>
               <div className="record-row">
@@ -110,7 +112,7 @@ function CashCountPanel({
                     </div>
                   )}
                 </div>
-                {canEdit && (
+                {canCount && (
                   <div className="record-actions">
                     <input
                       type="number"

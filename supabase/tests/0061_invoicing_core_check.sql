@@ -16,6 +16,10 @@ insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f6100000-0000-0000-0000-000000000001', 'vet', 'f6100000-0000-0000-0000-00000000000a', 'A Manager', 'manager'),
   ('f6100000-0000-0000-0000-000000000002', 'vet', 'f6100000-0000-0000-0000-00000000000a', 'A Reception', 'receptionist'),
   ('f6100000-0000-0000-0000-000000000003', 'vet', 'f6100000-0000-0000-0000-00000000000b', 'B Manager', 'manager');
+-- Non-managers always work at a branch (0076 checks branch writes).
+insert into staff_branches (profile_id, branch_id)
+  select p.id, b.id from profiles p join branches b on b.clinic_id = p.clinic_id
+  where p.id::text like 'f6100000-%' and p.clinic_role <> 'manager' on conflict do nothing;
 insert into pets (id, clinic_id, name, species, owner_name) values
   ('f6100000-0000-0000-0000-0000000000a1', 'f6100000-0000-0000-0000-00000000000a', 'Rex', 'dog', 'O');
 insert into services (id, clinic_id, name, price, vat_rate) values
@@ -85,7 +89,11 @@ begin
     assert false, 'receptionist set the VAT number';
   exception when raise_exception then null;
   end;
-  update clinics set name = 'Invoice check A2' where id = 'f6100000-0000-0000-0000-00000000000a';
+  begin
+    update clinics set name = 'Invoice check A2' where id = 'f6100000-0000-0000-0000-00000000000a';
+    assert false, 'receptionist renamed the clinic (managers only since 0076)';
+  exception when raise_exception then null;
+  end;
 
   -- Clients write nothing directly.
   begin

@@ -257,9 +257,12 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
           <button type="button" className="secondary-button" onClick={startEdit}>
             {t('common.edit')}
           </button>
-          <button type="button" className="secondary-button" onClick={() => openModal('merge')}>
-            {t('owners.merge')}
-          </button>
+          {/* Merge and move: receptionists and managers, the same roles as money (0076). */}
+          {handlesMoney && (
+            <button type="button" className="secondary-button" onClick={() => openModal('merge')}>
+              {t('owners.merge')}
+            </button>
+          )}
           {isManager && (
             <button type="button" className="secondary-button" onClick={() => openModal('adjust')}>
               {t('owners.adjust')}
@@ -352,9 +355,11 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
                         </span>
                       </span>
                     </Link>
-                    <button type="button" className="secondary-button" onClick={() => openModal({ move: pet })}>
-                      {t('owners.move')}
-                    </button>
+                    {handlesMoney && (
+                      <button type="button" className="secondary-button" onClick={() => openModal({ move: pet })}>
+                        {t('owners.move')}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

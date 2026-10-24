@@ -17,15 +17,14 @@ insert into profiles (id, role, full_name) values
 
 set local role authenticated;
 
--- Doctor: name and phone yes; billing, disabled, deleted_at, timezone no
+-- Doctor: name and phone no (managers only since 0076); billing, disabled, deleted_at, timezone no
 select set_config('request.jwt.claims', json_build_object('sub', 'f5400000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
 do $$
 declare
   forbidden text;
 begin
-  update clinics set name = 'Guard X2', phone = '0500000000' where id = 'f5400000-0000-0000-0000-00000000000a';
-  assert found, 'doctor could not change name/phone';
   foreach forbidden in array array[
+    'name = ''Guard X2''', 'phone = ''0500000000''',
     'billing_status = ''trial''', 'disabled = true', 'deleted_at = now()', 'timezone = ''UTC'''
   ] loop
     begin

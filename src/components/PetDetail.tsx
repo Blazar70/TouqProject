@@ -47,7 +47,7 @@ function PetDetail({
   onDelete: () => void
 }) {
   const { profile, handlesMoney } = useAuth()
-  const { branchId, branchName } = useBranch()
+  const { branchId, branchName, canWriteAt } = useBranch()
   const { t } = useLanguage()
   const confirm = useConfirm()
   const toast = useToast()
@@ -355,7 +355,7 @@ function PetDetail({
               <Ltr>{pet.owner_phone}</Ltr>
             </span>
           )}
-          {isVet && (
+          {handlesMoney && (
             <button type="button" className="secondary-button" onClick={() => setPickingOwner(true)}>
               {t('owners.changeOwner')}
             </button>
@@ -593,13 +593,13 @@ function PetDetail({
                           >
                             {t('common.print')}
                           </button>
-                          {/* A nurse edits her own or nurse-only records, never deletes (0075). */}
-                          {isVet && (!isNurse || !record.vet_id || record.vet_id === profile?.id) && (
+                          {/* A nurse edits her own or nurse-only records, never deletes (0075); records seen at a branch you don't work at are read-only (0076). */}
+                          {isVet && canWriteAt(record.branch_id) && (!isNurse || !record.vet_id || record.vet_id === profile?.id) && (
                             <button type="button" className="secondary-button" onClick={() => startEditingRecord(record)}>
                               {t('common.edit')}
                             </button>
                           )}
-                          {isVet && !isNurse && (
+                          {isVet && !isNurse && canWriteAt(record.branch_id) && (
                             <button type="button" className="delete-button" onClick={() => handleDeleteRecord(record)}>
                               {t('common.delete')}
                             </button>
