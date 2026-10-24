@@ -3,6 +3,8 @@ import { clinicDay, formatDate, formatTime } from './format'
 
 export const INPATIENT_MEDIA_BUCKET = 'inpatient-media'
 export const MAX_VIDEO_BYTES = 30 * 1024 * 1024
+// A dose not ticked 15 minutes after its time shows as overdue (one push-job tick).
+export const OVERDUE_AFTER_MS = 15 * 60_000
 
 type T = (key: TranslationKey, vars?: Record<string, string>) => string
 type UpdateLike = {

@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
-import { getsAlert } from '../_shared/alertRecipients.ts'
+import { getsAlert, getsInpatientAlert } from '../_shared/alertRecipients.ts'
 import { secretKey } from '../_shared/keys.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -74,5 +75,59 @@ Deno.serve(async (req) => {
     }
   }
 
+  await sendInpatientDoseReminders(admin, now)
+
   return new Response('ok')
 })
+
+// Inpatient medication/check reminders (0082): one push per due time that nobody has marked done,
+// to the doctors and nurses at the pet's branch. The last hour is looked at so a late or skipped
+// tick still sends; older misses only show as overdue in the app.
+async function sendInpatientDoseReminders(admin: SupabaseClient, now: number) {
+  const { data: slots, error } = await admin.rpc('inpatient_task_slots', {
+    p_from: new Date(now - 60 * 60_000).toISOString(),
+    p_to: new Date(now).toISOString(),
+  })
+  if (error) {
+    console.error('inpatient_task_slots', error.message)
+    return
+  }
+  for (const slot of (slots ?? []).filter((s: { done_at: string | null }) => !s.done_at)) {
+    // Claim the due time first, so two overlapping runs can't both send it.
+    const { data: claimed } = await admin
+      .from('inpatient_task_alerts_sent')
+      .upsert({ task_id: slot.task_id, due_at: slot.due_at }, { onConflict: 'task_id,due_at', ignoreDuplicates: true })
+      .select('task_id')
+    if (!claimed?.length) continue
+
+    const { data: task } = await admin
+      .from('inpatient_tasks')
+      .select('label, clinic_id, stay:inpatient_stays!inner(branch_id, pet:pets(id, name, photo_url))')
+      .eq('id', slot.task_id)
+      .single()
+    if (!task) continue
+    const stay = task.stay as unknown as { branch_id: string; pet: { id: string; name: string; photo_url: string | null } | null }
+
+    const { data: staff } = await admin
+      .from('profiles')
+      .select('id, clinic_role, staff_branches(branch_id), clinics!inner(disabled)')
+      .eq('clinic_id', task.clinic_id)
+      .eq('disabled', false)
+      .eq('clinics.disabled', false)
+      .in('clinic_role', ['doctor', 'nurse'])
+    const recipients = (staff ?? []).filter((p) =>
+      getsInpatientAlert({ id: p.id, clinic_role: p.clinic_role, branchIds: (p.staff_branches as { branch_id: string }[]).map((b) => b.branch_id) }, stay.branch_id),
+    )
+    if (!recipients.length) continue
+
+    const { data: subscriptions } = await admin.from('push_subscriptions').select('*').in('profile_id', recipients.map((p) => p.id))
+    const petName = stay.pet?.name ?? ''
+    await sendToSubscriptions(admin, subscriptions ?? [], {
+      title: 'Touq',
+      // Both languages, like the appointment reminders.
+      body: `Due now: ${task.label} for ${petName}.\nحان الآن: ${task.label} لـ ${petName}.`,
+      url: stay.pet ? `/pets/${stay.pet.id}` : '/inpatients',
+      icon: await petPhotoIcon(admin, stay.pet?.photo_url),
+    })
+  }
+}

@@ -26,6 +26,8 @@ function InpatientsPage() {
   // Branches are no wall (clinic answer): open on all.
   const [viewBranch, setViewBranch] = useBranchView(true)
   const [stays, setStays] = useState<Stay[] | null>(null)
+  // Doses due in the last day that nobody ticked, per stay (0082).
+  const [dueByStay, setDueByStay] = useState<Record<string, number>>({})
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -38,7 +40,14 @@ function InpatientsPage() {
       .order('created_at', { referencedTable: 'inpatient_updates', ascending: false })
       .limit(1, { referencedTable: 'inpatient_updates' })
     if (viewBranch !== ALL_BRANCHES) query = query.eq('branch_id', viewBranch)
-    const { data, error: loadError } = await query
+    const now = Date.now()
+    const [{ data, error: loadError }, slots] = await Promise.all([
+      query,
+      supabase.rpc('inpatient_task_slots', { p_from: new Date(now - 86_400_000).toISOString(), p_to: new Date(now).toISOString() }),
+    ])
+    const counts: Record<string, number> = {}
+    for (const slot of slots.data ?? []) if (!slot.done_at) counts[slot.stay_id] = (counts[slot.stay_id] ?? 0) + 1
+    setDueByStay(counts)
     setError(loadError ? loadError.message : null)
     setStays((data as Stay[] | null) ?? [])
   }
@@ -90,6 +99,12 @@ function InpatientsPage() {
                     <strong className="data-strong">{stay.pet?.name}</strong>
                     <span className="data-muted"> · {stay.pet?.owner_name}</span>
                     {stay.reason && <span className="data-muted"> · {stay.reason}</span>}
+                    {dueByStay[stay.id] > 0 && (
+                      <>
+                        {' '}
+                        <span className="status-badge status-requested">{t('inpatient.dueCount', { count: String(dueByStay[stay.id]) })}</span>
+                      </>
+                    )}
                   </span>
                   <span className="data-num">{t('inpatient.day', { count: String(stayDay(stay.admitted_at)) })}</span>
                   <span>{branchName(stay.branch_id)}</span>

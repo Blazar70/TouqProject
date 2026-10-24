@@ -2434,6 +2434,29 @@ input[type='checkbox']:focus-visible {
   margin-block: 0.25rem;
 }
 
+/* The pet file's side column is narrow on tablets: let the title and its buttons wrap. */
+.inpatient-panel .panel-header {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Medication/check reminders inside the inpatient panel (0082). */
+.inpatient-reminders {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+  border-block: 1px solid var(--border);
+}
+
+.reminder-slot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: 0.25rem;
+}
+
 .inpatient-media {
   display: flex;
   flex-wrap: wrap;

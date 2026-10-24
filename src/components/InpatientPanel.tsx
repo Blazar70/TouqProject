@@ -13,6 +13,7 @@ import { toLatinDigits } from '../lib/arabicDigits'
 import { INPATIENT_MEDIA_BUCKET, MAX_VIDEO_BYTES, inpatientMessage, isVideo, stayDay } from '../lib/inpatient'
 import Ltr from './Ltr'
 import FormError from './FormError'
+import InpatientReminders from './InpatientReminders'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Stay = Database['public']['Tables']['inpatient_stays']['Row'] & { admitter: { full_name: string } | null }
@@ -234,6 +235,8 @@ function InpatientPanel({ pet }: { pet: Pet }) {
           </div>
         </form>
       )}
+
+      {open && <InpatientReminders stayId={open.id} />}
 
       {open && canWrite && (
         <form onSubmit={handleAddUpdate} className="pet-form">

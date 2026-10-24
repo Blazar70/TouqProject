@@ -11,3 +11,9 @@ export function getsAlert(profile: AlertProfile, appointment: AlertAppointment):
   if (profile.clinic_role === 'manager' && profile.branchIds.length === 0) return true
   return profile.branchIds.includes(appointment.branch_id)
 }
+
+// Inpatient dose reminders (0082, user 2026-10-24): the doctors and nurses who work at the branch
+// the pet is at now. Managers and reception don't get them.
+export function getsInpatientAlert(profile: AlertProfile, stayBranchId: string): boolean {
+  return (profile.clinic_role === 'doctor' || profile.clinic_role === 'nurse') && profile.branchIds.includes(stayBranchId)
+}

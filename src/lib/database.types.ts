@@ -482,6 +482,69 @@ export type Database = {
           },
         ]
       }
+      inpatient_tasks: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          every_hours: number
+          id: string
+          label: string
+          starts_at: string
+          stay_id: string
+          stopped_at: string | null
+          stopped_by: string | null
+        }
+        Insert: {
+          clinic_id: string
+          ends_at?: string | null
+          every_hours: number
+          id?: string
+          label: string
+          starts_at: string
+          stay_id: string
+        }
+        // 0082: stopping is the only client edit.
+        Update: {
+          stopped_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inpatient_tasks_stay_id_fkey"
+            columns: ["stay_id"]
+            isOneToOne: false
+            referencedRelation: "inpatient_stays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inpatient_task_doses: {
+        Row: {
+          clinic_id: string
+          done_at: string
+          done_by: string | null
+          due_at: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          clinic_id: string
+          due_at: string
+          id?: string
+          task_id: string
+        }
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "inpatient_task_doses_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "inpatient_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           bill_discount_share: number
@@ -1457,6 +1520,10 @@ export type Database = {
       report_income_services: {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
         Returns: { service_id: string | null; service_name: string | null; quantity: number; net: number; vat: number; total: number; credited: number }[]
+      }
+      inpatient_task_slots: {
+        Args: { p_from: string; p_to: string }
+        Returns: { task_id: string; stay_id: string; due_at: string; done_at: string | null; done_by_name: string | null }[]
       }
       report_cash_differences: {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
