@@ -4727,3 +4727,21 @@ img.waiver-signature {
 .pet-facts {
   align-items: baseline;
 }
+
+/* Owner reminders page (0085): one section per kind; sent rows step back. */
+.reminders-section {
+  margin-block-start: 2rem;
+}
+
+.reminders-section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.reminder-sent .record-row > div:first-child {
+  opacity: 0.7;
+}
+
+.reminders-section a.secondary-button {
+  text-decoration: none;
+}

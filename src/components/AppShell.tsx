@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
   PawPrint,
   Receipt,
   Settings,
@@ -30,7 +31,8 @@ import LanguageToggle from './LanguageToggle'
 import BranchMenu from './BranchMenu'
 import ThemeToggle from './ThemeToggle'
 
-type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean; money?: boolean; manager?: boolean }
+// money / desk: receptionists and managers only (handlesMoney); desk is for non-money front-desk work.
+type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean; money?: boolean; desk?: boolean; manager?: boolean }
 type NavSection = { title?: TranslationKey; items: NavItem[] }
 
 const ADMIN_SECTIONS: NavSection[] = [
@@ -56,6 +58,7 @@ const CLINIC_SECTIONS: NavSection[] = [
       { to: '/pets', label: 'nav.pets', icon: PawPrint },
       { to: '/owners', label: 'nav.owners', icon: ContactRound },
       { to: '/inpatients', label: 'nav.inpatients', icon: BedDouble },
+      { to: '/reminders', label: 'nav.reminders', icon: MessageCircle, desk: true },
     ],
   },
   {
@@ -236,7 +239,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
             <div className="nav-section" key={section.title ?? i}>
               {section.title && <h2 className="nav-section-title">{t(section.title)}</h2>}
               <ul>
-                {section.items.filter((item) => (!item.money || handlesMoney) && (!item.manager || profile?.clinic_role === 'manager')).map((item) => (
+                {section.items.filter((item) => (!(item.money || item.desk) || handlesMoney) && (!item.manager || profile?.clinic_role === 'manager')).map((item) => (
                   <li key={item.to}>
                     <NavLink
                       to={item.to}

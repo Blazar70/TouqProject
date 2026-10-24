@@ -383,6 +383,35 @@ export type Database = {
           },
         ]
       }
+      owner_reminders_sent: {
+        Row: {
+          clinic_id: string
+          id: string
+          item_key: string
+          kind: string
+          owner_file_id: string | null
+          sent_at: string
+          sent_by: string | null
+        }
+        // 0085: sent_at and sent_by are filled by the database.
+        Insert: {
+          clinic_id: string
+          id?: string
+          item_key: string
+          kind: string
+          owner_file_id?: string | null
+        }
+        Update: Record<string, never>
+        Relationships: [
+          {
+            foreignKeyName: "owner_reminders_sent_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waiver_templates: {
         Row: {
           active: boolean

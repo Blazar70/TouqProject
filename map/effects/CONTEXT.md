@@ -17,6 +17,7 @@ First-order only. Open the card; its "If you change this" has the detail.
 | anything clinic-to-Touq money | [payments](../objects/money/payments.md) |
 | photo upload or bucket policy | [storage-buckets](../objects/platform/storage-buckets.md) |
 | push or reminders | [push](../objects/platform/push.md), [push-notifications](../processes/push-notifications.md) |
+| owner messages (WhatsApp reminders) | [owner-reminders](../processes/owner-reminders.md), [owners](../objects/people/owner-files.md) |
 | a new admin action string | [admin-audit-log](../objects/platform/admin-audit-log.md) |
 | deleting pets, staff or clinics | [trash-and-purge](../processes/trash-and-purge.md) |
 

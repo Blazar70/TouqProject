@@ -9,6 +9,7 @@ import OwnersPage from './pages/OwnersPage'
 import ReportsPage from './pages/ReportsPage'
 import ManagerPage from './pages/ManagerPage'
 import InpatientsPage from './pages/InpatientsPage'
+import RemindersPage from './pages/RemindersPage'
 import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
@@ -99,6 +100,7 @@ function App() {
               <Route path="/pets/:id" element={<PetsPage />} />
               <Route path="/owners" element={<OwnersPage />} />
               <Route path="/inpatients" element={<InpatientsPage />} />
+              <Route path="/reminders" element={handlesMoney ? <RemindersPage /> : <Navigate to="/" replace />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
               <Route path="/appointments/:id/session" element={<SessionPage />} />
               {/* Money: receptionists and managers only (0074); the DB refuses the rest too. */}
