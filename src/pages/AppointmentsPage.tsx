@@ -333,9 +333,19 @@ function AppointmentsPage() {
   // Confirm, step back to requested, check in or undo a check-in; the toast offers Undo (U18),
   // except on the undo itself.
   async function setRequestStatus(appointment: Appointment, status: 'confirmed' | 'requested' | 'arrived', undoable = true) {
-    const { error: updateError } = await supabase.from('appointments').update({ status }).eq('id', appointment.id)
+    // Only from the status this screen shows, so a late Undo can't overwrite e.g. a session started meanwhile.
+    const { data: changed, error: updateError } = await supabase
+      .from('appointments')
+      .update({ status })
+      .eq('id', appointment.id)
+      .eq('status', appointment.status)
+      .select('id')
     if (updateError) {
       toast.error(updateError.message)
+      return
+    }
+    if (!changed?.length) {
+      toast.error(t('appointments.changedMeanwhile'))
       return
     }
     const updated = { ...appointment, status }
