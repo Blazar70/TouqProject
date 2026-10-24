@@ -136,14 +136,21 @@ function PetsPage() {
     if (!ok) return
 
     setPurgingPetId(pet.id)
+    // Photo paths first: records cascade with the pet, and deleting rows leaves the files (nightly S9).
+    const { data: records } = await supabase.from('medical_records').select('photo_url').eq('pet_id', pet.id).not('photo_url', 'is', null)
+    const photoPaths = [pet.photo_url, ...(records ?? []).map((r) => r.photo_url)]
+      .filter((path): path is string => !!path)
+      .map((path) => path.split('?')[0])
     const { error } = await supabase.from('pets').delete().eq('id', pet.id)
     if (error) {
       toast.error(error.message)
       setPurgingPetId(null)
       return
     }
+    const { error: removeError } = photoPaths.length ? await supabase.storage.from('pet-photos').remove(photoPaths) : { error: null }
     setTrashedPets((current) => current.filter((p) => p.id !== pet.id))
-    toast.success(t('trash.purged', { name: pet.name }))
+    if (removeError) toast.error(t('trash.purgedPhotosLeft', { name: pet.name }))
+    else toast.success(t('trash.purged', { name: pet.name }))
     setPurgingPetId(null)
   }
 

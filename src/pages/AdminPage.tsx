@@ -402,7 +402,8 @@ function AdminPage() {
 
     // The purge function doesn't know about logos; drop the file so it isn't left public.
     if (clinic.logo_url) await supabase.storage.from(CLINIC_LOGOS_BUCKET).remove([clinic.logo_url.split('?')[0]])
-    toast.success(t('admin.clinicPurged', { name: clinic.name }))
+    if (data?.storageFailures) toast.error(t('admin.clinicPurgedFilesLeft', { name: clinic.name }))
+    else toast.success(t('admin.clinicPurged', { name: clinic.name }))
     setDeletingClinicId(null)
     await load()
   }

@@ -6,10 +6,10 @@ type Tables = Database['public']['Tables']
 export type InvoiceFull = Tables['invoices']['Row'] & {
   pets: { name: string; pet_number: number; owner_file_id: string; owner_phone: string | null } | null
   invoice_items: Tables['invoice_items']['Row'][]
-  invoice_payments: Tables['invoice_payments']['Row'][]
+  invoice_payments: (Tables['invoice_payments']['Row'] & { receiver: { full_name: string } | null })[]
   credit_notes: Tables['credit_notes']['Row'][]
 }
-export const INVOICE_SELECT = '*, pets(name, pet_number, owner_file_id, owner_phone), invoice_items(*), invoice_payments(*), credit_notes(*)'
+export const INVOICE_SELECT = '*, pets(name, pet_number, owner_file_id, owner_phone), invoice_items(*), invoice_payments(*, receiver:profiles!invoice_payments_received_by_fkey(full_name)), credit_notes(*)'
 
 // Mirrors create_invoice() in supabase/migrations/0061_invoicing_core.sql so the
 // form shows the totals the database will save. The database is the authority.

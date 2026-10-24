@@ -24,6 +24,7 @@ type TodayAppointment = {
   id: string
   scheduled_at: string
   status: string
+  arrived_at: string | null
   reason: string | null
   doctor_id: string | null
   pets: { name: string; owner_name: string } | null
@@ -82,7 +83,7 @@ function DashboardPage() {
       byBranch(
         supabase
           .from('appointments')
-          .select('id, scheduled_at, status, reason, doctor_id, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
+          .select('id, scheduled_at, status, arrived_at, reason, doctor_id, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
           .gte('scheduled_at', dayStart.toISOString())
           .lt('scheduled_at', dayEnd.toISOString()),
       ).order('scheduled_at', { ascending: true }),
@@ -248,6 +249,12 @@ function DashboardPage() {
                       <strong>{appt.pets?.name ?? t('dashboard.unknownPet')}</strong>
                       <span className="dash-row-sub">
                         {[appt.pets?.owner_name, appt.reason].filter(Boolean).join(' · ')}
+                        {appt.status === 'arrived' && appt.arrived_at && (
+                          <>
+                            {' · '}
+                            {t('appointments.arrivedAt', { time: formatTime(appt.arrived_at) })}
+                          </>
+                        )}
                       </span>
                     </span>
                     <span className="today-doctor">{appt.doctor?.full_name ?? t('calendar.unassigned')}</span>

@@ -137,6 +137,7 @@ export type Database = {
       }
       appointments: {
         Row: {
+          arrived_at: string | null
           billed?: boolean | null // computed field (0074), not a column: select('*, billed')
           branch_id: string
           cancellation_category: string | null
@@ -154,6 +155,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          arrived_at?: string | null
           branch_id: string
           cancellation_category?: string | null
           cancellation_reason?: string | null
@@ -170,6 +172,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          arrived_at?: string | null
           branch_id?: string
           cancellation_category?: string | null
           cancellation_reason?: string | null
@@ -437,6 +440,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

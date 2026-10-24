@@ -25,5 +25,5 @@ The untracked nested `Touq/` folder (own `.git`) is not mapped until the owner s
 ## Found while mapping
 
 - Fixed and deployed 2026-10-14: `purgeClinic` skipped `services` and `invoices`; see [services](objects/money/services.md).
-- Fixed in repo: both timed jobs were created by hand and absent from the repo; templates now in `supabase/cron/`.
+- Fixed in repo: both timed jobs were created by hand and absent from the repo; now migrations 0077/0079 with Vault secrets.
 - Open by design: trashed pets and staff are hidden by query filters, not RLS, because the Trash view needs to read them; see [trash-and-purge](processes/trash-and-purge.md).

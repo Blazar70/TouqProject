@@ -341,7 +341,7 @@ function AppointmentsPage() {
       .update({ status })
       .eq('id', appointment.id)
       .eq('status', appointment.status)
-      .select('id')
+      .select('id, arrived_at')
     if (updateError) {
       toast.error(updateError.message)
       return
@@ -350,7 +350,7 @@ function AppointmentsPage() {
       toast.error(t('appointments.changedMeanwhile'))
       return
     }
-    const updated = { ...appointment, status }
+    const updated = { ...appointment, status, arrived_at: changed[0].arrived_at }
     applyUpdate(updated)
     const previous = appointment.status as 'confirmed' | 'requested' | 'arrived'
     toast.success(
@@ -706,7 +706,10 @@ function AppointmentsPage() {
                 </p>
               )}
             </div>
-            <span className={`status-badge status-${appointment.status}`}>{t(STATUS_LABEL_KEYS[appointment.status])}</span>
+            <span className={`status-badge status-${appointment.status}`}>
+              {t(STATUS_LABEL_KEYS[appointment.status])}
+              {appointment.status === 'arrived' && appointment.arrived_at && <>{' · '}<Ltr>{formatTime(appointment.arrived_at)}</Ltr></>}
+            </span>
           </div>
 
           <FormError message={panelError} />

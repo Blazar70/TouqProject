@@ -2,10 +2,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
 import { getsAlert } from '../_shared/alertRecipients.ts'
+import { publishableKey, secretKey } from '../_shared/keys.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 // Same words as the app's status labels (src/lib/i18n/translations.ts, status.*).
 const STATUS_AR: Record<string, string> = {
@@ -23,7 +22,7 @@ Deno.serve(async (req) => {
   const { appointmentId } = await req.json()
   if (!appointmentId) return new Response('missing appointmentId', { status: 400, headers: corsHeaders })
 
-  const admin = createClient(supabaseUrl, serviceRoleKey)
+  const admin = createClient(supabaseUrl, secretKey)
 
   const { data: appointment } = await admin
     .from('appointments')
@@ -35,7 +34,7 @@ Deno.serve(async (req) => {
   // Confirm the caller belongs to the same clinic as the appointment —
   // otherwise anyone with a valid login could trigger a push for another
   // clinic's appointment by guessing/observing an ID.
-  const callerClient = createClient(supabaseUrl, anonKey, {
+  const callerClient = createClient(supabaseUrl, publishableKey, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   })
   const {

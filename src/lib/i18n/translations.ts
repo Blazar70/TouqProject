@@ -219,6 +219,7 @@ export const translations = {
     'trash.purgeNow': 'Delete permanently',
     'trash.purgeConfirm': 'Permanently delete {name} right now? This cannot be undone.',
     'trash.purged': '{name} was permanently deleted.',
+    'trash.purgedPhotosLeft': '{name} was deleted, but its photos could not be removed. Tell the clinic admin.',
 
     // Register pet page
     'registerPet.title': 'Register a pet',
@@ -322,6 +323,7 @@ export const translations = {
     'appointments.scheduleSubmit': 'Schedule',
     'appointments.scheduled': 'Appointment scheduled.',
     'appointments.statusUpdated': 'Status updated to {status}.',
+    'appointments.arrivedAt': 'arrived {time}',
     'appointments.checkInUndone': 'Check-in undone.',
     'appointments.changedMeanwhile': 'Someone else changed this appointment. Refresh to see it.',
     'toast.undo': 'Undo',
@@ -469,6 +471,7 @@ export const translations = {
     'payments.netTotal': 'Total excl. VAT',
     'payments.vat': 'VAT',
     'payments.payments': 'Payments',
+    'payments.enteredLater': 'entered {when} by {name}',
     'payments.amount': 'Amount',
     'payments.splitPayment': 'Split payment',
     'payments.restPlaceholder': 'Rest: {amount}',
@@ -667,6 +670,7 @@ export const translations = {
     'admin.purgeClinicConfirm':
       'Permanently delete {name} right now? This removes every pet, appointment, medical record, staff account, and login for this clinic. This cannot be undone.',
     'admin.clinicPurged': '{name} was permanently deleted.',
+    'admin.clinicPurgedFilesLeft': '{name} was deleted, but some of its files could not be removed. See the activity log.',
     'admin.disableClinicConfirm': "Disable {name}? Every vet and staff member there will immediately lose access, regardless of their own account status.",
     'admin.clinicDisabled': '{name} was disabled.',
     'admin.clinicEnabled': '{name} was enabled.',
@@ -1182,6 +1186,7 @@ export const translations = {
     'trash.purgeNow': 'حذف نهائي',
     'trash.purgeConfirm': 'حذف {name} نهائيًا الآن؟ لا يمكن التراجع عن هذا الإجراء.',
     'trash.purged': 'تم حذف {name} نهائيًا.',
+    'trash.purgedPhotosLeft': 'تم حذف {name}، لكن تعذّر حذف صوره. أبلغ مسؤول النظام.',
 
     'registerPet.title': 'تسجيل حيوان أليف',
     'registerPet.species': 'النوع',
@@ -1280,6 +1285,7 @@ export const translations = {
     'appointments.scheduleSubmit': 'جدولة',
     'appointments.scheduled': 'تمت جدولة الموعد.',
     'appointments.statusUpdated': 'تم تحديث الحالة إلى {status}.',
+    'appointments.arrivedAt': 'وصل {time}',
     'appointments.checkInUndone': 'أُلغي تسجيل الوصول.',
     'appointments.changedMeanwhile': 'غيّر شخص آخر هذا الموعد. حدّث الصفحة لرؤيته.',
     'toast.undo': 'تراجع',
@@ -1426,6 +1432,7 @@ export const translations = {
     'payments.netTotal': 'الإجمالي غير شامل الضريبة',
     'payments.vat': 'ضريبة القيمة المضافة',
     'payments.payments': 'الدفعات',
+    'payments.enteredLater': 'أُدخلت {when} بواسطة {name}',
     'payments.amount': 'المبلغ',
     'payments.splitPayment': 'تقسيم الدفع',
     'payments.restPlaceholder': 'الباقي: {amount}',
@@ -1619,6 +1626,7 @@ export const translations = {
     'admin.purgeClinicConfirm':
       'حذف {name} نهائيًا الآن؟ سيؤدي هذا لإزالة جميع الحيوانات والمواعيد والسجلات الطبية وحسابات الموظفين الخاصة بهذه العيادة. لا يمكن التراجع عن هذا الإجراء.',
     'admin.clinicPurged': 'تم حذف {name} نهائيًا.',
+    'admin.clinicPurgedFilesLeft': 'تم حذف {name}، لكن تعذّر حذف بعض ملفاتها. راجع سجل النشاط.',
     'admin.disableClinicConfirm': 'تعطيل {name}؟ سيفقد كل طبيب وموظف فيها الوصول فورًا، بغض النظر عن حالة حسابه الخاص.',
     'admin.clinicDisabled': 'تم تعطيل {name}.',
     'admin.clinicEnabled': 'تم تفعيل {name}.',

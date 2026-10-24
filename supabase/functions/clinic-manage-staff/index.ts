@@ -2,10 +2,9 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { CLINIC_ROLES, MIN_PASSWORD_LENGTH, parseStaffLogin, staffChangeError } from '../_shared/staffRules.ts'
 import type { ClinicRole, StaffCaller, StaffChange, StaffTarget } from '../_shared/staffRules.ts'
+import { publishableKey, secretKey } from '../_shared/keys.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
 // Staff accounts of one clinic (docs/design/staff-branches-calendar.md §3).
 // Callers: a clinic's manager (their own clinic) or a Touq admin (any clinic,
@@ -22,8 +21,8 @@ Deno.serve(async (req) => {
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   const fail = (error: string, status = 400) => json({ error }, status)
 
-  const admin = createClient(supabaseUrl, serviceRoleKey)
-  const callerClient = createClient(supabaseUrl, anonKey, {
+  const admin = createClient(supabaseUrl, secretKey)
+  const callerClient = createClient(supabaseUrl, publishableKey, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   })
   const {

@@ -1,9 +1,10 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
 import { getsAlert } from '../_shared/alertRecipients.ts'
+import { secretKey } from '../_shared/keys.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const cronSecret = Deno.env.get('CRON_PURGE_SECRET')
 
 // Cron-scheduled (every 15 minutes). For each enabled staff member with a
 // reminder lead time set, finds their clinic's upcoming appointments that are
@@ -12,12 +13,13 @@ const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 // "now" (not at now + lead) also covers appointments booked inside the lead
 // time and ticks that ran late or were skipped.
 Deno.serve(async (req) => {
-  // Only the cron job (which sends the service-role key) may run this.
-  if (req.headers.get('Authorization') !== `Bearer ${serviceRoleKey}`) {
+  // Only the cron job (0079, x-cron-secret from Vault) may run this. Not the secret key as a Bearer
+  // token: the new sb_secret_ keys are rejected there. The secret is shared with the purge job.
+  if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
     return new Response('unauthorized', { status: 401 })
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey)
+  const admin = createClient(supabaseUrl, secretKey)
   const now = Date.now()
 
   const { data: profiles } = await admin

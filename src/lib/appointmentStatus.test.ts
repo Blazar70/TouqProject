@@ -23,6 +23,10 @@ describe('nextAppointmentId', () => {
     const list = [at('late', 'confirmed', '09:00'), at('up', 'confirmed', '10:30'), at('a2', 'arrived', '09:45'), at('a1', 'arrived', '09:15')]
     expect(nextAppointmentId(list, now)).toBe('a1')
   })
+  it('orders arrived pets by check-in time, not slot', () => {
+    const list = [{ ...at('early-slot', 'arrived', '09:00'), arrived_at: '2026-10-24T09:50:00Z' }, { ...at('later-slot', 'arrived', '09:30'), arrived_at: '2026-10-24T09:20:00Z' }]
+    expect(nextAppointmentId(list, now)).toBe('later-slot')
+  })
   it('else picks the next booked slot still to come', () => {
     const list = [at('late', 'requested', '09:00'), at('s', 'in_session', '09:30'), at('x', 'cancelled', '10:15'), at('up', 'requested', '10:30')]
     expect(nextAppointmentId(list, now)).toBe('up')

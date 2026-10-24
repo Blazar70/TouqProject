@@ -22,7 +22,7 @@ The status function re-checks that the caller belongs to the appointment's clini
 1. User opts in: permission, VAPID subscribe, upsert row. `src/lib/push.ts:25`
 2. Status push: recipients are clinic profiles whose `push_notify_statuses` include the new status. `notify-status-change/index.ts:40-48`
 3. Reminder push: profiles with a lead time; appointments in the next 15 min window; skip if already in `appointment_reminders_sent`. `send-appointment-reminders/index.ts:15-55`
-4. The reminder schedule is set by hand in the SQL editor because it embeds the service key. Template: `supabase/cron/send-appointment-reminders.sql.example`.
+4. The reminder schedule is migration 0079 (every 15 min, `x-cron-secret` from Vault; the function is deployed with `--no-verify-jwt`).
 
 ## If you change this
 

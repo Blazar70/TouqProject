@@ -24,7 +24,7 @@ First-order only. Open the card; its "If you change this" has the detail.
 
 Not discoverable from the repo. Ask the owner and record here:
 
-- Two timed jobs are created by hand in the Supabase SQL editor because they embed secrets: reminders and clinic purge. Templates: `supabase/cron/*.sql.example`. A rebuilt project has neither until they are run.
-- The clinic purge job authenticates with header `x-cron-secret` = function secret `CRON_PURGE_SECRET`.
+- Two timed jobs, both migrations: nightly purge (0077: expired pets with their photos, then expired clinics, via `admin-manage-clinic` `purge_expired`) and reminders every 15 min (0079). They read Vault secrets `touq_project_url` + `cron_purge_secret`; a project without them gets failing job runs (see README step 6).
+- Both jobs authenticate with header `x-cron-secret` = function secret `CRON_PURGE_SECRET`; both functions are deployed with `--no-verify-jwt`.
 - Function secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_PURGE_SECRET`; env `VITE_VAPID_PUBLIC_KEY`.
 - `scripts/*.mjs` use the service-role key and bypass RLS.

@@ -23,7 +23,7 @@ Accounts are created server-side because the old client signup let anyone insert
 2. Actions: `create`, `add_staff`, `reset_password`, `trash`, `restore`, `purge`, `purge_expired`. `index.ts:100-257`
 3. `create` gets the clinic's main branch from trigger `clinics_create_main_branch`, and the first profile becomes `manager` via `profiles_fill_default_clinic_role` (both 0044/0045, DB-side; the function is unchanged). `create` rolls back the auth user (and clinic) if a later step fails. `index.ts:120-135`
 4. `purgeClinic` deletes children in order (including invoices and services), then auth users, then the clinic. `index.ts`, search `purgeClinic`
-5. `purge_expired` is callable only with header `x-cron-secret`; the daily job that sends it is hand-made: `supabase/cron/purge-expired-clinics.sql.example`.
+5. `purge_expired` is callable only with header `x-cron-secret`; the nightly job (0077) sends it; it also purges trashed pets older than 7 days and their photo files.
 6. Other admin actions (disable, rename, billing status) go straight to tables from the client and log via `logAdminAction`.
 
 ## If you change this

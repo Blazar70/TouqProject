@@ -1,10 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { MIN_PASSWORD_LENGTH, parseStaffLogin } from '../_shared/staffRules.ts'
+import { publishableKey, secretKey } from '../_shared/keys.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const cronPurgeSecret = Deno.env.get('CRON_PURGE_SECRET')!
 
 const TRASH_RETENTION_DAYS = 7
@@ -29,7 +28,7 @@ const TRASH_RETENTION_DAYS = 7
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const admin = createClient(supabaseUrl, serviceRoleKey)
+  const admin = createClient(supabaseUrl, secretKey)
   const authHeader = req.headers.get('Authorization') ?? ''
   const isTrustedCaller = req.headers.get('x-cron-secret') === cronPurgeSecret
 
@@ -37,7 +36,7 @@ Deno.serve(async (req) => {
   let callerProfile: { full_name: string } | null = null
 
   if (!isTrustedCaller) {
-    const callerClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } })
+    const callerClient = createClient(supabaseUrl, publishableKey, { global: { headers: { Authorization: authHeader } } })
     const {
       data: { user },
     } = await callerClient.auth.getUser()
@@ -72,17 +71,20 @@ Deno.serve(async (req) => {
   // the ON DELETE CASCADE FK), then the clinic row itself.
   // Files live under "<clinicId>/" in each bucket; deleting rows doesn't remove them (nightly S5).
   // Folders have no id in a listing: recurse into them, remove files a page at a time.
-  async function removeFolder(bucket: string, prefix: string): Promise<void> {
+  // Returns how many list/remove calls failed, so the purge doesn't report "done" over leftover files (nightly S10).
+  async function removeFolder(bucket: string, prefix: string): Promise<number> {
+    let failures = 0
     for (;;) {
       const { data, error } = await admin.storage.from(bucket).list(prefix, { limit: 1000 })
-      if (error || !data?.length) return
-      for (const folder of data.filter((item) => !item.id)) await removeFolder(bucket, `${prefix}/${folder.name}`)
+      if (error) return failures + 1
+      if (!data?.length) return failures
+      for (const folder of data.filter((item) => !item.id)) failures += await removeFolder(bucket, `${prefix}/${folder.name}`)
       const files = data.filter((item) => item.id).map((item) => `${prefix}/${item.name}`)
       if (files.length) {
         const { error: removeError } = await admin.storage.from(bucket).remove(files)
-        if (removeError) return
+        if (removeError) return failures + 1
       }
-      if (data.length < 1000) return
+      if (data.length < 1000) return failures
     }
   }
 
@@ -110,13 +112,15 @@ Deno.serve(async (req) => {
     }
 
     const { error } = await admin.from('clinics').delete().eq('id', clinicId)
-    if (error) return error.message
+    if (error) return { error: error.message, storageFailures: 0 }
 
     // After the rows are gone, so a failed purge never leaves records pointing at missing files.
-    for (const bucket of ['pet-photos', 'clinic-logos', 'payment-documents']) await removeFolder(bucket, clinicId)
+    let storageFailures = 0
+    for (const bucket of ['pet-photos', 'clinic-logos', 'payment-documents']) storageFailures += await removeFolder(bucket, clinicId)
 
-    await logAction('clinic_purged', 'clinic', clinicName, clinicId)
-    return null
+    const label = storageFailures ? `${clinicName} (files not fully removed: ${storageFailures} storage errors)` : clinicName
+    await logAction('clinic_purged', 'clinic', label, clinicId)
+    return { error: null, storageFailures }
   }
 
   const body = await req.json().catch(() => ({}))
@@ -228,9 +232,9 @@ Deno.serve(async (req) => {
     if (!clinicId) return jsonError('Missing clinicId')
 
     const { data: clinicRow } = await admin.from('clinics').select('name').eq('id', clinicId).maybeSingle()
-    const purgeError = await purgeClinic(clinicId, clinicRow?.name ?? clinicId)
-    if (purgeError) return jsonError(purgeError)
-    return jsonOk({ ok: true })
+    const { error, storageFailures } = await purgeClinic(clinicId, clinicRow?.name ?? clinicId)
+    if (error) return jsonError(error)
+    return jsonOk({ ok: true, storageFailures })
   }
 
   if (body.action === 'purge_expired') {
@@ -239,12 +243,30 @@ Deno.serve(async (req) => {
     const cutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
     const { data: expired } = await admin.from('clinics').select('id, name').not('deleted_at', 'is', null).lt('deleted_at', cutoff)
 
+    // Trashed pets too (moved here from the 0047 SQL cron in 0077): SQL can't delete Storage files (nightly S9).
+    // Paths are read before the delete; medical_records cascade from pets.
+    const { data: expiredPets } = await admin.from('pets').select('id, photo_url').not('deleted_at', 'is', null).lt('deleted_at', cutoff)
+    const petIds = (expiredPets ?? []).map((p) => p.id)
+    let petStorageFailures = 0
+    if (petIds.length) {
+      const { data: records } = await admin.from('medical_records').select('photo_url').in('pet_id', petIds).not('photo_url', 'is', null)
+      const paths = [...(expiredPets ?? []).map((p) => p.photo_url), ...(records ?? []).map((r) => r.photo_url)]
+        .filter((path): path is string => !!path)
+        .map((path) => path.split('?')[0])
+      const { error: petError } = await admin.from('pets').delete().in('id', petIds)
+      if (petError) return jsonError(petError.message, 500)
+      if (paths.length) {
+        const { error: removeError } = await admin.storage.from('pet-photos').remove(paths)
+        if (removeError) petStorageFailures = 1
+      }
+    }
+
     const results = []
     for (const clinic of expired ?? []) {
-      const purgeError = await purgeClinic(clinic.id, clinic.name)
-      results.push({ id: clinic.id, name: clinic.name, ok: !purgeError, error: purgeError })
+      const { error, storageFailures } = await purgeClinic(clinic.id, clinic.name)
+      results.push({ id: clinic.id, name: clinic.name, ok: !error && !storageFailures, error, storageFailures })
     }
-    return jsonOk({ purged: results.length, results })
+    return jsonOk({ purged: results.length, results, petsPurged: petIds.length, petStorageFailures })
   }
 
   return jsonError('Unknown action')

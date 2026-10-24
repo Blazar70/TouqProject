@@ -18,6 +18,9 @@ import FormError from './FormError'
 import Modal from './Modal'
 import PaidAtField from './PaidAtField'
 
+// Payments typed in this long after their payment time count as backdated (nightly H14).
+const LATE_ENTRY_MS = 10 * 60 * 1000
+
 type Props = {
   invoice: InvoiceFull
   branchName: string
@@ -317,6 +320,13 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
                 <li key={p.id} className="invoice-line">
                   <span>
                     {t(METHOD_LABEL_KEYS[p.method])} <span className="data-muted"><Ltr>{formatDateTime(p.paid_at)}</Ltr></span>
+                    {/* A backdated payment shows when it was really typed in (nightly H14). */}
+                    {Date.parse(p.created_at) - Date.parse(p.paid_at) > LATE_ENTRY_MS && (
+                      <span className="data-muted">
+                        {' · '}
+                        {t('payments.enteredLater', { when: formatDateTime(p.created_at), name: p.receiver?.full_name ?? '—' })}
+                      </span>
+                    )}
                   </span>
                   <span className="data-num"><Money amount={p.amount} /></span>
                 </li>
