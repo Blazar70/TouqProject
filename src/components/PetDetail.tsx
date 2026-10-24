@@ -17,6 +17,7 @@ import SpeciesSelect from './SpeciesSelect'
 import TrustedContactsPanel from './TrustedContactsPanel'
 import VaccinationPanel from './VaccinationPanel'
 import InpatientPanel from './InpatientPanel'
+import WaiversPanel from './WaiversPanel'
 import PetAvatar from './PetAvatar'
 import Ltr from './Ltr'
 import { useConfirm } from '../lib/ConfirmContext'
@@ -616,6 +617,7 @@ function PetDetail({
         </div>
 
         <InpatientPanel pet={pet} />
+        <WaiversPanel pet={pet} />
         <VaccinationPanel pet={pet} onUpdated={onUpdated} />
         <TrustedContactsPanel petId={pet.id} />
       </div>

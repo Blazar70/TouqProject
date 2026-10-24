@@ -11,6 +11,7 @@ All cards verified 2026-10-14 @ 583fe57. Line numbers in `database.types.ts` are
 
 ## care
 - [inpatients](care/inpatients.md) — phase 6 stays + timed updates with vitals/photos/videos; location = branch of the latest update (0081)
+- [waivers](care/waivers.md) — phase 6 signed consent forms: manager templates (EN + AR), owner signs on the tablet, frozen copy, manager void (0084)
 - [pets](care/pets.md) — the animal; vaccination columns; owner contact text; soft delete
 - [appointments](care/appointments.md) — status machine; cancellation category; assignee
 - [medical-records](care/medical-records.md) — visit note written on completion

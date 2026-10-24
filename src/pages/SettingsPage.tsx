@@ -18,6 +18,7 @@ import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from
 import type { VatFields } from '../lib/vat'
 import FormError from '../components/FormError'
 import VaccinesSettings from '../components/VaccinesSettings'
+import WaiverTemplatesSettings from '../components/WaiverTemplatesSettings'
 
 type Service = Database['public']['Tables']['services']['Row']
 
@@ -620,6 +621,18 @@ function SettingsPage() {
           </div>
           <div className="settings-body">
             <VaccinesSettings clinicId={profile.clinic_id} canEdit={isManager} />
+          </div>
+        </div>
+      )}
+
+      {isManager && profile?.clinic_id && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('waivers.settingsTitle')}</h2>
+            <p className="pet-owner">{t('waivers.settingsHint')}</p>
+          </div>
+          <div className="settings-body">
+            <WaiverTemplatesSettings clinicId={profile.clinic_id} />
           </div>
         </div>
       )}

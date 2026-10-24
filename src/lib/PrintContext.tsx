@@ -60,7 +60,22 @@ export type ReportDoc = {
   note?: string
 }
 
+export type WaiverDoc = {
+  language: 'en' | 'ar'
+  title: string
+  body: string
+  petName: string
+  petNumber: number | null
+  signerName: string
+  signedAt: string
+  collectedBy: string
+  branch: string
+  signature: string
+  voided?: { at: string; by: string; reason: string }
+}
+
 type PrintContextValue = {
+  printWaiver: (doc: WaiverDoc) => void
   printInvoice: (doc: InvoiceDoc) => void
   printReport: (doc: ReportDoc) => void
   printSummary: (petName: string, visit: VisitSummary, petNumber?: number) => void
@@ -319,6 +334,53 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
 </html>`
 }
 
+// A signed waiver (0084) prints in the language it was signed in, labels included.
+function buildWaiverDocument(doc: WaiverDoc, clinicLabel: string, clinicPhone: string | null, logo: string | null) {
+  const l = (key: TranslationKey) => escapeHtml(translations[doc.language][key])
+  const ltr = (value: string) => `<span dir="ltr">${escapeHtml(value)}</span>`
+  const meta = [
+    [l('waivers.pet'), `${escapeHtml(doc.petName)}${doc.petNumber ? ` · ${l('pets.petId')} ${ltr(String(doc.petNumber))}` : ''}`],
+    [l('waivers.signerName'), escapeHtml(doc.signerName)],
+    [l('waivers.signedAt'), ltr(formatDateTime(doc.signedAt))],
+    [l('waivers.collectedBy'), escapeHtml(doc.collectedBy)],
+    [l('print.branch'), escapeHtml(doc.branch)],
+  ]
+    .map(([k, v]) => `<div><span>${k}</span><span>${v}</span></div>`)
+    .join('')
+  return `<!doctype html>
+<html dir="${doc.language === 'ar' ? 'rtl' : 'ltr'}" lang="${doc.language}">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(doc.title)} — ${escapeHtml(doc.petName)}</title>
+    <style>${PRINT_STYLES}${INVOICE_STYLES}
+      .waiver-void { border: 2px solid #b00020; color: #b00020; padding: 0.75rem 1rem; border-radius: 6px; margin: 0 0 1.5rem; font-weight: 700; }
+      .waiver-body { white-space: pre-wrap; font-size: 1.02rem; line-height: 1.7; margin: 0 0 2rem; }
+      .waiver-signature img { max-width: 360px; max-height: 140px; border-bottom: 1px solid #000; display: block; }
+    </style>
+  </head>
+  <body>
+    <header class="print-header">
+      <div class="print-brand">
+        ${logo ? `<img class="print-logo" src="${escapeHtml(logo)}" alt="" />` : ''}
+        <div>
+          <h1>${escapeHtml(clinicLabel)}</h1>
+          ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
+          <p>${escapeHtml(doc.title)}</p>
+        </div>
+      </div>
+    </header>
+    ${doc.voided ? `<div class="waiver-void">${l('waivers.voided')} · ${ltr(formatDateTime(doc.voided.at))} · ${escapeHtml(doc.voided.by)}<br />${escapeHtml(doc.voided.reason)}</div>` : ''}
+    <div class="inv-meta">${meta}</div>
+    <div class="waiver-body">${escapeHtml(doc.body)}</div>
+    <div class="waiver-signature">
+      <img src="${escapeHtml(doc.signature)}" alt="" />
+      <p>${escapeHtml(doc.signerName)}</p>
+    </div>
+    <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>
+  </body>
+</html>`
+}
+
 function buildReportDocument(doc: ReportDoc, clinicLabel: string, printedOn: string, rtl: boolean) {
   const cells = (row: string[], num: boolean[], tag: 'td' | 'th') =>
     row.map((c, i) => (num[i] ? `<${tag} class="num"><span dir="ltr">${escapeHtml(c)}</span></${tag}>` : `<${tag}>${escapeHtml(c)}</${tag}>`)).join('')
@@ -427,7 +489,25 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     [clinicName, language, t, toast],
   )
 
-  return <PrintContext.Provider value={{ printInvoice, printSummary, printHistory, printReport }}>{children}</PrintContext.Provider>
+  const printWaiver = useCallback(
+    (doc: WaiverDoc) => {
+      const printWindow = window.open('', '_blank', 'width=800,height=1000')
+      if (!printWindow) {
+        toast.error(t('printSummary.popupBlocked'))
+        return
+      }
+      printWindow.document.open()
+      printWindow.document.write(buildWaiverDocument(doc, clinicName ?? t('auth.brand'), clinicPhone, logo ? clinicLogoUrl(logo) : null))
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+    },
+    [clinicName, clinicPhone, logo, t, toast],
+  )
+
+  return <PrintContext.Provider value={{ printWaiver, printInvoice, printSummary, printHistory, printReport }}>{children}</PrintContext.Provider>
 }
 
 export function usePrintSummary() {

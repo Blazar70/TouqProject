@@ -1,6 +1,6 @@
 import type { TranslationKey } from './i18n/translations'
 
-// shortcut: matches the English texts the DB/auth/network raise (every raise in migrations up to 0082);
+// shortcut: matches the English texts the DB/auth/network raise (every raise in migrations up to 0084);
 // a new raise needs a line here. Upgrade to error codes from the SQL functions if this list grows.
 const KNOWN: [string, TranslationKey][] = [
   ['Failed to fetch', 'errors.offline'],
@@ -46,6 +46,10 @@ const KNOWN: [string, TranslationKey][] = [
   ['Only managers can change the clinic info', 'errors.clinicInfoRole'],
   ['Only a whole-clinic manager can change the VAT number', 'errors.clinicBillingRole'],
   ['Only receptionists and managers can merge owners or move pets', 'errors.ownerMoveRole'],
+  ['This waiver was already voided', 'errors.alreadyVoided'],
+  ['A signed waiver can only be voided', 'errors.noPermission'],
+  ['Unknown waiver template', 'errors.invalidChoice'],
+  ['is not for this pet', 'errors.invalidChoice'],
   ['Choose a pet', 'appointments.choosePet'],
   ['Add at least one item', 'errors.addItem'],
   ['Enter an amount', 'errors.enterAmount'],

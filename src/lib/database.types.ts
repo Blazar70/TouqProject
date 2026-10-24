@@ -383,6 +383,95 @@ export type Database = {
           },
         ]
       }
+      waiver_templates: {
+        Row: {
+          active: boolean
+          body_ar: string
+          body_en: string
+          clinic_id: string
+          created_at: string
+          id: string
+          suggest_on_admit: boolean
+          title_ar: string
+          title_en: string
+        }
+        Insert: {
+          active?: boolean
+          body_ar: string
+          body_en: string
+          clinic_id: string
+          created_at?: string
+          id?: string
+          suggest_on_admit?: boolean
+          title_ar: string
+          title_en: string
+        }
+        // 0084: no delete; archive with active = false.
+        Update: {
+          active?: boolean
+          body_ar?: string
+          body_en?: string
+          suggest_on_admit?: boolean
+          title_ar?: string
+          title_en?: string
+        }
+        Relationships: []
+      }
+      pet_waivers: {
+        Row: {
+          appointment_id: string | null
+          body: string
+          branch_id: string
+          clinic_id: string
+          collected_by: string | null
+          id: string
+          language: string
+          pet_id: string
+          signature: string
+          signed_at: string
+          signer_name: string
+          stay_id: string | null
+          template_id: string
+          title: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        // 0084: title, body, signed_at and collected_by are filled by the database.
+        Insert: {
+          appointment_id?: string | null
+          branch_id: string
+          clinic_id: string
+          id?: string
+          language: string
+          pet_id: string
+          signature: string
+          signer_name: string
+          stay_id?: string | null
+          template_id: string
+        }
+        // Voiding is the only client edit.
+        Update: {
+          void_reason?: string | null
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pet_waivers_collected_by_fkey"
+            columns: ["collected_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pet_waivers_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inpatient_stays: {
         Row: {
           admitted_at: string

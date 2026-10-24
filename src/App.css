@@ -4548,3 +4548,69 @@ button.cancel-button:disabled,
   display: block;
   color: var(--text-h);
 }
+
+/* Waivers on the pet file (0084). */
+.waiver-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  margin-block: 0.5rem;
+  border-radius: 8px;
+  background: var(--status-amber-bg);
+  color: var(--status-amber-fg);
+}
+
+.waiver-text {
+  max-height: 40vh;
+  overflow-y: auto;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-tint);
+}
+
+.waiver-text h3 {
+  margin: 0 0 0.5rem;
+}
+
+.waiver-text p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.waiver-voided {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* The pad and the saved signature stay white with black ink in dark mode too (they print). */
+.signature-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.signature-pad canvas {
+  width: 100%;
+  height: 180px;
+  border: 2px dashed var(--border-strong);
+  border-radius: 8px;
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+img.waiver-signature {
+  display: block;
+  max-width: min(100%, 360px);
+  margin-block: 1rem;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
