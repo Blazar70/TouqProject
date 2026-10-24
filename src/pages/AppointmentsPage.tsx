@@ -330,15 +330,21 @@ function AppointmentsPage() {
     setPanelMode('reschedule')
   }
 
-  // Confirm, or step back to requested (confirmed by mistake).
-  async function setRequestStatus(appointment: Appointment, status: 'confirmed' | 'requested' | 'arrived') {
+  // Confirm, step back to requested, check in or undo a check-in; the toast offers Undo (U18),
+  // except on the undo itself.
+  async function setRequestStatus(appointment: Appointment, status: 'confirmed' | 'requested' | 'arrived', undoable = true) {
     const { error: updateError } = await supabase.from('appointments').update({ status }).eq('id', appointment.id)
     if (updateError) {
       toast.error(updateError.message)
       return
     }
-    applyUpdate({ ...appointment, status })
-    toast.success(t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS[status]) }))
+    const updated = { ...appointment, status }
+    applyUpdate(updated)
+    const previous = appointment.status as 'confirmed' | 'requested' | 'arrived'
+    toast.success(
+      appointment.status === 'arrived' ? t('appointments.checkInUndone') : t('appointments.statusUpdated', { status: t(STATUS_LABEL_KEYS[status]) }),
+      undoable ? { label: t('toast.undo'), onClick: () => setRequestStatus(updated, previous, false) } : undefined,
+    )
     notifyStatusChange(appointment.id)
   }
 

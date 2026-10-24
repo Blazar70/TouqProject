@@ -9,7 +9,7 @@ import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
 import { DUE_SOON_WINDOW_DAYS, addDays, vaccinationStatus } from '../lib/vaccination'
 import { cancellationCategoryLabel, groupCancellationCounts } from '../lib/cancellation'
-import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
+import { STATUS_LABEL_KEYS, nextAppointmentId } from '../lib/appointmentStatus'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import VaccinationBadge from '../components/VaccinationBadge'
@@ -25,9 +25,12 @@ type TodayAppointment = {
   scheduled_at: string
   status: string
   reason: string | null
+  doctor_id: string | null
   pets: { name: string; owner_name: string } | null
   doctor: { full_name: string } | null
 }
+
+const MINE_KEY = 'touq-dashboard-mine'
 
 type DueVaccine = { id: string; next_due_date: string; vaccine: { name: string } | null; pet: { id: string; name: string; owner_name: string } }
 
@@ -44,6 +47,25 @@ function DashboardPage() {
   const [cancellationCounts, setCancellationCounts] = useState<{ category: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // Doctors open on their own patients (U32); the choice sticks per device.
+  const isDoctor = profile?.clinic_role === 'doctor'
+  const [mineChoice, setMineChoice] = useState(() => {
+    try {
+      return localStorage.getItem(MINE_KEY) !== 'branch'
+    } catch {
+      return true
+    }
+  })
+  const mine = isDoctor && mineChoice
+
+  function chooseMine(value: boolean) {
+    setMineChoice(value)
+    try {
+      localStorage.setItem(MINE_KEY, value ? 'mine' : 'branch')
+    } catch {
+      // Blocked storage: the choice still holds for this page load.
+    }
+  }
 
   async function load() {
     // Clinic days, not the device clock (nightly B4): matches the cash-up report.
@@ -55,11 +77,12 @@ function DashboardPage() {
     // recent visits follow the branch filter (visits saved before phase 3 have no branch).
     const byBranch = <Q extends { eq: (column: 'branch_id', value: string) => Q }>(query: Q) =>
       viewBranch === ALL_BRANCHES ? query : query.eq('branch_id', viewBranch)
+    const recordsQuery = supabase.from('medical_records').select('*, pets(name)')
     const [todayRes, paymentsRes, recordsRes, petsRes, cancellationsRes] = await Promise.all([
       byBranch(
         supabase
           .from('appointments')
-          .select('id, scheduled_at, status, reason, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
+          .select('id, scheduled_at, status, reason, doctor_id, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
           .gte('scheduled_at', dayStart.toISOString())
           .lt('scheduled_at', dayEnd.toISOString()),
       ).order('scheduled_at', { ascending: true }),
@@ -70,7 +93,7 @@ function DashboardPage() {
           .gte('paid_at', dayStart.toISOString())
           .lt('paid_at', dayEnd.toISOString()),
       ),
-      byBranch(supabase.from('medical_records').select('*, pets(name)'))
+      byBranch(mine ? recordsQuery.eq('vet_id', profile?.id ?? '') : recordsQuery)
         .order('visit_date', { ascending: false })
         .limit(5),
       // One row per vaccine due (a pet with two due vaccines shows twice, each named).
@@ -102,7 +125,7 @@ function DashboardPage() {
     }
     load().then(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.clinic_id, viewBranch])
+  }, [profile?.clinic_id, viewBranch, mine])
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -121,15 +144,14 @@ function DashboardPage() {
     )
   }
 
-  const active = today.filter((a) => a.status !== 'cancelled')
+  const mineToday = today.filter((a) => a.doctor_id === profile.id)
+  const shown = mine ? mineToday : today
+  const active = shown.filter((a) => a.status !== 'cancelled')
   const done = active.filter((a) => a.status === 'completed').length
   const requested = active.filter((a) => a.status === 'requested')
   const toConfirm = requested.length
-  const now = Date.now()
-  // In-session visits are happening now, so "next" is the first one still waiting.
-  const nextId = active.find(
-    (a) => ['requested', 'confirmed', 'arrived'].includes(a.status) && new Date(a.scheduled_at).getTime() >= now,
-  )?.id
+  // A doctor's "Next" is always one of their own, also in the branch view.
+  const nextId = nextAppointmentId(isDoctor ? mineToday : today, Date.now())
   const overdue = vaccinationsDue.filter((due) => vaccinationStatus(due.next_due_date) === 'overdue').length
   const paymentsTotal = paymentsToday.reduce((sum, amount) => sum + amount, 0)
   // Latin digits in both languages, matching the rest of the app.
@@ -148,6 +170,16 @@ function DashboardPage() {
           <p className="page-subtitle">{todayLabel}</p>
         </div>
         <div className="page-header-actions">
+          {isDoctor && (
+            <div className="method-toggle" role="group" aria-label={t('dashboard.showPatients')}>
+              <button type="button" aria-pressed={mine} className={`secondary-button${mine ? ' method-toggle-active' : ''}`} onClick={() => chooseMine(true)}>
+                {t('dashboard.myPatients')}
+              </button>
+              <button type="button" aria-pressed={!mine} className={`secondary-button${mine ? '' : ' method-toggle-active'}`} onClick={() => chooseMine(false)}>
+                {t('dashboard.wholeBranch')}
+              </button>
+            </div>
+          )}
           {profile.clinic_role === 'manager' && <BranchFilter value={viewBranch} onChange={setViewBranch} />}
           <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
         </div>
@@ -196,11 +228,11 @@ function DashboardPage() {
               {t('dashboard.openCalendar')}
             </Link>
           </div>
-          {today.length === 0 ? (
-            <p className="dash-empty">{t('dashboard.noAppointmentsToday')}</p>
+          {shown.length === 0 ? (
+            <p className="dash-empty">{t(mine ? 'dashboard.noPatientsToday' : 'dashboard.noAppointmentsToday')}</p>
           ) : (
             <ul className="dash-list">
-              {today.map((appt) => (
+              {shown.map((appt) => (
                 <li key={appt.id}>
                   <Link
                     to={`/appointments?open=${appt.id}`}
