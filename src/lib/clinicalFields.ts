@@ -88,3 +88,43 @@ export function visitRecordFields(record: VisitRecordFields): { labelKey: Transl
     .filter(([, value]) => value !== null && String(value).trim() !== '')
     .map(([labelKey, value]) => ({ labelKey, value: String(value) }))
 }
+
+export type RecordFields = VisitRecordFields & { visit_type: string | null }
+
+// A record as form strings (empty record when null), and back to columns.
+export function recordToEdit(record: RecordFields | null) {
+  return {
+    visitType: record?.visit_type ?? '',
+    complaint: record?.presenting_complaint ?? '',
+    weight: record?.weight_kg?.toString() ?? '',
+    temperature: record?.temperature_c?.toString() ?? '',
+    heartRate: record?.heart_rate_bpm?.toString() ?? '',
+    physicalExam: record?.physical_exam ?? '',
+    diagnosis: record?.diagnosis ?? '',
+    diagnosticPlan: record?.diagnostic_plan ?? '',
+    treatment: record?.treatment ?? '',
+    notes: record?.notes ?? '',
+    remarks: record?.remarks ?? '',
+  }
+}
+export type RecordEdit = ReturnType<typeof recordToEdit>
+
+export function editToRecord(edit: RecordEdit, vitals: Vitals) {
+  return {
+    visit_type: edit.visitType || null,
+    presenting_complaint: edit.complaint.trim() || null,
+    ...vitals,
+    physical_exam: edit.physicalExam.trim() || null,
+    diagnosis: edit.diagnosis.trim() || null,
+    diagnostic_plan: edit.diagnosticPlan.trim() || null,
+    treatment: edit.treatment.trim() || null,
+    notes: edit.notes || null,
+    remarks: edit.remarks.trim() || null,
+  }
+}
+
+export type RecordColumns = Partial<ReturnType<typeof editToRecord>>
+
+// Nurses never write these (0075); the DB refuses them too.
+const DOCTOR_ONLY_FIELDS: string[] = ['diagnosis', 'diagnostic_plan', 'treatment']
+export const isDoctorOnlyField = (column: string) => DOCTOR_ONLY_FIELDS.includes(column)

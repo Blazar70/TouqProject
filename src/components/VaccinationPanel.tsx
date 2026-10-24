@@ -31,6 +31,8 @@ function VaccinationPanel({ pet, onUpdated }: { pet: Pet; onUpdated: (pet: Pet) 
   const confirm = useConfirm()
   const toast = useToast()
   const isVet = profile?.role === 'vet'
+  // Reception sees what is due but doesn't record doses (0075).
+  const canGiveDose = ['doctor', 'nurse', 'manager'].includes(profile?.clinic_role ?? '')
 
   const [vaccines, setVaccines] = useState<Vaccine[]>([])
   const [schedules, setSchedules] = useState<Schedule[] | null>(null)
@@ -180,9 +182,11 @@ function VaccinationPanel({ pet, onUpdated }: { pet: Pet; onUpdated: (pet: Pet) 
                 </div>
                 {isVet && (
                   <div className="record-actions">
-                    <button type="button" className="secondary-button" onClick={() => handleMarkGiven(schedule)} disabled={busy}>
-                      {t('vaccination.markGivenShort')}
-                    </button>
+                    {canGiveDose && (
+                      <button type="button" className="secondary-button" onClick={() => handleMarkGiven(schedule)} disabled={busy}>
+                        {t('vaccination.markGivenShort')}
+                      </button>
+                    )}
                     <button type="button" className="secondary-button" onClick={() => startEdit(schedule)}>
                       {t('common.edit')}
                     </button>
@@ -255,7 +259,7 @@ function VaccinationPanel({ pet, onUpdated }: { pet: Pet; onUpdated: (pet: Pet) 
                     <Ltr>{formatDate(dose.given_on)}</Ltr> · {dose.pet_vaccine?.vaccine?.name}
                     {dose.giver && <span className="pet-owner"> · {dose.giver.full_name}</span>}
                   </div>
-                  {isVet && latestDoseIds.has(dose.id) && (
+                  {canGiveDose && latestDoseIds.has(dose.id) && (
                     <button type="button" className="secondary-button" onClick={() => handleUndo(dose)}>
                       {t('vaccination.undo')}
                     </button>

@@ -150,6 +150,7 @@ export type Database = {
           reason: string | null
           scheduled_at: string
           started_at: string | null
+          started_by: string | null
           status: string
         }
         Insert: {
@@ -165,6 +166,7 @@ export type Database = {
           reason?: string | null
           scheduled_at: string
           started_at?: string | null
+          started_by?: string | null
           status?: string
         }
         Update: {
@@ -180,6 +182,7 @@ export type Database = {
           reason?: string | null
           scheduled_at?: string
           started_at?: string | null
+          started_by?: string | null
           status?: string
         }
         Relationships: [
@@ -210,6 +213,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id", "clinic_id"]
+          },
+          {
+            foreignKeyName: "appointments_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "appointments_pet_id_fkey"
@@ -516,7 +526,8 @@ export type Database = {
           remarks: string | null
           temperature_c: number | null
           treatment: string | null
-          vet_id: string
+          vet_id: string | null
+          nurse_id: string | null
           visit_date: string
           visit_type: string | null
           weight_kg: number | null
@@ -538,7 +549,8 @@ export type Database = {
           remarks?: string | null
           temperature_c?: number | null
           treatment?: string | null
-          vet_id: string
+          vet_id?: string | null
+          nurse_id?: string | null
           visit_date?: string
           visit_type?: string | null
           weight_kg?: number | null
@@ -560,7 +572,8 @@ export type Database = {
           remarks?: string | null
           temperature_c?: number | null
           treatment?: string | null
-          vet_id?: string
+          vet_id?: string | null
+          nurse_id?: string | null
           visit_date?: string
           visit_type?: string | null
           weight_kg?: number | null

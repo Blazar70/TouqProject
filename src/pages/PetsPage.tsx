@@ -309,14 +309,17 @@ function PetsPage() {
                           >
                             {restoringPetId === pet.id ? t('common.saving') : t('trash.restore')}
                           </button>
-                          <button
-                            type="button"
-                            className="delete-button"
-                            onClick={() => handlePurgePet(pet)}
-                            disabled={purgingPetId === pet.id}
-                          >
-                            {purgingPetId === pet.id ? t('common.saving') : t('trash.purgeNow')}
-                          </button>
+                          {/* Nurses can't delete pets (0075). */}
+                          {profile?.clinic_role !== 'nurse' && (
+                            <button
+                              type="button"
+                              className="delete-button"
+                              onClick={() => handlePurgePet(pet)}
+                              disabled={purgingPetId === pet.id}
+                            >
+                              {purgingPetId === pet.id ? t('common.saving') : t('trash.purgeNow')}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </li>

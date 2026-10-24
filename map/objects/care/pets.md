@@ -22,7 +22,7 @@ Owner contact is plain text on the pet (0007), because owner logins never took o
 - `pet_number` (0052): the visible Pet ID, per clinic from 10001, never changed or reused. Assigned by trigger `pets_assign_pet_number` from table `pet_number_counters` (RLS on, no client access); `pets_prevent_pet_number_change` blocks edits. Unique `(clinic_id, pet_number)`. Shown in the pets list, pet file, prints and payments; searched via `matchesPetSearch` (`src/lib/appointmentSearch.ts`).
 - `home_branch_id` nullable (0046), a default only; pets stay clinic-wide. See [branches](../people/branches.md).
 - `next_vaccination_date` (0012): since 0067 a cache of the earliest `pet_vaccines.next_due_date`, kept by trigger; `vaccination_interval_days` dropped in 0067
-- `deleted_at` (0032): soft delete, 7 days. RLS does not hide trashed rows; the UI filters with `.is('deleted_at', null)` (`src/pages/PetsPage.tsx:48`).
+- `deleted_at` (0032): soft delete, 7 days. Nurses can't trash or purge pets (0075 trigger `enforce_pet_delete_role`; buttons hidden). RLS does not hide trashed rows; the UI filters with `.is('deleted_at', null)` (`src/pages/PetsPage.tsx:48`).
 - Trigger `pets_owner_field_restrictions` stops owners editing anything except name/photo_url. `0025_rls_audit_hardening.sql`
 
 ## Connected to
