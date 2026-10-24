@@ -633,7 +633,9 @@ function SettingsPage() {
           <FormError message={accountError} />
           <label>
             {t('settings.yourName')}
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+            {/* 0083: only a manager (Staff page) or the admin may rename clinic staff */}
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} required readOnly={Boolean(profile?.clinic_id)} aria-describedby={profile?.clinic_id ? 'name-locked-note' : undefined} />
+            {profile?.clinic_id && <span id="name-locked-note" className="data-muted">{t('settings.nameLockedNote')}</span>}
           </label>
           <label>
             {t('settings.yourPhone')}
