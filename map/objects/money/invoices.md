@@ -37,6 +37,7 @@ Items copy `description` and `unit_price` from the service at sale time, so a la
 ## Reports (0065)
 
 - `ReportsPage` (`/reports`, nav under Clinic; every staff member for now, phase 4 limits it). Read-only security-invoker SQL functions, days in clinic time (`report_bounds()` uses `clinics.timezone`): `report_cash_up` (one day, per branch and method: payments + owner deposits − credit-note refunds; `balance` shown apart), `report_unpaid` (completed visits without invoice + not-paid invoices), `report_income_services` / `report_income_branches` and `report_vat_summary` (by invoice / credit-note date = accrual; "collected" by payment date). Credit notes are spread over their lines by `report_credit_lines`. Check `supabase/tests/0065_reports_check.sql`, rollback `0065_down.sql`.
+- Counted cash (`CashCountPanel` on the cash-up): table `cash_counts` (0071), receptionists today, managers any past day (trigger `cash_counts_guard`). Since 0073 insert-only: every recount is a new row, the newest per branch and day is current, no update/delete. Reception counts blind: no expected amount, tiles or table until every shown branch is counted today (`ReportsPage` `blind`). Checks `0071_/0073_*_check.sql` (0071 check predates 0073 and only passes on the rolled-back shape).
 - CSV via `downloadCsv`, print via `PrintContext.printReport()`. Client "today" = `clinicDay()` in `src/lib/format.ts`.
 
 ## Connected to

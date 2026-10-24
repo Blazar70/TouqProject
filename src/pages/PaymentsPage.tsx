@@ -18,6 +18,7 @@ import InvoiceDetail from '../components/InvoiceDetail'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
 import { clinicDay, clinicMidnight, formatDateTime, formatMoney } from '../lib/format'
+import { clinicTimeToIso } from '../lib/timeOff'
 import { toPaymentLines } from '../lib/visitServices'
 import { matchesPetSearch } from '../lib/appointmentSearch'
 import {
@@ -323,7 +324,7 @@ function PaymentsPage() {
       })),
       p_discount: toDiscount(billDiscount),
       p_payments: paid.map((p) => ({ method: p.method, amount: p.amount })),
-      ...(isManager && paidAt ? { p_paid_at: new Date(paidAt).toISOString() } : {}),
+      ...(isManager && paidAt ? { p_paid_at: clinicTimeToIso(...(paidAt.split('T') as [string, string])) } : {}),
     })
 
     if (error || !id) {

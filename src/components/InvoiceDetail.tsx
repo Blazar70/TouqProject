@@ -8,6 +8,7 @@ import { useAuth } from '../lib/AuthContext'
 import { usePrintSummary } from '../lib/PrintContext'
 import type { InvoiceDoc } from '../lib/PrintContext'
 import { formatDateTime, formatMoney } from '../lib/format'
+import { clinicTimeToIso } from '../lib/timeOff'
 import { INVOICE_SELECT, METHOD_LABEL_KEYS, PAYMENT_METHODS, amountRemaining, methodsFor } from '../lib/invoiceMath'
 import type { InvoiceFull, PaymentMethod } from '../lib/invoiceMath'
 import PaymentStatusBadge from './PaymentStatusBadge'
@@ -123,7 +124,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       return
     }
     setSaving(true)
-    const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId, ...(isManager && paidAt ? { p_paid_at: new Date(paidAt).toISOString() } : {}) })
+    const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId, ...(isManager && paidAt ? { p_paid_at: clinicTimeToIso(...(paidAt.split('T') as [string, string])) } : {}) })
     setSaving(false)
     if (rpcError) {
       setError(rpcError.message.startsWith('Not enough balance') ? t('owners.notEnoughBalance', { amount: balanceText }) : rpcError.message)

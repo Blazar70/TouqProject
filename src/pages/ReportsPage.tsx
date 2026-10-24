@@ -98,6 +98,12 @@ function ReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [report, branch, day, from, to, unpaidFrom, unpaidTo])
 
+  // Blind count (nightly S8/H11): today's totals stay hidden from reception until every branch is counted.
+  const [countedIds, setCountedIds] = useState<string[]>([])
+  const cashBranchIds = branch ? [branch] : branches.filter((b) => b.active).map((b) => b.id)
+  const blind =
+    report === 'cashUp' && profile?.clinic_role === 'receptionist' && day === today && cashBranchIds.some((id) => !countedIds.includes(id))
+
   const branchLabel = branch ? branchName(branch) : t('staff.allBranches')
   const rangeLabel = report === 'cashUp' ? formatDate(day) : `${formatDate(from)} – ${formatDate(to)}`
 
@@ -275,10 +281,10 @@ function ReportsPage() {
         <div className="dash-panel-header">
           <h2>{title}</h2>
           <div className="page-header-actions">
-            <button type="button" className="secondary-button" disabled={!built} onClick={exportCsv}>
+            <button type="button" className="secondary-button" disabled={!built || blind} onClick={exportCsv}>
               {t('admin.exportCsv')}
             </button>
-            <button type="button" className="secondary-button" disabled={!built} onClick={print}>
+            <button type="button" className="secondary-button" disabled={!built || blind} onClick={print}>
               {t('payments.print')}
             </button>
           </div>
@@ -303,7 +309,8 @@ function ReportsPage() {
           <FormError message={error} />
           {!built && !error && <p className="data-muted">{t('common.loading')}</p>}
 
-          {built?.tiles && (
+          {blind && <p className="report-note">{t('reports.blindCount')}</p>}
+          {built?.tiles && !blind && (
             <div className={`dash-stats report-tiles${built.tiles.length === 5 ? ' dash-stats-5' : ''}`}>
               {built.tiles.map((tile) => (
                 <div key={tile.label} className="stat-tile">
@@ -319,12 +326,13 @@ function ReportsPage() {
           {data?.key === 'cashUp' && report === 'cashUp' && (
             <CashCountPanel
               day={day}
-              branchIds={branch ? [branch] : branches.filter((b) => b.active).map((b) => b.id)}
+              branchIds={cashBranchIds}
               expected={(id) => data.rows.find((r) => r.branch_id === id && r.method === 'cash')?.net ?? 0}
+              onCounted={setCountedIds}
             />
           )}
 
-          {built?.sections.map((s, si) => (
+          {!blind && built?.sections.map((s, si) => (
             <div key={si} className="report-section">
               {s.title && <h3>{s.title}</h3>}
               {s.rows.length === 0 ? (

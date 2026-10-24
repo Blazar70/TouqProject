@@ -1,19 +1,21 @@
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import { isoToClinicFields } from '../lib/timeOff'
 
-function toLocalDateTimeInput(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+// Clinic (Riyadh) wall time, whatever the device's time zone (nightly B11).
+function clinicNowInput() {
+  const { date, time } = isoToClinicFields(new Date().toISOString())
+  return `${date}T${time}`
 }
 
 // Managers only: a payment is timed "now" unless they enter an earlier time for a late entry.
-// '' = now. The DB ignores the time for everyone else (0066).
+// '' = now; a value is clinic time. The DB ignores the time for everyone else (0066).
 function PaidAtField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const { t } = useLanguage()
   if (!value) {
     return (
       <p className="paid-at-now">
         {t('payments.paidNow')}{' '}
-        <button type="button" className="secondary-button" onClick={() => onChange(toLocalDateTimeInput(new Date()))}>
+        <button type="button" className="secondary-button" onClick={() => onChange(clinicNowInput())}>
           {t('payments.changeTime')}
         </button>
       </p>
@@ -27,7 +29,7 @@ function PaidAtField({ value, onChange }: { value: string; onChange: (value: str
           type="datetime-local"
           dir="ltr"
           value={value}
-          max={toLocalDateTimeInput(new Date())}
+          max={clinicNowInput()}
           onChange={(e) => onChange(e.target.value)}
           required
         />

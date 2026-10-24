@@ -61,7 +61,7 @@ function TimeOffPanel({ doctorId }: { doctorId: string }) {
       .from('appointments')
       .select('id', { count: 'exact', head: true })
       .eq('doctor_id', doctorId)
-      .in('status', ['requested', 'confirmed'])
+      .in('status', ['requested', 'confirmed', 'arrived'])
       .gte('scheduled_at', starts)
       .lt('scheduled_at', ends)
       .then(({ count }) => !stale && setWillMove(count ?? 0))

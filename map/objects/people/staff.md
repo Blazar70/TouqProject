@@ -22,7 +22,7 @@ Every staff member signs in (clinic owner, 2026-10-20), so the old `caregivers` 
 - Removed = `profiles.disabled` + auth ban (`876000h`), set together by `set_disabled`. Restore reverses both. Login while banned shows `admin.accountDisabledBody`.
 - All writes go through the edge function `clinic-manage-staff` (service role; the 0047 profile guard lets it through). Who may do what is the pure `staffChangeError()` in `_shared/staffRules.ts` (unit-tested in `src/lib/staffRules.test.ts`): only admins create or touch managers and change logins; managers can't change their own role/branches/access; branch managers only reach staff/branches in their branches; a clinic always keeps one active manager.
 
-- Time off (0058): table `doctor_time_off` (reason readable only by managers of that doctor + admins via `can_manage_doctor_time_off()`); everyone in the clinic reads periods without reason through `doctor_time_off_periods()`. Writes via `save_doctor_time_off()` (returns how many appointments it unassigned); delete is a plain delete. UI: `TimeOffPanel` on StaffPage. Check `supabase/tests/0058_doctor_time_off_check.sql`, rollback `0058_down.sql`.
+- Time off (0058): table `doctor_time_off` (reason readable only by managers of that doctor + admins via `can_manage_doctor_time_off()`); everyone in the clinic reads periods without reason through `doctor_time_off_periods()`. Writes via `save_doctor_time_off()` (returns how many appointments it unassigned: requested, confirmed and, since 0073, arrived); delete is a plain delete. UI: `TimeOffPanel` on StaffPage. Check `supabase/tests/0058_doctor_time_off_check.sql`, rollback `0058_down.sql`.
 
 ## Connected to
 

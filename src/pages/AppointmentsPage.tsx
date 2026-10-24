@@ -33,7 +33,7 @@ import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import VisitServices from '../components/VisitServices'
 import PaymentStatusBadge from '../components/PaymentStatusBadge'
-import { calendarCulture, formatDateTime, formatTime } from '../lib/format'
+import { calendarCulture, clinicDay, formatDateTime, formatTime } from '../lib/format'
 import { isAway } from '../lib/timeOff'
 import FormError from '../components/FormError'
 import Modal from '../components/Modal'
@@ -394,7 +394,12 @@ function AppointmentsPage() {
         return
       }
     }
-    const changes = { scheduled_at: newScheduledAt, doctor_id: rescheduleDoctorId || null }
+    // A checked-in pet moved to another day isn't waiting any more (nightly B9).
+    const changes = {
+      scheduled_at: newScheduledAt,
+      doctor_id: rescheduleDoctorId || null,
+      ...(appointment.status === 'arrived' && clinicDay(newScheduledAt) !== clinicDay() ? { status: 'confirmed' } : {}),
+    }
     const { error: updateError } = await supabase.from('appointments').update(changes).eq('id', appointment.id)
     setSavingPanel(false)
     if (updateError) {
@@ -948,7 +953,7 @@ function AppointmentsPage() {
                       {t('appointments.reschedule')}
                     </button>
                     {/* Check-in: reception marks the pet as here, so doctors see who is waiting (P3). */}
-                    {appointment.status !== 'arrived' && (
+                    {appointment.status !== 'arrived' && clinicDay(appointment.scheduled_at) === clinicDay() && (
                       <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'arrived')}>
                         {t('appointments.markArrived')}
                       </button>
