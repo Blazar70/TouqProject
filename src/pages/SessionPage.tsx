@@ -8,7 +8,9 @@ import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
-import { parseVitals } from '../lib/clinicalFields'
+import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit } from '../lib/clinicalFields'
+import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
+import { canWorkSession } from '../lib/appointmentStatus'
 import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
@@ -22,12 +24,15 @@ import VisitServices from '../components/VisitServices'
 import FormError from '../components/FormError'
 import SessionHistory from '../components/SessionHistory'
 
-const SESSION_SELECT = '*, pets(name, species, breed, owner_name, owner_phone), invoice:invoices(id)'
+const SESSION_SELECT =
+  '*, pets(name, species, breed, owner_name, owner_phone), invoice:invoices(id), starter:profiles!appointments_started_by_fkey(full_name, clinic_role)'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
   invoice: { id: string } | null
+  starter: { full_name: string; clinic_role: string | null } | null
 }
+type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
 
 function formatElapsed(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000))
@@ -37,6 +42,11 @@ function formatElapsed(ms: number) {
   return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`
 }
 
+async function loadRecord(appointmentId: string) {
+  const { data } = await supabase.from('medical_records').select('*').eq('appointment_id', appointmentId).order('created_at').limit(1).maybeSingle()
+  return data
+}
+
 function SessionPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -44,30 +54,25 @@ function SessionPage() {
   const { branchId } = useBranch()
   const { t } = useLanguage()
   const toast = useToast()
+  const role = profile?.clinic_role
+  const isClinician = role === 'doctor' || role === 'nurse'
+  const isNurse = role === 'nurse'
 
   const [appointment, setAppointment] = useState<Appointment | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
-  const [visitType, setVisitType] = useState('')
-  const [complaint, setComplaint] = useState('')
-  const [weight, setWeight] = useState('')
-  const [temperature, setTemperature] = useState('')
-  const [heartRate, setHeartRate] = useState('')
-  const [physicalExam, setPhysicalExam] = useState('')
-  const [diagnosis, setDiagnosis] = useState('')
-  const [diagnosticPlan, setDiagnosticPlan] = useState('')
-  const [treatment, setTreatment] = useState('')
-  const [remarks, setRemarks] = useState('')
+  // One visit record per session, shared by the doctor and the nurse (0075): saved as they go.
+  const [record, setRecord] = useState<MedicalRecord | null>(null)
+  const [form, setForm] = useState<RecordEdit>(() => recordToEdit(null))
+  const setField = (field: keyof RecordEdit, value: string) => setForm((f) => ({ ...f, [field]: value }))
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
-  const dirty = Boolean(
-    visitType || complaint || weight || temperature || heartRate || physicalExam || diagnosis || diagnosticPlan || treatment || remarks || photoFile,
-  )
+  const dirty = Boolean(photoFile) || JSON.stringify(form) !== JSON.stringify(recordToEdit(record))
   useUnsavedChangesWarning(dirty && !done)
 
   useEffect(() => {
@@ -85,7 +90,8 @@ function SessionPage() {
         if (loadError) setError(loadError.message)
         // Opening the session starts it: in_session (with its start time) until Finish,
         // so everyone sees the pet is being worked on and the timer survives other devices.
-        if (data && ['requested', 'confirmed', 'arrived'].includes(data.status)) {
+        // Only doctors and nurses start one; the DB records who (started_by).
+        if (data && isClinician && ['requested', 'confirmed', 'arrived'].includes(data.status)) {
           const { data: started, error: startError } = await supabase
             .from('appointments')
             .update({ status: 'in_session', started_at: new Date().toISOString() })
@@ -103,10 +109,15 @@ function SessionPage() {
             if (current) data = current
           }
         }
+        if (data) {
+          const existing = await loadRecord(data.id)
+          setRecord(existing)
+          setForm(recordToEdit(existing))
+        }
         setAppointment(data)
         setLoading(false)
       })
-  }, [id])
+  }, [id, isClinician])
 
   const startedAt = appointment?.started_at ? new Date(appointment.started_at).getTime() : now
 
@@ -137,6 +148,67 @@ function SessionPage() {
   usePasteImage(processPhotoFile, true)
   const { dragActive, dragHandlers } = useDropImage(processPhotoFile, true)
 
+  // Writes only the fields changed on this screen, so the doctor and the nurse don't
+  // overwrite each other's work; returns the merged record.
+  // shortcut: no live sync and two first saves at the same moment make two records; add realtime + a unique appointment_id if that bites.
+  async function saveRecord(): Promise<MedicalRecord | null> {
+    if (!appointment || !profile?.clinic_id) return null
+    const vitalsResult = parseVitals(form)
+    if (!vitalsResult.ok) {
+      setError(t(vitalsResult.errorKey))
+      return null
+    }
+    const before = record ?? {}
+    const changes = Object.fromEntries(
+      Object.entries(editToRecord(form, vitalsResult.vitals)).filter(
+        ([column, value]) => !(isNurse && isDoctorOnlyField(column)) && value !== ((before as Record<string, unknown>)[column] ?? null),
+      ),
+    ) as RecordColumns
+    const target = record ?? (await loadRecord(appointment.id))
+    const { data: saved, error: recordError } = target
+      ? await supabase.from('medical_records').update(changes).eq('id', target.id).select().single()
+      : await supabase
+          .from('medical_records')
+          .insert({
+            ...changes,
+            pet_id: appointment.pet_id,
+            clinic_id: profile.clinic_id,
+            appointment_id: appointment.id,
+            // The visit happened when the session started, not when Finish was pressed (may be the next day).
+            visit_date: appointment.started_at ?? undefined,
+            branch_id: branchId,
+          })
+          .select()
+          .single()
+    if (recordError || !saved) {
+      setError(t('appointments.recordFailed', { error: recordError?.message ?? '' }))
+      return null
+    }
+    let result = saved
+    // The record is saved at this point; a failed photo upload is worth surfacing but doesn't undo it.
+    if (photoFile) {
+      const upload = await uploadPhoto(`${profile.clinic_id}/records/${saved.id}`, photoFile)
+      if (upload.error !== null) {
+        toast.error(t('common.couldNotSavePhoto'))
+      } else {
+        const { data: withPhoto } = await supabase.from('medical_records').update({ photo_url: upload.path }).eq('id', saved.id).select().single()
+        if (withPhoto) result = withPhoto
+      }
+      setPhotoFile(null)
+      setPhotoPreviewUrl(null)
+    }
+    setRecord(result)
+    setForm(recordToEdit(result))
+    return result
+  }
+
+  async function handleSave() {
+    setError(null)
+    setSaving(true)
+    if (await saveRecord()) toast.success(t('petDetail.recordSaved'))
+    setSaving(false)
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!appointment) return
@@ -146,68 +218,27 @@ function SessionPage() {
       setError(t('appointments.onlyStaffComplete'))
       return
     }
-    if (!visitType || !diagnosis || !treatment) {
+    // A nurse may finish alone (weigh-in etc.); the doctor's diagnosis and treatment stay required for doctors.
+    if (!form.visitType || (!isNurse && (!form.diagnosis.trim() || !form.treatment.trim()))) {
       setError(t('appointments.completionRequired'))
       return
     }
-    // Checked before saving anything so a typo in a vital can be fixed first.
-    const vitalsResult = parseVitals({ weight, temperature, heartRate })
-    if (!vitalsResult.ok) {
-      setError(t(vitalsResult.errorKey))
-      return
-    }
 
-    // Record first, then the status: a failed save must never leave a
-    // completed appointment without its record.
+    // Record first, then the status: a completed appointment never lacks its record.
     setSaving(true)
-    const { data: newRecord, error: recordError } = await supabase
-      .from('medical_records')
-      .insert({
-        pet_id: appointment.pet_id,
-        clinic_id: profile.clinic_id,
-        vet_id: profile.id,
-        appointment_id: appointment.id,
-        // The visit happened when the session started, not when Finish was pressed (may be the next day).
-        visit_date: appointment.started_at ?? undefined,
-        branch_id: branchId,
-        visit_type: visitType,
-        presenting_complaint: complaint.trim() || null,
-        ...vitalsResult.vitals,
-        physical_exam: physicalExam.trim() || null,
-        diagnosis,
-        diagnostic_plan: diagnosticPlan.trim() || null,
-        treatment,
-        remarks: remarks.trim() || null,
-      })
-      .select()
-      .single()
-    if (recordError || !newRecord) {
-      setError(t('appointments.recordFailed', { error: recordError?.message ?? '' }))
+    if (!(await saveRecord())) {
       setSaving(false)
       return
     }
-
     const { error: appointmentError } = await supabase
       .from('appointments')
       .update({ status: 'completed' })
       .eq('id', appointment.id)
     if (appointmentError) {
-      // Undo the record so pressing Finish again doesn't save it twice.
-      await supabase.from('medical_records').delete().eq('id', newRecord.id)
+      // The record stays saved (it belongs to this session); pressing Finish again updates it.
       setError(appointmentError.message)
       setSaving(false)
       return
-    }
-
-    // The record's already saved at this point — a photo upload failure
-    // is worth surfacing but shouldn't undo the completion.
-    if (photoFile) {
-      const upload = await uploadPhoto(`${profile.clinic_id}/records/${newRecord.id}`, photoFile)
-      if (upload.error !== null) {
-        toast.error(t('common.couldNotSavePhoto'))
-      } else {
-        await supabase.from('medical_records').update({ photo_url: upload.path }).eq('id', newRecord.id)
-      }
     }
 
     toast.success(t('appointments.completedToast'))
@@ -228,6 +259,23 @@ function SessionPage() {
       <div>
         <FormError message={error} />
         <p>{appointment ? t('session.notActive') : t('session.notFound')}</p>
+        <button type="button" className="secondary-button" onClick={() => navigate('/appointments')}>
+          {t('session.backToAppointments')}
+        </button>
+      </div>
+    )
+  }
+
+  // Reception/managers, or a second doctor on someone else's session: no form (the DB refuses it too).
+  if (appointment.status !== 'in_session' || !canWorkSession(role, profile?.id, appointment.started_by, appointment.starter?.clinic_role)) {
+    return (
+      <div>
+        <FormError message={error} />
+        <p>
+          {appointment.status === 'in_session' && appointment.starter
+            ? t('session.lockedBy', { name: appointment.starter.full_name })
+            : t('session.cliniciansOnly')}
+        </p>
         <button type="button" className="secondary-button" onClick={() => navigate('/appointments')}>
           {t('session.backToAppointments')}
         </button>
@@ -274,7 +322,7 @@ function SessionPage() {
         <label>
           {t('petDetail.visitType')}
           <RequiredMark />
-          <select value={visitType} onChange={(e) => setVisitType(e.target.value)} required>
+          <select value={form.visitType} onChange={(e) => setField('visitType', e.target.value)} required>
             <option value="" disabled>
               {t('appointments.selectVisitType')}
             </option>
@@ -287,13 +335,13 @@ function SessionPage() {
         </label>
         <label>
           {t('clinical.presentingComplaint')}
-          <textarea value={complaint} onChange={(e) => setComplaint(e.target.value)} rows={2} />
+          <textarea value={form.complaint} onChange={(e) => setField('complaint', e.target.value)} rows={2} />
         </label>
         {/* Numbers read left-to-right even in Arabic, hence dir="ltr" on the inputs only. */}
         <div className="vitals-row">
           <label>
             {t('clinical.weightKg')}
-            <input type="text" inputMode="decimal" dir="ltr" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            <input type="text" inputMode="decimal" dir="ltr" value={form.weight} onChange={(e) => setField('weight', e.target.value)} />
           </label>
           <label>
             {t('clinical.temperatureC')}
@@ -301,36 +349,41 @@ function SessionPage() {
               type="text"
               inputMode="decimal"
               dir="ltr"
-              value={temperature}
-              onChange={(e) => setTemperature(e.target.value)}
+              value={form.temperature}
+              onChange={(e) => setField('temperature', e.target.value)}
             />
           </label>
           <label>
             {t('clinical.heartRateBpm')}
-            <input type="text" inputMode="numeric" dir="ltr" value={heartRate} onChange={(e) => setHeartRate(e.target.value)} />
+            <input type="text" inputMode="numeric" dir="ltr" value={form.heartRate} onChange={(e) => setField('heartRate', e.target.value)} />
           </label>
         </div>
         <label>
           {t('clinical.physicalExam')}
-          <textarea value={physicalExam} onChange={(e) => setPhysicalExam(e.target.value)} rows={3} />
+          <textarea value={form.physicalExam} onChange={(e) => setField('physicalExam', e.target.value)} rows={3} />
         </label>
-        <label>
-          {t('petDetail.diagnosis')}
-          <RequiredMark />
-          <input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} required />
-        </label>
-        <label>
-          {t('clinical.diagnosticPlan')}
-          <textarea value={diagnosticPlan} onChange={(e) => setDiagnosticPlan(e.target.value)} rows={2} />
-        </label>
-        <label>
-          {t('petDetail.treatment')}
-          <RequiredMark />
-          <input value={treatment} onChange={(e) => setTreatment(e.target.value)} required />
-        </label>
+        {/* The doctor's part of the shared record; nurses don't see or write it (0075). */}
+        {!isNurse && (
+          <>
+            <label>
+              {t('petDetail.diagnosis')}
+              <RequiredMark />
+              <input value={form.diagnosis} onChange={(e) => setField('diagnosis', e.target.value)} required />
+            </label>
+            <label>
+              {t('clinical.diagnosticPlan')}
+              <textarea value={form.diagnosticPlan} onChange={(e) => setField('diagnosticPlan', e.target.value)} rows={2} />
+            </label>
+            <label>
+              {t('petDetail.treatment')}
+              <RequiredMark />
+              <input value={form.treatment} onChange={(e) => setField('treatment', e.target.value)} required />
+            </label>
+          </>
+        )}
         <label>
           {t('clinical.remarks')}
-          <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={2} />
+          <textarea value={form.remarks} onChange={(e) => setField('remarks', e.target.value)} rows={2} />
         </label>
         <div className={`pet-photo-row${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
           {photoPreviewUrl && <img src={photoPreviewUrl} alt="" className="pet-avatar" style={{ width: 56, height: 56 }} />}
@@ -347,6 +400,10 @@ function SessionPage() {
         <div className="record-edit-actions">
           <button type="submit" className="primary-button" disabled={saving}>
             {saving ? t('common.saving') : t('session.finish')}
+          </button>
+          {/* Saves without finishing, so the other clinician in the session sees it. */}
+          <button type="button" className="secondary-button" onClick={handleSave} disabled={saving}>
+            {t('common.save')}
           </button>
           <button type="button" className="cancel-button" onClick={() => navigate('/appointments')}>
             {t('session.backToAppointments')}

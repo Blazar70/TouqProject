@@ -8,7 +8,7 @@ entity: supabase/migrations/0001_init.sql
 
 # Medical records
 
-The clinical note for a visit. Created when an appointment is completed.
+The clinical note for a visit. One per session, saved as the session goes (SessionPage Save / Finish) and shared by the doctor and the nurse (0075).
 
 ## Why this shape
 
@@ -16,12 +16,19 @@ Completion notes were deliberately written into this table, not new appointment 
 
 ## Shape
 
-- `pet_id`, `clinic_id`, `vet_id` (not null), `visit_date`, `diagnosis`, `treatment`, `notes`
+- `pet_id`, `clinic_id`, `vet_id` (the doctor; nullable since 0075 for a nurse-only visit), `nurse_id` (0075, the nurse co-author), `visit_date`, `diagnosis`, `treatment`, `notes`
 - `visit_type` check: checkup, vaccination, surgery, emergency, follow_up, grooming, other (0009), mirrored in `src/lib/visitTypes.ts:3`
 - `branch_id` nullable (0046), "seen at"; SessionPage writes the picked branch (phase 3); PetDetail shows "Seen at (branch)" for other branches. Older rows stay null. See [branches](../people/branches.md).
 - `appointment_id` nullable (0022), `photo_url` (0027, stored under a `records/` prefix in the pet-photos bucket)
 - Per-visit clinical fields, all nullable (0040): `presenting_complaint`, `weight_kg` numeric(6,2) (>0, <2000), `temperature_c` numeric(4,1) (25-45), `heart_rate_bpm` integer (1-400), `physical_exam`, `diagnostic_plan`, `remarks`. Same ranges validated client-side in `src/lib/clinicalFields.ts` (`parseVitals`); keep both in sync.
 - New completions write `remarks`, not `notes`; `notes` stays for older records and the PetDetail edit form. Display and print order comes from `visitRecordFields` in `src/lib/clinicalFields.ts`, which skips empty fields.
+
+## Who writes what (0075, trigger `enforce_medical_record_roles`)
+
+- Authors are set by the DB from who writes, never by the client.
+- Nurses: everything except `diagnosis`, `treatment`, `diagnostic_plan`; no deletes; no edits to a doctor's record once its visit is not in session. UI hides those fields/buttons (SessionPage, PetDetail) via `isDoctorOnlyField` in `src/lib/clinicalFields.ts`.
+- While its appointment is in session, only `can_work_session()` people write it (starter + clinicians of the other role).
+- Admins and server code (no auth.uid()) skip the rules. Check `supabase/tests/0075_session_nurse_roles_check.sql`, rollback `0075_down.sql`.
 
 ## Connected to
 
@@ -37,7 +44,7 @@ Completion notes were deliberately written into this table, not new appointment 
 
 | Surface | Role |
 |---|---|
-| AppointmentsPage | insert on complete |
+| SessionPage | insert/update during the session (Save, Finish) |
 | PetDetail | reads history |
 
 ## See

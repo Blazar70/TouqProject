@@ -8,7 +8,8 @@ import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
-import { parseVitals, visitRecordFields } from '../lib/clinicalFields'
+import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit, visitRecordFields } from '../lib/clinicalFields'
+import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
 import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
@@ -33,23 +34,6 @@ type Pet = Database['public']['Tables']['pets']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null }
 const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name)'
 
-// The edit form's fields as typed text; vitals are parsed on save.
-function recordToEdit(record: MedicalRecord) {
-  return {
-    visitType: record.visit_type ?? '',
-    complaint: record.presenting_complaint ?? '',
-    weight: record.weight_kg?.toString() ?? '',
-    temperature: record.temperature_c?.toString() ?? '',
-    heartRate: record.heart_rate_bpm?.toString() ?? '',
-    physicalExam: record.physical_exam ?? '',
-    diagnosis: record.diagnosis ?? '',
-    diagnosticPlan: record.diagnostic_plan ?? '',
-    treatment: record.treatment ?? '',
-    notes: record.notes ?? '',
-    remarks: record.remarks ?? '',
-  }
-}
-type RecordEdit = ReturnType<typeof recordToEdit>
 
 function PetDetail({
   pet,
@@ -69,6 +53,7 @@ function PetDetail({
   const toast = useToast()
   const { printSummary, printHistory } = usePrintSummary()
   const isVet = profile?.role === 'vet'
+  const isNurse = profile?.clinic_role === 'nurse'
 
   const [name, setName] = useState(pet.name)
   const [species, setSpecies] = useState(pet.species)
@@ -272,17 +257,9 @@ function PetDetail({
 
     const { error } = await supabase
       .from('medical_records')
-      .update({
-        visit_type: edit.visitType || null,
-        presenting_complaint: edit.complaint.trim() || null,
-        ...vitalsResult.vitals,
-        physical_exam: edit.physicalExam.trim() || null,
-        diagnosis: edit.diagnosis || null,
-        diagnostic_plan: edit.diagnosticPlan.trim() || null,
-        treatment: edit.treatment || null,
-        notes: edit.notes || null,
-        remarks: edit.remarks.trim() || null,
-      })
+      .update(
+        Object.fromEntries(Object.entries(editToRecord(edit, vitalsResult.vitals)).filter(([column]) => !(isNurse && isDoctorOnlyField(column)))) as RecordColumns,
+      )
       .eq('id', editingRecordId)
 
     if (error) {
@@ -387,10 +364,12 @@ function PetDetail({
             <button type="submit" disabled={savingPet}>
               {savingPet ? t('common.saving') : t('common.saveChanges')}
             </button>
-            {/* Kept inside the open pet file, not on the list row, so deleting takes a deliberate extra step. */}
-            <button type="button" className="delete-button" onClick={onDelete}>
-              {t('common.delete')}
-            </button>
+            {/* Kept inside the open pet file, not on the list row, so deleting takes a deliberate extra step. Nurses can't delete (0075). */}
+            {!isNurse && (
+              <button type="button" className="delete-button" onClick={onDelete}>
+                {t('common.delete')}
+              </button>
+            )}
           </>
         )}
       </form>
@@ -506,22 +485,27 @@ function PetDetail({
                         {t('clinical.physicalExam')}
                         <textarea value={edit.physicalExam} onChange={(e) => setEditField('physicalExam', e.target.value)} rows={3} />
                       </label>
-                      <label>
-                        {t('petDetail.diagnosis')}
-                        <input value={edit.diagnosis} onChange={(e) => setEditField('diagnosis', e.target.value)} />
-                      </label>
-                      <label>
-                        {t('clinical.diagnosticPlan')}
-                        <textarea
-                          value={edit.diagnosticPlan}
-                          onChange={(e) => setEditField('diagnosticPlan', e.target.value)}
-                          rows={2}
-                        />
-                      </label>
-                      <label>
-                        {t('petDetail.treatment')}
-                        <input value={edit.treatment} onChange={(e) => setEditField('treatment', e.target.value)} />
-                      </label>
+                      {/* Diagnosis, plan and treatment are the doctor's (0075). */}
+                      {!isNurse && (
+                        <>
+                          <label>
+                            {t('petDetail.diagnosis')}
+                            <input value={edit.diagnosis} onChange={(e) => setEditField('diagnosis', e.target.value)} />
+                          </label>
+                          <label>
+                            {t('clinical.diagnosticPlan')}
+                            <textarea
+                              value={edit.diagnosticPlan}
+                              onChange={(e) => setEditField('diagnosticPlan', e.target.value)}
+                              rows={2}
+                            />
+                          </label>
+                          <label>
+                            {t('petDetail.treatment')}
+                            <input value={edit.treatment} onChange={(e) => setEditField('treatment', e.target.value)} />
+                          </label>
+                        </>
+                      )}
                       {/* Notes is the pre-0040 field; only records that already have it show it. */}
                       {record.notes && (
                         <label>
@@ -607,15 +591,16 @@ function PetDetail({
                           >
                             {t('common.print')}
                           </button>
-                          {isVet && (
-                            <>
-                              <button type="button" className="secondary-button" onClick={() => startEditingRecord(record)}>
-                                {t('common.edit')}
-                              </button>
-                              <button type="button" className="delete-button" onClick={() => handleDeleteRecord(record)}>
-                                {t('common.delete')}
-                              </button>
-                            </>
+                          {/* A nurse edits her own or nurse-only records, never deletes (0075). */}
+                          {isVet && (!isNurse || !record.vet_id || record.vet_id === profile?.id) && (
+                            <button type="button" className="secondary-button" onClick={() => startEditingRecord(record)}>
+                              {t('common.edit')}
+                            </button>
+                          )}
+                          {isVet && !isNurse && (
+                            <button type="button" className="delete-button" onClick={() => handleDeleteRecord(record)}>
+                              {t('common.delete')}
+                            </button>
                           )}
                         </div>
                       </div>

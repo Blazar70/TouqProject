@@ -23,7 +23,7 @@ Conflicts only warn, because back-to-back and same-day visits are legitimate. Co
 2. Status update. `src/pages/AppointmentsPage.tsx:404`
 3. Complete: update status, then insert a medical record, optional photo. `src/pages/AppointmentsPage.tsx:536-577`
 4. Cancel: set status, `cancellation_category`, `cancellation_reason`. `src/pages/AppointmentsPage.tsx:462`
-6. Start session: opening `/appointments/:id/session` sets `in_session` + `started_at` (only from requested/confirmed); it stays in session until Finish, and the dialog offers Resume. `src/pages/SessionPage.tsx`
+6. Start session: opening `/appointments/:id/session` sets `in_session` + `started_at` (only from requested/confirmed); it stays in session until Finish, and the dialog offers Resume. Since 0075 only doctors and nurses see Start; Resume only for the starter and clinicians of the other role (a nurse joins a doctor's session and vice versa); the visit record is saved during the session (Save) and both write into it. `src/pages/SessionPage.tsx`
 5. Fire `notify-status-change`, best-effort. `src/pages/AppointmentsPage.tsx:418`
 
 ## If you change this

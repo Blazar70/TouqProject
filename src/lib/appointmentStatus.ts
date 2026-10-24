@@ -11,3 +11,10 @@ export const STATUS_LABEL_KEYS: Record<string, TranslationKey> = {
   completed: 'status.completed',
   cancelled: 'status.cancelled',
 }
+
+// Same rule as can_work_session (0075): only doctors and nurses run sessions; a running one
+// belongs to whoever started it, plus clinicians of the other role (doctor + nurse share a visit).
+export function canWorkSession(role: string | null | undefined, userId: string | undefined, startedBy: string | null, starterRole: string | null | undefined) {
+  if (role !== 'doctor' && role !== 'nurse') return false
+  return !startedBy || startedBy === userId || starterRole !== role
+}

@@ -13,7 +13,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useConfirm } from '../lib/ConfirmContext'
 import type { Database } from '../lib/database.types'
 import { visitTypeLabel } from '../lib/visitTypes'
-import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
+import { STATUS_LABEL_KEYS, canWorkSession } from '../lib/appointmentStatus'
 import { matchesAppointmentSearch } from '../lib/appointmentSearch'
 import { CONFLICT_WINDOW_MS, findAppointmentConflicts } from '../lib/appointmentConflicts'
 import type { ConflictCandidate } from '../lib/appointmentConflicts'
@@ -42,6 +42,7 @@ import BookingPetInfo from '../components/BookingPetInfo'
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number } | null
   doctor: { full_name: string } | null
+  starter: { clinic_role: string | null } | null
   invoice: { id: string; invoice_number: string; payment_status: string } | null // set = the visit is billed (one invoice per appointment, 0059)
 }
 type Pet = Database['public']['Tables']['pets']['Row']
@@ -65,7 +66,7 @@ type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Re
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), starter:profiles!appointments_started_by_fkey(clinic_role), invoice:invoices(id, invoice_number, payment_status)'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -909,7 +910,8 @@ function AppointmentsPage() {
                     {t('visitServices.billVisit')}
                   </button>
                 )}
-                {isVet && inSession && (
+                {/* Only its starter (plus the other clinician role) resumes a session (0075). */}
+                {inSession && canWorkSession(profile?.clinic_role, profile?.id, appointment.started_by, appointment.starter?.clinic_role) && (
                   <button
                     type="button"
                     className="primary-button"
@@ -941,14 +943,12 @@ function AppointmentsPage() {
                         {t('appointments.confirmAppointment')}
                       </button>
                     )}
-                    {/* Doctors and nurses run sessions; for reception, confirming is the main job. */}
-                    <button
-                      type="button"
-                      className={isClinician ? 'primary-button' : 'secondary-button'}
-                      onClick={() => navigate(`/appointments/${appointment.id}/session`)}
-                    >
-                      {t('session.start')}
-                    </button>
+                    {/* Only doctors and nurses run sessions (0075); for reception, confirming is the main job. */}
+                    {isClinician && (
+                      <button type="button" className="primary-button" onClick={() => navigate(`/appointments/${appointment.id}/session`)}>
+                        {t('session.start')}
+                      </button>
+                    )}
                     <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
                       {t('appointments.reschedule')}
                     </button>
