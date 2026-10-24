@@ -18,7 +18,7 @@ All cards verified 2026-10-14 @ 583fe57. Line numbers in `database.types.ts` are
 
 ## money
 - vaccines — clinic vaccine list + per-pet schedules + dose history (0067); see [pets](care/pets.md), `src/components/VaccinationPanel.tsx`, `VaccinesSettings.tsx`
-- [invoices](money/invoices.md) — what pet owners owe/paid the clinic (+ `invoice_items`, `invoice_payments`, `credit_notes`, per-branch numbers, 0060-0061; reports 0065); also visit services `appointment_services` (0059)
+- [invoices](money/invoices.md) — what pet owners owe/paid the clinic (+ `invoice_items`, `invoice_payments`, `credit_notes`, per-branch numbers, 0060-0061; reports 0065; Manager page `/manager` (`ManagerPage.tsx`, managers only): income today/month, unpaid, `report_cash_differences()` 0080, visits per doctor, clinic activity); also visit services `appointment_services` (0059)
 - [services](money/services.md) — clinic price list
 - [payments](money/payments.md) — what a clinic pays Touq (admin-only), NOT pet-owner payments
 

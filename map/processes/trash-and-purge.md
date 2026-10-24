@@ -16,7 +16,7 @@ Delete click → `deleted_at` stamped (clinics also get `disabled`) → listed i
 ## Steps
 
 1. Pets: update `deleted_at`. (Staff are no longer trashed: removing staff = disable, see [staff](../objects/people/staff.md).) `src/pages/PetsPage.tsx:98`; restore sets null `:126`
-2. Daily job at 03:00 deletes pets trashed more than 7 days ago. Latest definition: `supabase/migrations/0047_staff_accounts.sql` (0035 version minus the caregivers lines).
+2. Daily job at 03:00 UTC (0077) calls `admin-manage-clinic` `purge_expired`: deletes pets trashed more than 7 days ago and removes their pet + visit-record photos, then purges expired clinics. "Delete permanently" in the Pets trash removes the photos too (`PetsPage.tsx` `handlePurgePet`).
 3. Clinics: `trash` / `restore` / `purge_expired` actions in the edge function. See [clinic-lifecycle](clinic-lifecycle.md).
 
 ## Watch out

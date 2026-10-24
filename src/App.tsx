@@ -7,6 +7,7 @@ import SessionPage from './pages/SessionPage'
 import PaymentsPage from './pages/PaymentsPage'
 import OwnersPage from './pages/OwnersPage'
 import ReportsPage from './pages/ReportsPage'
+import ManagerPage from './pages/ManagerPage'
 import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
@@ -101,6 +102,7 @@ function App() {
               {/* Money: receptionists and managers only (0074); the DB refuses the rest too. */}
               <Route path="/payments" element={handlesMoney ? <PaymentsPage /> : <Navigate to="/" replace />} />
               <Route path="/reports" element={handlesMoney ? <ReportsPage /> : <Navigate to="/" replace />} />
+              <Route path="/manager" element={profile?.clinic_role === 'manager' ? <ManagerPage /> : <Navigate to="/" replace />} />
               <Route path="/staff" element={<StaffPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </>

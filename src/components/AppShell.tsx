@@ -6,6 +6,7 @@ import {
   Activity,
   BarChart3,
   Building2,
+  Gauge,
   CalendarDays,
   ContactRound,
   CreditCard,
@@ -28,7 +29,7 @@ import LanguageToggle from './LanguageToggle'
 import BranchMenu from './BranchMenu'
 import ThemeToggle from './ThemeToggle'
 
-type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean; money?: boolean }
+type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean; money?: boolean; manager?: boolean }
 type NavSection = { title?: TranslationKey; items: NavItem[] }
 
 const ADMIN_SECTIONS: NavSection[] = [
@@ -61,6 +62,7 @@ const CLINIC_SECTIONS: NavSection[] = [
       { to: '/payments', label: 'nav.payments', icon: Receipt, money: true },
       { to: '/reports', label: 'nav.reports', icon: BarChart3, money: true },
       { to: '/staff', label: 'nav.staff', icon: Users },
+      { to: '/manager', label: 'nav.manager', icon: Gauge, manager: true },
     ],
   },
   { items: [{ to: '/settings', label: 'nav.settings', icon: Settings }] },
@@ -232,7 +234,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
             <div className="nav-section" key={section.title ?? i}>
               {section.title && <h2 className="nav-section-title">{t(section.title)}</h2>}
               <ul>
-                {section.items.filter((item) => !item.money || handlesMoney).map((item) => (
+                {section.items.filter((item) => (!item.money || handlesMoney) && (!item.manager || profile?.clinic_role === 'manager')).map((item) => (
                   <li key={item.to}>
                     <NavLink
                       to={item.to}

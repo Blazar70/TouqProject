@@ -22,7 +22,8 @@ Actor name and target label are denormalized so entries still read after the act
 
 ## If you change this
 
-- **Hits:** AdminPage activity modal, AdminActivityPage, both writers.
+- Readers: admins (all), whole-clinic managers their own clinic's rows (0080 policy `admin_audit_log_select_clinic_manager`; rows have no branch, so branch managers get none).
+- **Hits:** AdminPage activity modal, AdminActivityPage and ManagerPage (shared `components/ActivityList.tsx`), both writers.
 - **Does not hit:** clinic-side pages.
 
 ## See

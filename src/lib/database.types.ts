@@ -1359,6 +1359,10 @@ export type Database = {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
         Returns: { service_id: string | null; service_name: string | null; quantity: number; net: number; vat: number; total: number; credited: number }[]
       }
+      report_cash_differences: {
+        Args: { p_from: string; p_to: string; p_branch?: string | null }
+        Returns: { day: string; branch_id: string; counted: number; expected: number; difference: number; counter_name: string | null; counts: number }[]
+      }
       report_income_branches: {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
         Returns: { branch_id: string; invoiced: number; credited: number; net: number; collected: number }[]
