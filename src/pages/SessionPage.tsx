@@ -22,11 +22,10 @@ import VisitServices from '../components/VisitServices'
 import FormError from '../components/FormError'
 import SessionHistory from '../components/SessionHistory'
 
-const SESSION_SELECT = '*, pets(name, species, breed, owner_name, owner_phone), invoice:invoices(id)'
+const SESSION_SELECT = '*, pets(name, species, breed, owner_name, owner_phone), billed'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
-  invoice: { id: string } | null
 }
 
 function formatElapsed(ms: number) {
@@ -268,7 +267,7 @@ function SessionPage() {
       <div className="session-body">
       <div className="session-main">
       {/* Outside the form: Enter in a quantity box must not finish the session. Saved as they're added. */}
-      <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.invoice)} />
+      <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.billed)} />
 
       <form onSubmit={handleSubmit} className="pet-form session-form">
         <label>

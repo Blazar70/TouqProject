@@ -32,7 +32,7 @@ type TodayAppointment = {
 type DueVaccine = { id: string; next_due_date: string; vaccine: { name: string } | null; pet: { id: string; name: string; owner_name: string } }
 
 function DashboardPage() {
-  const { profile } = useAuth()
+  const { profile, handlesMoney } = useAuth()
   const { t, language } = useLanguage()
   const { isClinicManager } = useBranch()
   // Whole-clinic managers open on all branches, everyone else on the picked one; managers may switch.
@@ -153,7 +153,7 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className="dash-stats">
+      <div className={`dash-stats${handlesMoney ? '' : ' dash-stats-3'}`}>
         <Link to="/appointments" className="stat-tile stat-tile-link">
           <div className="stat-label">{t('dashboard.todayAppointments')}</div>
           <div className="stat-number" dir="ltr">
@@ -177,6 +177,7 @@ function DashboardPage() {
             {overdue > 0 ? t('dashboard.overdueCount', { count: String(overdue) }) : t('dashboard.noneOverdue')}
           </div>
         </Link>
+        {handlesMoney && (
         <Link to="/payments" className="stat-tile stat-tile-link">
           <div className="stat-label">{t('dashboard.todayPayments', { currency: t('common.currency') })}</div>
           <div className="stat-number" dir="ltr">
@@ -184,6 +185,7 @@ function DashboardPage() {
           </div>
           <div className="stat-meta">{t('dashboard.paymentCount', { count: String(paymentsToday.length) })}</div>
         </Link>
+        )}
       </div>
 
       <div className="dash-columns">

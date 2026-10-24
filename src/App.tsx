@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import DashboardPage from './pages/DashboardPage'
 import PetsPage from './pages/PetsPage'
 import RegisterPetPage from './pages/RegisterPetPage'
@@ -25,7 +25,7 @@ import BranchPicker from './components/BranchPicker'
 import './App.css'
 
 function App() {
-  const { session, profile, clinicName, clinicDisabled, loading, passwordRecovery } = useAuth()
+  const { session, profile, clinicName, clinicDisabled, handlesMoney, loading, passwordRecovery } = useAuth()
   const { t } = useLanguage()
   const branch = useBranch()
 
@@ -98,9 +98,9 @@ function App() {
               <Route path="/owners" element={<OwnersPage />} />
               <Route path="/appointments" element={<AppointmentsPage />} />
               <Route path="/appointments/:id/session" element={<SessionPage />} />
-              <Route path="/payments" element={<PaymentsPage />} />
-              {/* shortcut: every clinic staff member can open reports; phase 4 limits them to receptionists and managers. */}
-              <Route path="/reports" element={<ReportsPage />} />
+              {/* Money: receptionists and managers only (0074); the DB refuses the rest too. */}
+              <Route path="/payments" element={handlesMoney ? <PaymentsPage /> : <Navigate to="/" replace />} />
+              <Route path="/reports" element={handlesMoney ? <ReportsPage /> : <Navigate to="/" replace />} />
               <Route path="/staff" element={<StaffPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </>

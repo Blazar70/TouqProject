@@ -19,7 +19,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 | Routes and role gate | `src/App.tsx` (admin vs clinic route sets) |
 | Pages | `src/pages/` |
 | Business rules | `src/lib/` (cancellation, vaccination, appointmentConflicts, ...) |
-| DB schema | `supabase/migrations/` (0001-0073, applied in order; rollbacks in `supabase/rollbacks/`) |
+| DB schema | `supabase/migrations/` (0001-0074, applied in order; rollbacks in `supabase/rollbacks/`) |
 | Generated DB types | `src/lib/database.types.ts` |
 | Edge functions | `supabase/functions/` |
 
@@ -28,7 +28,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 - **Staff** = `profiles` with `role = 'vet'` and a `clinic_role` (0047). Every staff member logs in (username or email). The old `caregivers` table is gone.
 - **Payments page** (clinic side) = table `invoices`. Table `payments` is the clinic paying Touq (admin only).
 - **Vet** = `user_role = 'vet'`. Roles are `vet`, `owner`, `admin`. Owner accounts are effectively unused.
-- **Clinic role** = `profiles.clinic_role` (0045): manager / doctor / nurse / receptionist, inside a `vet` account. No policy uses it yet.
+- **Clinic role** = `profiles.clinic_role` (0045): manager / doctor / nurse / receptionist, inside a `vet` account. Money (invoices, payments, credit notes, balance ledger, cash counts, reports) is receptionist/manager only since 0074 (policies + `require_clinic_role()`); UI flag `useAuth().handlesMoney`.
 - **Branch** = table `branches` (0044), a location of a clinic. Not a data wall: isolation is still by `clinic_id`. The branch someone works at right now is client state (`BranchContext`), not a DB column.
 - **Pet owner** = table `owner_files` (0063), the customer, not a profile; `pets.owner_file_id` links it. `pets.owner_name/phone/email` stay as a trigger-synced copy. `pets.owner_id` (-> profiles) is the old unused owner login, not this.
 - **Vaccination** = tables `vaccines` (clinic list), `pet_vaccines` (per-pet schedule), `vaccine_doses` (history; written only via `mark_vaccine_given` / `undo_vaccine_dose`), 0067. `pets.next_vaccination_date` is a trigger-kept cache (earliest due).

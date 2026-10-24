@@ -1,6 +1,6 @@
 import type { TranslationKey } from './i18n/translations'
 
-// shortcut: matches the English texts the DB/auth/network raise (every raise in migrations up to 0069);
+// shortcut: matches the English texts the DB/auth/network raise (every raise in migrations up to 0074);
 // a new raise needs a line here. Upgrade to error codes from the SQL functions if this list grows.
 const KNOWN: [string, TranslationKey][] = [
   ['Failed to fetch', 'errors.offline'],
@@ -20,6 +20,8 @@ const KNOWN: [string, TranslationKey][] = [
   ['Only receptionists and managers can add balance', 'errors.balanceRole'],
   ['A payment time can', 'errors.paymentInFuture'],
   ['Only receptionists and managers can issue credit notes', 'errors.creditRole'],
+  ['Only receptionists and managers handle money', 'errors.moneyRole'],
+  ['Only managers can see income and VAT reports', 'errors.managerReport'],
   ['A credit note can', 'payments.creditTooMuch'],
   ['A cash count can', 'errors.cashCountFuture'],
   ['Only a manager can correct an earlier day', 'errors.cashCountPastDay'],

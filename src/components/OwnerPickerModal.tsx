@@ -26,7 +26,7 @@ type Props = {
 
 // Search the clinic's owners by name or phone and pick one, or create a new one.
 function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props) {
-  const { profile } = useAuth()
+  const { profile, handlesMoney } = useAuth()
   const { t } = useLanguage()
   const [owners, setOwners] = useState<PickedOwner[] | null>(null)
   const [query, setQuery] = useState('')
@@ -124,7 +124,7 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
                       <strong>{o.name}</strong>
                       <span className="pet-owner">
                         {o.phone && <Ltr>{o.phone}</Ltr>}
-                        {o.balance > 0 && (
+                        {handlesMoney && o.balance > 0 && (
                           <>
                             {' · '}
                             {t('owners.balance')} <Ltr>{formatMoney(o.balance)}</Ltr> {t('common.currency')}

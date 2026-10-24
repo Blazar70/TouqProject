@@ -13,6 +13,8 @@ type AuthContextValue = {
   clinicPhone: string | null
   clinicLogoUrl: string | null
   clinicDisabled: boolean
+  /** Receptionists and managers handle money; doctors and nurses don't (0074). */
+  handlesMoney: boolean
   refreshClinicName: () => void
   loading: boolean
   passwordRecovery: boolean
@@ -26,6 +28,7 @@ const AuthContext = createContext<AuthContextValue>({
   clinicPhone: null,
   clinicLogoUrl: null,
   clinicDisabled: false,
+  handlesMoney: false,
   refreshClinicName: () => {},
   loading: true,
   passwordRecovery: false,
@@ -122,10 +125,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loading = !sessionLoaded || !profileLoaded
   const clearPasswordRecovery = useCallback(() => setPasswordRecovery(false), [])
+  const handlesMoney = profile?.clinic_role === 'receptionist' || profile?.clinic_role === 'manager'
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery }}
+      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, handlesMoney, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery }}
     >
       {children}
     </AuthContext.Provider>

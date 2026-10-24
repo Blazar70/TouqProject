@@ -3860,6 +3860,10 @@ button.cancel-button:disabled,
   .dash-stats-5 {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+
+  .dash-stats-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1023.98px) {
@@ -4327,6 +4331,11 @@ button.cancel-button:disabled,
 /* ---- Owners (OwnersPage, OwnerDetail, OwnerPickerModal) ---- */
 .data-owners {
   --data-cols: minmax(0, 1.2fr) 10rem 7rem 9rem 6rem;
+}
+
+/* No balance column for doctors and nurses (0074). */
+.data-owners-nomoney {
+  --data-cols: minmax(0, 1.2fr) 10rem 7rem 6rem;
 }
 
 .owner-back {
