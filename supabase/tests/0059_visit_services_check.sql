@@ -13,6 +13,10 @@ insert into clinics (id, name) values
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f5900000-0000-0000-0000-000000000001', 'vet', 'f5900000-0000-0000-0000-00000000000a', 'A Reception', 'receptionist'), -- bills the visit below; doctors can't since 0074
   ('f5900000-0000-0000-0000-000000000002', 'vet', 'f5900000-0000-0000-0000-00000000000b', 'B Doctor', 'doctor');
+-- Non-managers always work at a branch (0076 checks branch writes).
+insert into staff_branches (profile_id, branch_id)
+  select p.id, b.id from profiles p join branches b on b.clinic_id = p.clinic_id
+  where p.id::text like 'f5900000-%' and p.clinic_role <> 'manager' on conflict do nothing;
 insert into pets (id, clinic_id, name, species, owner_name) values
   ('f5900000-0000-0000-0000-0000000000a1', 'f5900000-0000-0000-0000-00000000000a', 'Rex', 'dog', 'O'),
   ('f5900000-0000-0000-0000-0000000000b1', 'f5900000-0000-0000-0000-00000000000b', 'Tom', 'cat', 'O');

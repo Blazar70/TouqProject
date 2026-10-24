@@ -9,6 +9,10 @@ insert into auth.users (id, email, aud, role) values
 insert into clinics (id, name) values ('f6200000-0000-0000-0000-00000000000a', 'List price X');
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f6200000-0000-0000-0000-000000000001', 'vet', 'f6200000-0000-0000-0000-00000000000a', 'X Reception', 'receptionist');
+-- Non-managers always work at a branch (0076 checks branch writes).
+insert into staff_branches (profile_id, branch_id)
+  select p.id, b.id from profiles p join branches b on b.clinic_id = p.clinic_id
+  where p.id::text like 'f6200000-%' and p.clinic_role <> 'manager' on conflict do nothing;
 insert into pets (id, clinic_id, name, species, owner_name) values
   ('f6200000-0000-0000-0000-0000000000a1', 'f6200000-0000-0000-0000-00000000000a', 'Rex', 'dog', 'O');
 -- 130.4348 pre-VAT at 15% = 150.00 with VAT.

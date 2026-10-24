@@ -127,13 +127,15 @@ function AppointmentsPage() {
   const isVet = profile?.role === 'vet'
   const confirm = useConfirm()
   const isClinician = profile?.clinic_role === 'doctor' || profile?.clinic_role === 'nurse'
-  const { branchId, branchName } = useBranch()
+  const { branchId, branchName, canWriteAt } = useBranch()
   // The calendar starts on the picked branch; anyone may look at another one or all (read-only overview).
   const [viewBranch, setViewBranch] = useBranchView()
   const viewingOther = branchId !== null && viewBranch !== branchId
   // New bookings go to the branch on screen (e.g. Main taking a call for North); "All branches" books at your own.
   const bookingBranchId = viewBranch !== ALL_BRANCHES ? viewBranch : branchId
   const bookingElsewhere = branchId !== null && bookingBranchId !== branchId
+  // Other branches are read-only unless you work there (0076).
+  const canBook = isVet && canWriteAt(bookingBranchId)
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [pets, setPets] = useState<Pet[]>([])
@@ -911,7 +913,7 @@ function AppointmentsPage() {
                   </button>
                 )}
                 {/* Only its starter (plus the other clinician role) resumes a session (0075). */}
-                {inSession && canWorkSession(profile?.clinic_role, profile?.id, appointment.started_by, appointment.starter?.clinic_role) && (
+                {inSession && canWriteAt(appointment.branch_id) && canWorkSession(profile?.clinic_role, profile?.id, appointment.started_by, appointment.starter?.clinic_role) && (
                   <button
                     type="button"
                     className="primary-button"
@@ -921,7 +923,7 @@ function AppointmentsPage() {
                     {t('session.resume')}
                   </button>
                 )}
-                {isVet && inSession && (
+                {isVet && canWriteAt(appointment.branch_id) && inSession && (
                   <>
                     <button type="button" className="secondary-button" onClick={() => handleStopSession(appointment)}>
                       {t('session.stop')}
@@ -931,7 +933,7 @@ function AppointmentsPage() {
                     </button>
                   </>
                 )}
-                {isVet && isActive && (
+                {isVet && canWriteAt(appointment.branch_id) && isActive && (
                   <>
                     {appointment.status === 'requested' && (
                       <button
@@ -990,19 +992,19 @@ function AppointmentsPage() {
         <div className="page-header-actions">
           <BranchFilter value={viewBranch} onChange={setViewBranch} />
           <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
-          {isVet && (
+          {canBook && (
             <button type="button" className="primary-button" onClick={openBooking}>
               + {t('appointments.newAppointment')}
             </button>
           )}
         </div>
       </div>
-      {isVet && viewBranch !== ALL_BRANCHES && <p className="pet-owner">{t('calendar.slotHint')}</p>}
+      {canBook && viewBranch !== ALL_BRANCHES && <p className="pet-owner">{t('calendar.slotHint')}</p>}
       {viewingOther && (
         <p className="pet-owner">
           {viewBranch === ALL_BRANCHES
             ? t('branch.viewingOther', { name: t('staff.allBranches'), current: branchName(branchId) })
-            : t('branch.bookingAt', { name: branchName(viewBranch) })}
+            : t(canWriteAt(viewBranch) ? 'branch.bookingAt' : 'branch.viewOnly', { name: branchName(viewBranch) })}
         </p>
       )}
 
@@ -1066,7 +1068,7 @@ function AppointmentsPage() {
       <div
         className="appointments-calendar"
         onPointerDown={(e) => (lastPointer.current = e.pointerType)}
-        onClick={isVet && viewBranch !== ALL_BRANCHES ? handleCalendarTap : undefined}
+        onClick={canBook && viewBranch !== ALL_BRANCHES ? handleCalendarTap : undefined}
         style={
           {
             '--now-label': JSON.stringify(t('calendar.now')),
@@ -1094,7 +1096,7 @@ function AppointmentsPage() {
           dayLayoutAlgorithm="no-overlap"
           timeslots={4}
           scrollToTime={scrollTo}
-          selectable={isVet && viewBranch !== ALL_BRANCHES}
+          selectable={canBook && viewBranch !== ALL_BRANCHES}
           onSelectSlot={handleSelectSlot}
           backgroundEvents={awayEvents}
           onSelectEvent={(event) => {

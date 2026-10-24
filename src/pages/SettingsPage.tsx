@@ -409,21 +409,25 @@ function SettingsPage() {
         <div className="settings-section">
           <div className="settings-intro">
             <h2>{t('settings.clinicInfo')}</h2>
+            {!isManager && <p className="pet-owner">{t('settings.clinicInfoReadOnly')}</p>}
           </div>
           <div className="settings-body">
+          {/* Managers only (0076); others see it read-only. */}
           <form onSubmit={handleSaveClinic} className="pet-form">
             <FormError message={clinicError} />
             <label>
               {t('settings.clinicName')}
-              <input value={clinicName} onChange={(e) => setClinicName(e.target.value)} required />
+              <input value={clinicName} onChange={(e) => setClinicName(e.target.value)} readOnly={!isManager} required />
             </label>
             <label>
               {t('settings.clinicPhone')}
-              <input value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} dir="ltr" placeholder="+966 11 234 5678" />
+              <input value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} readOnly={!isManager} dir="ltr" placeholder="+966 11 234 5678" />
             </label>
-            <button type="submit" disabled={savingClinic}>
-              {savingClinic ? t('common.saving') : t('common.saveChanges')}
-            </button>
+            {isManager && (
+              <button type="submit" disabled={savingClinic}>
+                {savingClinic ? t('common.saving') : t('common.saveChanges')}
+              </button>
+            )}
           </form>
           </div>
         </div>
@@ -442,7 +446,8 @@ function SettingsPage() {
                 {t('settings.vatNumber')}
                 <input
                   value={vatNumber}
-                  onChange={(e) => setVatNumber(e.target.value.replace(/D/g, ''))}
+                  onChange={(e) => setVatNumber(e.target.value.replace(/\D/g, ''))}
+                  readOnly={!isClinicManager}
                   dir="ltr"
                   inputMode="numeric"
                   maxLength={15}
@@ -461,13 +466,17 @@ function SettingsPage() {
                   step="0.01"
                   value={maxDiscount}
                   onChange={(e) => setMaxDiscount(e.target.value)}
+                  readOnly={!isClinicManager}
                   required
                 />
                 <span className="pet-owner">{t('settings.maxDiscountHint')}</span>
               </label>
-              <button type="submit" disabled={savingBilling}>
-                {savingBilling ? t('common.saving') : t('common.saveChanges')}
-              </button>
+              {/* Clinic-wide: whole-clinic managers only (0076); branch managers see them read-only. */}
+              {isClinicManager && (
+                <button type="submit" disabled={savingBilling}>
+                  {savingBilling ? t('common.saving') : t('common.saveChanges')}
+                </button>
+              )}
             </form>
           </div>
         </div>

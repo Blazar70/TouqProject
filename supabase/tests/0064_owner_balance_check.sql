@@ -18,6 +18,10 @@ insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f6400000-0000-0000-0000-000000000002', 'vet', 'f6400000-0000-0000-0000-00000000000a', 'A Reception', 'receptionist'),
   ('f6400000-0000-0000-0000-000000000003', 'vet', 'f6400000-0000-0000-0000-00000000000a', 'A Doctor', 'doctor'),
   ('f6400000-0000-0000-0000-000000000004', 'vet', 'f6400000-0000-0000-0000-00000000000b', 'B Manager', 'manager');
+-- Non-managers always work at a branch (0076 checks branch writes).
+insert into staff_branches (profile_id, branch_id)
+  select p.id, b.id from profiles p join branches b on b.clinic_id = p.clinic_id
+  where p.id::text like 'f6400000-%' and p.clinic_role <> 'manager' on conflict do nothing;
 insert into owner_files (id, clinic_id, name, phone) values
   ('f6400000-0000-0000-0000-0000000000c1', 'f6400000-0000-0000-0000-00000000000a', 'Noura', '+966501111111'),
   ('f6400000-0000-0000-0000-0000000000c2', 'f6400000-0000-0000-0000-00000000000a', 'Noura 2', null);

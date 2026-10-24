@@ -15,6 +15,8 @@ type BranchContextValue = {
   pickable: Branch[]
   /** The branch picked for this device/tab; null for admins or before picking. */
   branchId: string | null
+  /** Can this person write at that branch (0076)? Open branches they work at; null (old rows) = yes. */
+  canWriteAt: (branchId: string | null) => boolean
   /** Manager with no branch rows: runs the whole clinic. */
   isClinicManager: boolean
   loading: boolean
@@ -113,9 +115,11 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     [branches, language],
   )
 
+  const pickable = pickableBranches(branches, memberIds, clinicRole)
   const value: BranchContextValue = {
     branches,
-    pickable: pickableBranches(branches, memberIds, clinicRole),
+    pickable,
+    canWriteAt: (id) => !id || pickable.some((b) => b.id === id),
     branchId,
     isClinicManager: clinicRole === 'manager' && memberIds.length === 0,
     loading: loadedKey !== loadKey,

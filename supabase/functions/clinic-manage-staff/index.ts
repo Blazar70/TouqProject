@@ -103,9 +103,8 @@ Deno.serve(async (req) => {
     })
 
   async function setBranches(profileId: string, ids: string[]) {
-    await admin.from('staff_branches').delete().eq('profile_id', profileId)
-    if (ids.length === 0) return null
-    const { error } = await admin.from('staff_branches').insert(ids.map((branch_id) => ({ profile_id: profileId, branch_id })))
+    // One transaction (0076): a failed insert can't leave a branch manager with no rows (= whole clinic).
+    const { error } = await admin.rpc('replace_staff_branches', { p_profile: profileId, p_branches: ids })
     return error?.message ?? null
   }
 

@@ -7,6 +7,7 @@ import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
+import { formatDateTime } from '../lib/format'
 import { MIN_PASSWORD_LENGTH, parseStaffLogin, staffChangeError } from '../../supabase/functions/_shared/staffRules'
 import type { ClinicRole, StaffChange } from '../../supabase/functions/_shared/staffRules'
 import Ltr from '../components/Ltr'
@@ -20,6 +21,7 @@ import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import FormError from '../components/FormError'
 
 type Branch = Database['public']['Tables']['branches']['Row']
+type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Returns'][number]
 type Member = Pick<
   Database['public']['Tables']['profiles']['Row'],
   'id' | 'full_name' | 'username' | 'email' | 'title' | 'phone' | 'clinic_role' | 'takes_appointments' | 'disabled' | 'calendar_order'
@@ -59,6 +61,7 @@ function StaffPage() {
 
   const [staff, setStaff] = useState<Member[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
+  const [away, setAway] = useState<AwayPeriod[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -80,7 +83,7 @@ function StaffPage() {
   )
 
   async function fetchAll() {
-    const [staffRes, branchRes] = await Promise.all([
+    const [staffRes, branchRes, awayRes] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, full_name, username, email, title, phone, clinic_role, takes_appointments, disabled, calendar_order, staff_branches(branch_id)')
@@ -88,6 +91,8 @@ function StaffPage() {
         .eq('clinic_id', profile?.clinic_id ?? '')
         .order('full_name', { ascending: true }),
       supabase.from('branches').select('*').eq('active', true).order('is_main', { ascending: false }).order('name'),
+      // Everyone sees when a colleague is away; the reason stays with managers (0058).
+      supabase.rpc('doctor_time_off_periods', { p_from: new Date().toISOString(), p_to: 'infinity' }),
     ])
     const fetchError = staffRes.error ?? branchRes.error
     if (fetchError) {
@@ -96,6 +101,7 @@ function StaffPage() {
     }
     setStaff(staffRes.data ?? [])
     setBranches(branchRes.data ?? [])
+    setAway(awayRes.data ?? [])
     return branchRes.data ?? []
   }
 
@@ -481,6 +487,13 @@ function StaffPage() {
                   >
                     <strong>{member.full_name}</strong>
                     {member.title && <div className="pet-owner">{member.title}</div>}
+                    {away
+                      .filter((p) => p.doctor_id === member.id)
+                      .map((p) => (
+                        <div key={p.id} className="pet-owner">
+                          {t('calendar.away')}: <Ltr>{`${formatDateTime(p.starts_at)} – ${formatDateTime(p.ends_at)}`}</Ltr>
+                        </div>
+                      ))}
                   </button>
                   {renderCells(member)}
                   {canManage || (isSelf && isManager) || canTimeOff ? (
