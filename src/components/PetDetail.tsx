@@ -62,7 +62,7 @@ function PetDetail({
   onDirtyChange?: (dirty: boolean) => void
   onDelete: () => void
 }) {
-  const { profile } = useAuth()
+  const { profile, handlesMoney } = useAuth()
   const { branchId, branchName } = useBranch()
   const { t } = useLanguage()
   const confirm = useConfirm()
@@ -323,9 +323,11 @@ function PetDetail({
             <Link to={`/appointments?pet=${pet.id}`} className="primary-button">
               {t('appointments.newAppointment')}
             </Link>
-            <Link to={`/payments?pet=${pet.id}`} className="secondary-button">
-              {t('petDetail.takePayment')}
-            </Link>
+            {handlesMoney && (
+              <Link to={`/payments?pet=${pet.id}`} className="secondary-button">
+                {t('petDetail.takePayment')}
+              </Link>
+            )}
           </div>
         )}
         <FormError message={petError} />

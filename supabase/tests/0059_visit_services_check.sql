@@ -11,7 +11,7 @@ insert into clinics (id, name) values
   ('f5900000-0000-0000-0000-00000000000a', 'Visit check A'),
   ('f5900000-0000-0000-0000-00000000000b', 'Visit check B');
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values
-  ('f5900000-0000-0000-0000-000000000001', 'vet', 'f5900000-0000-0000-0000-00000000000a', 'A Doctor', 'doctor'),
+  ('f5900000-0000-0000-0000-000000000001', 'vet', 'f5900000-0000-0000-0000-00000000000a', 'A Reception', 'receptionist'), -- bills the visit below; doctors can't since 0074
   ('f5900000-0000-0000-0000-000000000002', 'vet', 'f5900000-0000-0000-0000-00000000000b', 'B Doctor', 'doctor');
 insert into pets (id, clinic_id, name, species, owner_name) values
   ('f5900000-0000-0000-0000-0000000000a1', 'f5900000-0000-0000-0000-00000000000a', 'Rex', 'dog', 'O'),

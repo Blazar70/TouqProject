@@ -42,7 +42,7 @@ import BookingPetInfo from '../components/BookingPetInfo'
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
   pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number } | null
   doctor: { full_name: string } | null
-  invoice: { id: string; invoice_number: string; payment_status: string } | null // set = the visit is billed (one invoice per appointment, 0059)
+  invoice: { id: string; invoice_number: string; payment_status: string } | null // receptionists and managers only (0074)
 }
 type Pet = Database['public']['Tables']['pets']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
@@ -65,7 +65,7 @@ type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Re
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status)'
+const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status), billed'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -118,7 +118,7 @@ function visibleRange(date: Date, view: View) {
 }
 
 function AppointmentsPage() {
-  const { profile } = useAuth()
+  const { profile, handlesMoney } = useAuth()
   const { t, language } = useLanguage()
   const toast = useToast()
   const navigate = useNavigate()
@@ -895,7 +895,7 @@ function AppointmentsPage() {
                 ))}
 
               {appointment.status === 'completed' && (
-                <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.invoice)} />
+                <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.billed)} />
               )}
               {appointment.invoice && (
                 <p className="pet-owner">
@@ -904,7 +904,7 @@ function AppointmentsPage() {
               )}
 
               <div className="appointment-panel-actions">
-                {isVet && appointment.status === 'completed' && !appointment.invoice && (
+                {handlesMoney && appointment.status === 'completed' && !appointment.billed && (
                   <button type="button" className="primary-button" onClick={() => navigate(`/payments?bill=${appointment.id}`)}>
                     {t('visitServices.billVisit')}
                   </button>
@@ -1053,10 +1053,12 @@ function AppointmentsPage() {
                 {t(STATUS_LABEL_KEYS[status])}
               </li>
             ))}
-            <li>
-              <span className="calendar-unpaid">{t('visitServices.unpaid')}</span>
-              {t('visitServices.unpaidLegend')}
-            </li>
+            {handlesMoney && (
+              <li>
+                <span className="calendar-unpaid">{t('visitServices.unpaid')}</span>
+                {t('visitServices.unpaidLegend')}
+              </li>
+            )}
           </ul>
         </div>
       </div>
@@ -1125,7 +1127,7 @@ function AppointmentsPage() {
                     {event.title}
                     {viewBranch === ALL_BRANCHES && ` · ${branchName(event.appointment.branch_id)}`}
                     {/* Beside the name: a 30-minute block has room for two lines only. */}
-                    {event.appointment.status === 'completed' && event.appointment.invoice?.payment_status !== 'paid' && (
+                    {handlesMoney && event.appointment.status === 'completed' && event.appointment.invoice?.payment_status !== 'paid' && (
                       <>
                         {' '}
                         <span className="calendar-unpaid">

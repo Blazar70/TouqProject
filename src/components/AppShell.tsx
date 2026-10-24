@@ -28,7 +28,7 @@ import LanguageToggle from './LanguageToggle'
 import BranchMenu from './BranchMenu'
 import ThemeToggle from './ThemeToggle'
 
-type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean }
+type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean; money?: boolean }
 type NavSection = { title?: TranslationKey; items: NavItem[] }
 
 const ADMIN_SECTIONS: NavSection[] = [
@@ -58,8 +58,8 @@ const CLINIC_SECTIONS: NavSection[] = [
   {
     title: 'nav.sectionClinic',
     items: [
-      { to: '/payments', label: 'nav.payments', icon: Receipt },
-      { to: '/reports', label: 'nav.reports', icon: BarChart3 },
+      { to: '/payments', label: 'nav.payments', icon: Receipt, money: true },
+      { to: '/reports', label: 'nav.reports', icon: BarChart3, money: true },
       { to: '/staff', label: 'nav.staff', icon: Users },
     ],
   },
@@ -110,7 +110,7 @@ type Props = {
  */
 function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   const { t } = useLanguage()
-  const { profile, clinicLogoUrl: logo } = useAuth()
+  const { profile, clinicLogoUrl: logo, handlesMoney } = useAuth()
   const { branchId, branchName, pickable, branches } = useBranch()
   const [menuOpen, setMenuOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
@@ -232,7 +232,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
             <div className="nav-section" key={section.title ?? i}>
               {section.title && <h2 className="nav-section-title">{t(section.title)}</h2>}
               <ul>
-                {section.items.map((item) => (
+                {section.items.filter((item) => !item.money || handlesMoney).map((item) => (
                   <li key={item.to}>
                     <NavLink
                       to={item.to}

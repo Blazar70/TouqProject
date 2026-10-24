@@ -27,11 +27,12 @@ type Kind = 'text' | 'ltr' | 'money' | 'count'
 type Cell = string | number | null
 type Section = { title?: string; cls: string; head: string[]; kinds: Kind[]; rows: Cell[][]; foot?: Cell[] }
 
-const REPORTS: { key: ReportKey; label: TranslationKey }[] = [
+const REPORTS: { key: ReportKey; label: TranslationKey; manager?: boolean }[] = [
   { key: 'cashUp', label: 'reports.cashUp' },
   { key: 'unpaid', label: 'reports.unpaid' },
-  { key: 'income', label: 'reports.income' },
-  { key: 'vat', label: 'reports.vat' },
+  // Income and VAT: managers only (0074).
+  { key: 'income', label: 'reports.income', manager: true },
+  { key: 'vat', label: 'reports.vat', manager: true },
 ]
 const DRAWER_METHODS = ['cash', 'card', 'apple_pay'] as const
 const METHOD_LABEL: Record<string, TranslationKey> = {
@@ -270,7 +271,7 @@ function ReportsPage() {
       </div>
 
       <div className="report-tabs" role="tablist" aria-label={t('reports.title')}>
-        {REPORTS.map((r) => (
+        {REPORTS.filter((r) => isManager || !r.manager).map((r) => (
           <button key={r.key} type="button" role="tab" aria-selected={report === r.key} className="report-tab" onClick={() => setReport(r.key)}>
             {t(r.label)}
           </button>

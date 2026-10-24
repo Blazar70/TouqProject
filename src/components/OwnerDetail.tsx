@@ -46,13 +46,12 @@ function Money({ amount, signed }: { amount: number; signed?: boolean }) {
 // One owner file: contact, pets, balance and its history, invoices; top up,
 // adjust, merge another owner in, move a pet out (0063-0064).
 function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => void }) {
-  const { profile } = useAuth()
+  const { profile, handlesMoney } = useAuth()
   const { branchId, branchName } = useBranch()
   const { t } = useLanguage()
   const toast = useToast()
   const confirm = useConfirm()
   const { printInvoice } = usePrintSummary()
-  const canTopUp = profile?.clinic_role === 'manager' || profile?.clinic_role === 'receptionist'
   const isManager = profile?.clinic_role === 'manager'
 
   const [owner, setOwner] = useState<Owner | null>(null)
@@ -266,7 +265,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
               {t('owners.adjust')}
             </button>
           )}
-          {canTopUp && (
+          {handlesMoney && (
             <button type="button" className="primary-button" onClick={() => openModal('topup')}>
               {t('owners.addBalance')}
             </button>
@@ -275,8 +274,10 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
       </div>
       <FormError message={error} />
 
-      <div className="owner-detail-grid">
+      {/* Balance, its history and invoices: receptionists and managers only (0074). */}
+      <div className={handlesMoney ? 'owner-detail-grid' : undefined}>
         <div>
+          {handlesMoney && (
           <div className="stat-row">
             <div className="stat-tile">
               <div className="stat-number">
@@ -287,6 +288,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
               </div>
             </div>
           </div>
+          )}
 
           <section className="settings-section">
             {editing ? (
@@ -360,6 +362,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
           </section>
         </div>
 
+        {handlesMoney && (
         <div>
           <section className="settings-section">
             <h2>{t('owners.history')}</h2>
@@ -422,6 +425,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
             )}
           </section>
         </div>
+        )}
       </div>
 
       {(modal === 'topup' || modal === 'adjust') && (

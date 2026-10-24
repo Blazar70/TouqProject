@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import { useAuth } from '../lib/AuthContext'
 import { formatMoney } from '../lib/format'
 import { matchesOwner } from '../lib/owners'
 import LoadingScreen from '../components/LoadingScreen'
@@ -14,6 +15,7 @@ type OwnerRow = { id: string; name: string; phone: string | null; balance: numbe
 // Owner files (0063): the list, or one owner when ?id= is set.
 function OwnersPage() {
   const { t } = useLanguage()
+  const { handlesMoney } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const openId = searchParams.get('id')
   const [owners, setOwners] = useState<OwnerRow[]>([])
@@ -60,12 +62,12 @@ function OwnersPage() {
       {filtered.length === 0 ? (
         <p className="empty-state">{owners.length === 0 ? t('owners.none') : t('owners.noneMatch')}</p>
       ) : (
-        <ul className="pet-list data-table data-owners">
+        <ul className={`pet-list data-table data-owners${handlesMoney ? '' : ' data-owners-nomoney'}`}>
           <li className="data-head" aria-hidden>
             <span>{t('list.owner')}</span>
             <span>{t('common.phone')}</span>
             <span>{t('owners.pets')}</span>
-            <span className="data-num">{t('owners.balance')}</span>
+            {handlesMoney && <span className="data-num">{t('owners.balance')}</span>}
             <span />
           </li>
           {filtered.map((owner) => (
@@ -76,10 +78,12 @@ function OwnersPage() {
                 </button>
                 <span className="data-muted">{owner.phone && <Ltr>{owner.phone}</Ltr>}</span>
                 <span className="data-muted">{t('owners.petsCount', { count: String(owner.pets[0]?.count ?? 0) })}</span>
-                <span className="data-num data-strong">
-                  <span className="data-label">{t('owners.balance')}: </span>
-                  <Ltr>{formatMoney(owner.balance)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
-                </span>
+                {handlesMoney && (
+                  <span className="data-num data-strong">
+                    <span className="data-label">{t('owners.balance')}: </span>
+                    <Ltr>{formatMoney(owner.balance)}</Ltr> <span className="money-currency">{t('common.currency')}</span>
+                  </span>
+                )}
                 <div className="record-actions data-end">
                   <button type="button" className="secondary-button" onClick={() => setSearchParams({ id: owner.id })}>
                     {t('payments.open')}

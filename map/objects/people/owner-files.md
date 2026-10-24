@@ -17,7 +17,8 @@ Owners used to be text on each pet. 0063 made one file per owner and grouped exi
 ## Shape
 
 - `owner_files`: `clinic_id`, `name`, `phone`, `email`, `notes`, `balance` (>= 0, 0064), `created_at`. Clients may insert/update the contact columns only (column grants); never delete (merge does).
-- `owner_balance_entries` (0064): ledger, `kind` top_up / payment / refund / adjustment, signed `amount`, `method` (top-ups), `reason` (adjustments), `invoice_id`, `invoice_payment_id`, `credit_note_id`, `branch_id`, `created_by`. Each insert moves `owner_files.balance` under a row lock and refuses going below 0 ("Not enough balance (available X)"). Balance = sum of the owner's entries. Clients read only.
+- `owner_balance_entries` (0064): ledger, `kind` top_up / payment / refund / adjustment, signed `amount`, `method` (top-ups), `reason` (adjustments), `invoice_id`, `invoice_payment_id`, `credit_note_id`, `branch_id`, `created_by`. Each insert moves `owner_files.balance` under a row lock and refuses going below 0 ("Not enough balance (available X)"). Balance = sum of the owner's entries. Clients read only; receptionists and managers only since 0074 (doctors/nurses get 0 rows).
+- `owner_files.balance` itself stays readable to all staff (shortcut in 0074: RLS can't hide one column per role); the UI hides it from doctors/nurses (Owners list column, owner file tile/history/invoices, owner picker).
 - Writers: `add_owner_balance()` (method set = top-up, manager/receptionist; method null = adjustment, manager, reason), triggers on `invoice_payments` (method `balance`) and `credit_notes` (refund_method `balance`), `merge_owner_files()` (pets, ledger, balance move; other file deleted). Top-ups, adjustments, merges go to `admin_audit_log` (`balance_top_up`, `balance_adjusted`, `owners_merged`).
 - Checks `supabase/tests/0063_*`, `0064_*`; rollbacks `0064_down.sql` then `0063_down.sql`.
 

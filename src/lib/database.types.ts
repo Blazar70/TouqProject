@@ -137,6 +137,7 @@ export type Database = {
       }
       appointments: {
         Row: {
+          billed?: boolean | null // computed field (0074), not a column: select('*, billed')
           branch_id: string
           cancellation_category: string | null
           cancellation_reason: string | null
@@ -1254,6 +1255,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      // Computed field on appointments (0074): select('*, billed').
+      billed: { Args: { "": Database["public"]["Tables"]["appointments"]["Row"] }; Returns: boolean }
       mark_vaccine_given: {
         Args: { p_given_on?: string; p_pet_vaccine: string }
         Returns: string
