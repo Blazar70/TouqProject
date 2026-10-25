@@ -82,6 +82,9 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {
 }
 
 // The form's 12-hour picker (hour, minute, AM/PM) as a UTC ISO timestamp.
+// shortcut: the calendar grid (react-big-calendar) and this picker use the device clock, which clinic devices
+// set to Riyadh time; labels elsewhere are always clinic time (format.ts). Move both to clinic time with the
+// dayjs timezone plugin if staff ever use a device set to another zone.
 function toScheduledAt(date: string, hour: string, minute: string, period: string) {
   let hour24 = parseInt(hour, 10) % 12
   if (period === 'PM') hour24 += 12

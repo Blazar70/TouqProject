@@ -161,6 +161,7 @@ function DashboardPage() {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Asia/Riyadh',
   })
 
   return (

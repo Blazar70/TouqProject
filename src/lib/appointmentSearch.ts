@@ -1,4 +1,4 @@
-import { formatDate } from './format'
+import { clinicDay, formatDate } from './format'
 
 type SearchablePet = { name: string; owner_phone: string | null; pet_number: number }
 
@@ -34,8 +34,7 @@ export function matchesAppointmentSearch(appointment: SearchableAppointment, que
   return (
     (appointment.pets ? matchesPetSearch(appointment.pets, normalized) : false) ||
     (appointment.doctor?.full_name ?? '').toLowerCase().includes(normalized) ||
-    scheduled.toISOString().slice(0, 10).includes(normalized) ||
-    scheduled.toLocaleDateString().toLowerCase().includes(normalized) ||
+    clinicDay(scheduled).includes(normalized) ||
     formatDate(scheduled).toLowerCase().includes(normalized)
   )
 }
