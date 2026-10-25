@@ -1021,9 +1021,13 @@
   margin: 0 0 2rem;
 }
 
-/* Tiles share the row and wrap two-up on phones instead of running off-screen. */
+/* Tiles share the full row (lined up with the content below) and wrap two-up on phones.
+   A lone tile (owner balance) keeps a card's width instead of a full-width bar. */
 .stat-row > .stat-tile {
   flex: 1 1 9rem;
+}
+
+.stat-row > .stat-tile:only-child {
   max-width: 16rem;
 }
 

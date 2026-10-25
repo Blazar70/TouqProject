@@ -3,10 +3,12 @@ import { X } from 'lucide-react'
 import type { Database } from '../lib/database.types'
 import { speciesIcon } from '../lib/species'
 import { useSignedPhotoUrl } from '../lib/photoUrl'
+import { useLanguage } from '../lib/i18n/LanguageContext'
 
 type Pet = Pick<Database['public']['Tables']['pets']['Row'], 'photo_url' | 'species' | 'name'>
 
 function PetAvatar({ pet, size = 40 }: { pet: Pet; size?: number }) {
+  const { t } = useLanguage()
   const style = { width: size, height: size }
   const [showLightbox, setShowLightbox] = useState(false)
   const photoUrl = useSignedPhotoUrl(pet.photo_url)
@@ -27,13 +29,13 @@ function PetAvatar({ pet, size = 40 }: { pet: Pet; size?: number }) {
           type="button"
           className="pet-avatar-button"
           onClick={() => setShowLightbox(true)}
-          aria-label={`View larger photo of ${pet.name}`}
+          aria-label={t('petAvatar.viewLarger', { name: pet.name })}
         >
           <img src={photoUrl} alt={pet.name} className="pet-avatar" style={style} />
         </button>
         {showLightbox && (
           <div className="lightbox-backdrop" onClick={() => setShowLightbox(false)}>
-            <button type="button" className="lightbox-close" onClick={() => setShowLightbox(false)} aria-label="Close">
+            <button type="button" className="lightbox-close" onClick={() => setShowLightbox(false)} aria-label={t('common.close')}>
               <X size={22} aria-hidden />
             </button>
             <img src={photoUrl} alt={pet.name} className="lightbox-image" onClick={(e) => e.stopPropagation()} />

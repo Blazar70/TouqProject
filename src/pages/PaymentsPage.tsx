@@ -828,7 +828,12 @@ function PaymentsPage() {
                     <Ltr>{formatDateTime(invoice.created_at)}</Ltr>
                   </span>
                   <div className="record-actions data-end">
-                    <button type="button" className="secondary-button" onClick={() => setOpenId(invoice.id)}>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setOpenId(invoice.id)}
+                      aria-label={t('payments.openInvoice', { number: invoice.invoice_number, pet: invoice.pets?.name ?? invoice.pet_name ?? '—' })}
+                    >
                       {t('payments.open')}
                     </button>
                   </div>

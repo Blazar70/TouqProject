@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 import { useSignedPhotoUrl } from '../lib/photoUrl'
+import { useLanguage } from '../lib/i18n/LanguageContext'
 
 // A generic click-to-enlarge thumbnail — the same lightbox pattern as
 // PetAvatar, but for any photo URL (e.g. one attached to a medical record)
 // rather than specifically a pet's own photo_url. `path` is a stored photo_url.
 function PhotoThumbnail({ path, alt, size = 56 }: { path: string; alt: string; size?: number }) {
+  const { t } = useLanguage()
   const [showLightbox, setShowLightbox] = useState(false)
   const url = useSignedPhotoUrl(path)
 
@@ -34,7 +36,7 @@ function PhotoThumbnail({ path, alt, size = 56 }: { path: string; alt: string; s
       </button>
       {showLightbox && url && (
         <div className="lightbox-backdrop" onClick={() => setShowLightbox(false)}>
-          <button type="button" className="lightbox-close" onClick={() => setShowLightbox(false)} aria-label="Close">
+          <button type="button" className="lightbox-close" onClick={() => setShowLightbox(false)} aria-label={t('common.close')}>
             <X size={22} aria-hidden />
           </button>
           <img src={url} alt={alt} className="lightbox-image" onClick={(e) => e.stopPropagation()} />
