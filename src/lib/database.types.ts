@@ -962,6 +962,7 @@ export type Database = {
       }
       owner_files: {
         Row: {
+          anonymised_at: string | null
           clinic_id: string
           created_at: string
           email: string | null
@@ -1650,6 +1651,10 @@ export type Database = {
       }
       merge_owner_files: {
         Args: { p_keep: string; p_remove: string }
+        Returns: undefined
+      }
+      anonymise_owner_file: {
+        Args: { p_owner: string }
         Returns: undefined
       }
       report_cash_up: {

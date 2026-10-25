@@ -41,6 +41,7 @@ export const AUDIT_ACTION_LABEL_KEYS: Record<string, TranslationKey> = {
   balance_top_up: 'admin.action.balanceTopUp',
   balance_adjusted: 'admin.action.balanceAdjusted',
   owners_merged: 'admin.action.ownersMerged',
+  owner_anonymised: 'admin.action.ownerAnonymised',
   password_reset: 'admin.action.passwordReset',
   profile_updated: 'admin.action.profileUpdated',
   pet_updated: 'admin.action.petUpdated',

@@ -16,6 +16,8 @@ import { isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { METHOD_LABEL_KEYS, PAYMENT_METHODS } from '../lib/invoiceMath'
 import { balancesAfter } from '../lib/owners'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
+import { collectOwnerData, downloadOwnerJson, ownerReport } from '../lib/ownerExport'
+import type { OwnerData } from '../lib/ownerExport'
 import { speciesLabel } from '../lib/species'
 import OwnerPickerModal from './OwnerPickerModal'
 import PaymentStatusBadge from './PaymentStatusBadge'
@@ -52,7 +54,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
   const { t } = useLanguage()
   const toast = useToast()
   const confirm = useConfirm()
-  const { printInvoice } = usePrintSummary()
+  const { printInvoice, printReport } = usePrintSummary()
   const isManager = profile?.clinic_role === 'manager'
 
   const [owner, setOwner] = useState<Owner | null>(null)
@@ -75,6 +77,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
   const [modalError, setModalError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [doneEntryId, setDoneEntryId] = useState<string | null>(null)
+  const [exportData, setExportData] = useState<OwnerData | null>(null)
 
   const load = useCallback(async () => {
     const [o, p, e] = await Promise.all([
@@ -227,6 +230,24 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
     load()
   }
 
+  // Gathered first, then printed/downloaded from the pop-up: a print window opened after an await is blocked.
+  async function handleExport() {
+    try {
+      setExportData(await collectOwnerData(current.id))
+    } catch (exportError) {
+      toast.error((exportError as Error).message)
+    }
+  }
+
+  async function handleAnonymise() {
+    const ok = await confirm(t('owners.deleteDataConfirm', { name: current.name }), { danger: true, confirmLabel: t('owners.deleteData') })
+    if (!ok) return
+    const { error: rpcError } = await supabase.rpc('anonymise_owner_file', { p_owner: current.id })
+    if (rpcError) return toast.error(rpcError.message)
+    toast.success(t('owners.dataDeleted'))
+    load()
+  }
+
   async function handleMove(pet: Pet, target: { id: string; name: string }) {
     setModal(null)
     const { error: moveError } = await supabase.from('pets').update({ owner_file_id: target.id }).eq('id', pet.id)
@@ -267,6 +288,17 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
           {isManager && (
             <button type="button" className="secondary-button" onClick={() => openModal('adjust')}>
               {t('owners.adjust')}
+            </button>
+          )}
+          {/* PDPL requests (0089): a copy of the owner's data, or deleting it. Managers only. */}
+          {isManager && (
+            <button type="button" className="secondary-button" onClick={handleExport}>
+              {t('owners.exportData')}
+            </button>
+          )}
+          {isManager && !current.anonymised_at && (
+            <button type="button" className="delete-button" onClick={handleAnonymise}>
+              {t('owners.deleteData')}
             </button>
           )}
           {handlesMoney && (
@@ -521,6 +553,23 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
           onPick={(target) => handleMove(modal.move, target)}
           onClose={() => setModal(null)}
         />
+      )}
+      {exportData && (
+        <Modal onClose={() => setExportData(null)} labelledBy="export-title">
+          <h2 id="export-title">{t('owners.exportData')}</h2>
+          <p className="pet-owner">{t('ownerExport.ready', { name: current.name })}</p>
+          <div className="admin-modal-actions">
+            <button type="button" className="primary-button" onClick={() => printReport(ownerReport(t, exportData))}>
+              {t('ownerExport.print')}
+            </button>
+            <button type="button" className="secondary-button" onClick={() => downloadOwnerJson(exportData)}>
+              {t('ownerExport.download')}
+            </button>
+            <button type="button" className="cancel-button" onClick={() => setExportData(null)}>
+              {t('common.close')}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   )
