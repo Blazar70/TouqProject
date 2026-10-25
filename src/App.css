@@ -3822,31 +3822,12 @@ button.cancel-button:disabled,
   font-variant-numeric: tabular-nums;
 }
 
-.today-next {
-  color: var(--accent);
-  font-size: 0.78rem;
-}
-
 .today-doctor {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
   font-size: 0.85rem;
-}
-
-/* Next appointment: tint + a bar on the start edge (not colour alone). */
-.today-row.is-next {
-  background: var(--bg-tint);
-}
-
-.today-row.is-next::before {
-  content: '';
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 3px;
-  background: var(--accent);
 }
 
 .today-row.is-past :is(.today-time, .dash-row-main strong, .today-doctor) {
@@ -4752,4 +4733,153 @@ img.waiver-signature {
   gap: 0.25rem;
   max-width: 24rem;
   margin-block: 1rem;
+}
+
+/* ---- Dashboard redesign (10-25): one quiet "at a glance" strip, then the schedule leads with "Next up". ---- */
+/* The 1px gap over a border-coloured background draws the dividers, however the items wrap. */
+.dash-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 1px;
+  margin-bottom: 1.5rem;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dash-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.5rem;
+  background: var(--bg-raised);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-strip-item:hover {
+  background: var(--bg-tint);
+}
+
+.dash-strip-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dash-strip-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.dash-strip-number {
+  color: var(--text-h);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Requests waiting for confirmation are the one number that asks for action. */
+.dash-strip-attention {
+  color: var(--status-amber-fg);
+}
+
+.dash-next {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'label label label'
+    'time main side';
+  align-items: center;
+  gap: 0.25rem 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-tint);
+  border-block-end: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-next::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--accent);
+}
+
+.dash-next:hover {
+  background: var(--bg-tint-hover);
+}
+
+.dash-next:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.dash-next-label {
+  grid-area: label;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.dash-next-time {
+  grid-area: time;
+  color: var(--text-h);
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-next-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-next-main strong {
+  color: var(--text-h);
+  font-size: 1.15rem;
+}
+
+.dash-next-side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+@media (max-width: 767.98px) {
+  .dash-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-strip-item {
+    padding: 0.75rem 1rem;
+  }
+
+  /* An odd last item takes the whole row instead of leaving an empty cell. */
+  .dash-strip-item:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .dash-next {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'label label'
+      'time main'
+      'side side';
+    padding: 1rem;
+  }
+
+  .dash-next-side {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }

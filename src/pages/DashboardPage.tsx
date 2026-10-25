@@ -153,6 +153,7 @@ function DashboardPage() {
   const toConfirm = requested.length
   // A doctor's "Next" is always one of their own, also in the branch view.
   const nextId = nextAppointmentId(isDoctor ? mineToday : today, Date.now())
+  const nextAppt = today.find((a) => a.id === nextId) ?? null
   const overdue = vaccinationsDue.filter((due) => vaccinationStatus(due.next_due_date) === 'overdue').length
   const paymentsTotal = paymentsToday.reduce((sum, amount) => sum + amount, 0)
   // Latin digits in both languages, matching the rest of the app.
@@ -187,40 +188,41 @@ function DashboardPage() {
         </div>
       </div>
 
-      <div className={`dash-stats${handlesMoney ? '' : ' dash-stats-3'}`}>
-        <Link to="/appointments" className="stat-tile stat-tile-link">
-          <div className="stat-label">{t('dashboard.todayAppointments')}</div>
-          <div className="stat-number" dir="ltr">
+      {/* One quiet strip, not four cards: the schedule below is what the eye should land on. */}
+      <nav className="dash-strip" aria-label={t('dashboard.atAGlance')}>
+        <Link to="/appointments" className="dash-strip-item">
+          <span className="dash-strip-label">{t('dashboard.todayAppointments')}</span>
+          <span className="dash-strip-number" dir="ltr">
             {active.length}
-          </div>
-          <div className="stat-meta">{t('dashboard.doneLeft', { done: String(done), left: String(active.length - done) })}</div>
+          </span>
+          <span className="stat-meta">{t('dashboard.doneLeft', { done: String(done), left: String(active.length - done) })}</span>
         </Link>
-        <Link to={requested[0] ? `/appointments?open=${requested[0].id}` : '/appointments'} className="stat-tile stat-tile-link">
-          <div className="stat-label">{t('dashboard.toConfirm')}</div>
-          <div className="stat-number" dir="ltr">
+        <Link to={requested[0] ? `/appointments?open=${requested[0].id}` : '/appointments'} className="dash-strip-item">
+          <span className="dash-strip-label">{t('dashboard.toConfirm')}</span>
+          <span className={`dash-strip-number${toConfirm > 0 ? ' dash-strip-attention' : ''}`} dir="ltr">
             {toConfirm}
-          </div>
-          <div className="stat-meta">{t('dashboard.toConfirmHint')}</div>
+          </span>
+          <span className="stat-meta">{t('dashboard.toConfirmHint')}</span>
         </Link>
-        <Link to="/pets" className="stat-tile stat-tile-link">
-          <div className="stat-label">{t('dashboard.vaccinationsDue')}</div>
-          <div className="stat-number" dir="ltr">
+        <Link to="/pets" className="dash-strip-item">
+          <span className="dash-strip-label">{t('dashboard.vaccinationsDue')}</span>
+          <span className="dash-strip-number" dir="ltr">
             {vaccinationsDue.length}
-          </div>
-          <div className={`stat-meta${overdue > 0 ? ' stat-meta-danger' : ''}`}>
+          </span>
+          <span className={`stat-meta${overdue > 0 ? ' stat-meta-danger' : ''}`}>
             {overdue > 0 ? t('dashboard.overdueCount', { count: String(overdue) }) : t('dashboard.noneOverdue')}
-          </div>
+          </span>
         </Link>
         {handlesMoney && (
-        <Link to="/payments" className="stat-tile stat-tile-link">
-          <div className="stat-label">{t('dashboard.todayPayments', { currency: t('common.currency') })}</div>
-          <div className="stat-number" dir="ltr">
-            {formatMoney(paymentsTotal)}
-          </div>
-          <div className="stat-meta">{t('dashboard.paymentCount', { count: String(paymentsToday.length) })}</div>
-        </Link>
+          <Link to="/payments" className="dash-strip-item">
+            <span className="dash-strip-label">{t('dashboard.todayPayments', { currency: t('common.currency') })}</span>
+            <span className="dash-strip-number" dir="ltr">
+              {formatMoney(paymentsTotal)}
+            </span>
+            <span className="stat-meta">{t('dashboard.paymentCount', { count: String(paymentsToday.length) })}</span>
+          </Link>
         )}
-      </div>
+      </nav>
 
       <div className="dash-columns">
         <section className="dash-panel">
@@ -230,21 +232,40 @@ function DashboardPage() {
               {t('dashboard.openCalendar')}
             </Link>
           </div>
+          {nextAppt && (
+            <Link to={`/appointments?open=${nextAppt.id}`} className="dash-next">
+              <span className="dash-next-label">{t('dashboard.nextUp')}</span>
+              <span className="dash-next-time">
+                <Ltr>{formatTime(nextAppt.scheduled_at)}</Ltr>
+              </span>
+              <span className="dash-next-main">
+                <strong>{nextAppt.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                <span className="dash-row-sub">
+                  {[nextAppt.pets?.owner_name, nextAppt.reason].filter(Boolean).join(' · ')}
+                  {nextAppt.status === 'arrived' && nextAppt.arrived_at && ` · ${t('appointments.arrivedAt', { time: formatTime(nextAppt.arrived_at) })}`}
+                </span>
+              </span>
+              <span className="dash-next-side">
+                <span className="today-doctor">{nextAppt.doctor?.full_name ?? t('calendar.unassigned')}</span>
+                <span className={`status-badge status-${nextAppt.status}`}>
+                  {STATUS_LABEL_KEYS[nextAppt.status] ? t(STATUS_LABEL_KEYS[nextAppt.status]) : nextAppt.status}
+                </span>
+              </span>
+            </Link>
+          )}
           {shown.length === 0 ? (
             <p className="dash-empty">{t(mine ? 'dashboard.noPatientsToday' : 'dashboard.noAppointmentsToday')}</p>
           ) : (
             <ul className="dash-list">
-              {shown.map((appt) => (
+              {/* The next one is in the "Next up" banner above; the list holds the rest of the day. */}
+              {shown.filter((appt) => appt.id !== nextAppt?.id).map((appt) => (
                 <li key={appt.id}>
                   <Link
                     to={`/appointments?open=${appt.id}`}
-                    className={`dash-row today-row${appt.id === nextId ? ' is-next' : ''}${
-                      appt.status === 'completed' || appt.status === 'cancelled' ? ' is-past' : ''
-                    }`}
+                    className={`dash-row today-row${appt.status === 'completed' || appt.status === 'cancelled' ? ' is-past' : ''}`}
                   >
                     <span className="today-time">
                       <Ltr>{formatTime(appt.scheduled_at)}</Ltr>
-                      {appt.id === nextId && <span className="today-next">{t('dashboard.next')}</span>}
                     </span>
                     <span className="dash-row-main">
                       <strong>{appt.pets?.name ?? t('dashboard.unknownPet')}</strong>
