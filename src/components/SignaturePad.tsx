@@ -20,18 +20,29 @@ function SignaturePad({ onChange, label }: { onChange: (dataUrl: string | null) 
 
   useEffect(() => {
     const canvas = canvasRef.current!
-    // Capped at 2x: sharp on tablets, and the PNG stays well under the 0084 size check.
-    const scale = Math.min(window.devicePixelRatio || 1, 2)
-    canvas.width = canvas.clientWidth * scale
-    canvas.height = canvas.clientHeight * scale
-    const ctx = canvas.getContext('2d')!
-    ctx.scale(scale, scale)
-    ctx.lineWidth = 2.5
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.strokeStyle = '#000'
-    clear()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- size once on mount
+    let width = 0
+    function size() {
+      // Height never changes; only a new width (rotation, split view) needs a resize.
+      if (canvas.clientWidth === width) return
+      width = canvas.clientWidth
+      // Capped at 2x: sharp on tablets, and the PNG stays well under the 0084 size check.
+      const scale = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = width * scale
+      canvas.height = canvas.clientHeight * scale
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(scale, scale)
+      ctx.lineWidth = 2.5
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.strokeStyle = '#000'
+      // Resizing wipes the canvas; a stretched old signature would not match the finger anyway (nightly B13).
+      clear()
+    }
+    size()
+    const observer = new ResizeObserver(size)
+    observer.observe(canvas)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- set up once; the observer handles later sizes
   }, [])
 
   function point(e: PointerEvent<HTMLCanvasElement>) {

@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import type { TranslationKey } from '../lib/i18n/translations'
 import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
@@ -23,6 +24,14 @@ type Draft = { note: string; weight: string; temp: string; heartRate: string }
 
 const EMPTY_DRAFT: Draft = { note: '', weight: '', temp: '', heartRate: '' }
 const SIGNED_URL_SECONDS = 60 * 60
+const OUTCOMES = ['home', 'died', 'euthanised', 'transferred'] as const
+type Outcome = (typeof OUTCOMES)[number]
+const OUTCOME_KEYS: Record<Outcome, TranslationKey> = {
+  home: 'inpatient.outcomeHome',
+  died: 'inpatient.outcomeDied',
+  euthanised: 'inpatient.outcomeEuthanised',
+  transferred: 'inpatient.outcomeTransferred',
+}
 const num = (value: string) => (value.trim() ? Number(toLatinDigits(value)) : null)
 
 // Phase 6 inpatient stay of one pet (0081): admit, timed updates with vitals and photos/videos,
@@ -47,6 +56,10 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
   const [pastUpdates, setPastUpdates] = useState<Update[] | null>(null)
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({})
   const [admitting, setAdmitting] = useState(false)
+  // Discharge asks how the stay ended (0087): only 'home' gets an owner pickup reminder.
+  const [discharging, setDischarging] = useState(false)
+  const [outcome, setOutcome] = useState<Outcome>('home')
+  const [dischargeNote, setDischargeNote] = useState('')
   const [reason, setReason] = useState('')
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [files, setFiles] = useState<File[]>([])
@@ -189,10 +202,19 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     load()
   }
 
-  async function handleDischarge() {
-    if (!open || !(await confirm(t('inpatient.dischargeConfirm', { name: pet.name }), { confirmLabel: t('inpatient.discharge') }))) return
-    const { error: dischargeError } = await supabase.from('inpatient_stays').update({ discharged_at: new Date().toISOString() }).eq('id', open.id)
-    if (dischargeError) return toast.error(dischargeError.message)
+  async function handleDischarge(e: FormEvent) {
+    e.preventDefault()
+    if (!open) return
+    setBusy(true)
+    const { error: dischargeError } = await supabase
+      .from('inpatient_stays')
+      .update({ discharged_at: new Date().toISOString(), discharge_outcome: outcome, discharge_note: dischargeNote.trim() || null })
+      .eq('id', open.id)
+    setBusy(false)
+    if (dischargeError) return setError(dischargeError.message)
+    setDischarging(false)
+    setOutcome('home')
+    setDischargeNote('')
     toast.success(t('inpatient.discharged', { name: pet.name }))
     load()
   }
@@ -276,7 +298,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
               {t('inpatient.copyToday')}
             </button>
             {canAdmit && (
-              <button type="button" className="secondary-button" onClick={handleDischarge}>
+              <button type="button" className="secondary-button" onClick={() => setDischarging(true)} disabled={discharging}>
                 {t('inpatient.discharge')}
               </button>
             )}
@@ -301,6 +323,32 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
         </p>
       ) : (
         !admitting && <p className="pet-owner">{t('inpatient.notAdmitted')}</p>
+      )}
+
+      {discharging && open && (
+        <form onSubmit={handleDischarge} className="pet-form">
+          <fieldset className="checkbox-group">
+            <legend>{t('inpatient.outcome', { name: pet.name })}</legend>
+            {OUTCOMES.map((o) => (
+              <label key={o} className="checkbox-label">
+                <input type="radio" name="discharge-outcome" value={o} checked={outcome === o} onChange={() => setOutcome(o)} />
+                {t(OUTCOME_KEYS[o])}
+              </label>
+            ))}
+          </fieldset>
+          <label>
+            {t('inpatient.dischargeNote')}
+            <input value={dischargeNote} onChange={(e) => setDischargeNote(e.target.value)} />
+          </label>
+          <div className="record-edit-actions">
+            <button type="submit" disabled={busy}>
+              {busy ? t('common.saving') : t('inpatient.discharge')}
+            </button>
+            <button type="button" className="cancel-button" onClick={() => setDischarging(false)}>
+              {t('common.cancel')}
+            </button>
+          </div>
+        </form>
       )}
 
       {admitting && (
@@ -373,6 +421,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
                       <span className="pet-owner">
                         {' · '}
                         {t('inpatient.nights', { count: String(stayNights(s.admitted_at, s.discharged_at!)) })}
+                        {s.discharge_outcome && ` · ${t(OUTCOME_KEYS[s.discharge_outcome as Outcome])}`}
                         {s.reason && ` · ${s.reason}`}
                       </span>
                     </div>

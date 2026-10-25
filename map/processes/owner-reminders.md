@@ -11,3 +11,4 @@ entity: supabase/migrations/0085_owner_reminders.sql
 - Send = a `wa.me` link (`whatsAppLink`) with the text from `src/lib/ownerReminders.ts`: fixed wording, Arabic then English, clinic name and phone, dates in clinic time. Test `ownerReminders.test.ts`. Phone comes from `owner_files.phone`.
 - The tap records a row in `owner_reminders_sent` (kind + item_key: appointment id, stay id, or pet_vaccines id + due date). Unique per clinic/kind/key, so nothing is sent twice; Undo deletes the rows. Who/when filled by trigger. Check `supabase/tests/0085_owner_reminders_check.sql`.
 - Touq never sees whether WhatsApp really sent it. Automatic sending (Unifonic/Twilio) would reuse the same lists and the same sent table.
+- 0087: Skip (`owner_reminders_sent.skipped`) clears an item that no longer applies, with Undo. Marking uses upsert-ignore-duplicates so a colleague's earlier mark on part of a combined vaccine message doesn't fail the rest.

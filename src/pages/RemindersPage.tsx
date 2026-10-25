@@ -17,7 +17,7 @@ import FormError from '../components/FormError'
 
 type Kind = 'appointment' | 'pickup' | 'vaccine'
 type PetRef = { id: string; name: string; owner_file_id: string }
-type Sent = { id: string; kind: string; item_key: string; sent_at: string; sender: { full_name: string } | null }
+type Sent = { id: string; kind: string; item_key: string; sent_at: string; skipped: boolean; sender: { full_name: string } | null }
 type Owner = { id: string; name: string; phone: string | null }
 type Item = { kind: Kind; key: string; owner: Owner; petId: string; title: string; detail: string; keys: string[]; text: string }
 
@@ -61,6 +61,8 @@ function RemindersPage() {
         .from('inpatient_stays')
         .select(`id, branch_id, discharged_at, ${pet}`)
         .is('pet.deleted_at', null)
+        // Only a pet that went home (0087); not one that died, was put to sleep or was transferred.
+        .eq('discharge_outcome', 'home')
         .gte('discharged_at', new Date(Date.now() - PICKUP_DAYS * DAY_MS).toISOString())
         .order('discharged_at', { ascending: false }),
       supabase
@@ -72,12 +74,13 @@ function RemindersPage() {
         .order('next_due_date'),
       supabase
         .from('owner_reminders_sent')
-        .select('id, kind, item_key, sent_at, sender:profiles!owner_reminders_sent_sent_by_fkey(full_name)')
+        .select('id, kind, item_key, sent_at, skipped, sender:profiles!owner_reminders_sent_sent_by_fkey(full_name)')
         .gte('sent_at', new Date(Date.now() - (OVERDUE_DAYS + DUE_SOON_DAYS) * DAY_MS).toISOString()),
-      supabase.from('inpatient_stays').select('pet_id').is('discharged_at', null),
+      supabase.from('inpatient_stays').select('pet_id, discharged_at').or('discharged_at.is.null,discharge_outcome.in.(died,euthanised)'),
     ])
-    // A pet admitted again since that discharge is not ready to go home.
-    const inHospital = new Set((openStays.data ?? []).map((s) => s.pet_id))
+    // A pet admitted again since that discharge is not ready to go home; a pet that died gets no reminders at all.
+    const inHospital = new Set((openStays.data ?? []).filter((s) => !s.discharged_at).map((s) => s.pet_id))
+    const deceased = new Set((openStays.data ?? []).filter((s) => s.discharged_at).map((s) => s.pet_id))
     const failed = appts.error ?? stays.error ?? vaccines.error ?? sentRows.error ?? openStays.error
     if (failed) setError(failed.message)
 
@@ -93,6 +96,7 @@ function RemindersPage() {
     const next: Item[] = []
     for (const a of appts.data ?? []) {
       const p = a.pet as PetRef
+      if (deceased.has(p.id)) continue
       const owner = ownerOf(p)
       next.push({
         kind: 'appointment', key: a.id, owner, petId: p.id, title: p.name,
@@ -113,6 +117,7 @@ function RemindersPage() {
     const byOwner = new Map<string, { petId: string; rows: (DueVaccine & { key: string })[] }>()
     for (const v of vaccines.data ?? []) {
       const p = v.pet as PetRef
+      if (deceased.has(p.id)) continue
       const group = byOwner.get(p.owner_file_id) ?? { petId: p.id, rows: [] }
       group.rows.push({ key: `${v.id}:${v.next_due_date}`, pet: p.name, vaccine: (v.vaccine as { name: string } | null)?.name ?? '—', due: v.next_due_date })
       byOwner.set(p.owner_file_id, group)
@@ -144,13 +149,14 @@ function RemindersPage() {
   const sentOf = (item: Item) => item.keys.map((k) => sent[`${item.kind}:${k}`]).filter(Boolean)
   const isSent = (item: Item) => sentOf(item).length === item.keys.length
 
-  // The link opens WhatsApp itself (no pop-up blocker); this only records the tap.
-  async function markSent(item: Item) {
-    const { error: sendError } = await supabase.from('owner_reminders_sent').insert(
-      item.keys.filter((k) => !sent[`${item.kind}:${k}`]).map((k) => ({ clinic_id: profile!.clinic_id!, kind: item.kind, item_key: k, owner_file_id: item.owner.id })),
+  // The link opens WhatsApp itself (no pop-up blocker); this only records the tap. Skip records it without sending.
+  // ignoreDuplicates: a part a colleague marked a moment ago must not make the rest fail (nightly B14).
+  async function markSent(item: Item, skipped = false) {
+    const { error: sendError } = await supabase.from('owner_reminders_sent').upsert(
+      item.keys.map((k) => ({ clinic_id: profile!.clinic_id!, kind: item.kind, item_key: k, owner_file_id: item.owner.id, skipped })),
+      { onConflict: 'clinic_id,kind,item_key', ignoreDuplicates: true },
     )
-    // Someone else marked it a moment ago: the reload shows who.
-    if (sendError && sendError.code !== '23505') toast.error(sendError.message)
+    if (sendError) toast.error(sendError.message)
     load()
   }
 
@@ -210,19 +216,30 @@ function RemindersPage() {
                         <div className="record-actions">
                           {isSent(item) ? (
                             <>
-                              <span className="status-badge status-completed">
-                                {t('ownerReminders.sentBy', { name: done[0].sender?.full_name ?? '—', time: formatTime(done[0].sent_at) })}
+                              <span className={`status-badge ${done[0].skipped ? 'status-requested' : 'status-completed'}`}>
+                                {t(done[0].skipped ? 'ownerReminders.skippedBy' : 'ownerReminders.sentBy', {
+                                  name: done[0].sender?.full_name ?? '—',
+                                  time: formatTime(done[0].sent_at),
+                                })}
                               </span>
                               <button type="button" className="secondary-button" onClick={() => undo(item)}>
                                 {t('ownerReminders.undo')}
                               </button>
                             </>
-                          ) : link ? (
-                            <a href={link} target="_blank" rel="noreferrer" className="secondary-button" onClick={() => markSent(item)}>
-                              {t('ownerReminders.send')}
-                            </a>
                           ) : (
-                            <span className="pet-owner">{t('ownerReminders.noPhone')}</span>
+                            <>
+                              {link ? (
+                                <a href={link} target="_blank" rel="noreferrer" className="secondary-button" onClick={() => markSent(item)}>
+                                  {t('ownerReminders.send')}
+                                </a>
+                              ) : (
+                                <span className="pet-owner">{t('ownerReminders.noPhone')}</span>
+                              )}
+                              {/* For one that no longer applies (given elsewhere, owner said no, already collected). */}
+                              <button type="button" className="secondary-button" onClick={() => markSent(item, true)}>
+                                {t('ownerReminders.skip')}
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

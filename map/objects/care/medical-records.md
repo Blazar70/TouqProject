@@ -50,3 +50,4 @@ Completion notes were deliberately written into this table, not new appointment 
 ## See
 
 - Source: `src/lib/database.types.ts:366`
+- 0087: only doctors, nurses (0075 limits) and managers may add, edit or delete visit records (`enforce_medical_record_roles`); receptionists read them and see Print only on the pet file.

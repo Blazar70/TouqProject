@@ -60,6 +60,8 @@ function PetDetail({
   const { printSummary, printHistory } = usePrintSummary()
   const isVet = profile?.role === 'vet'
   const isNurse = profile?.clinic_role === 'nurse'
+  // Visit records are written by clinicians only (0087); reception reads them.
+  const isClinician = ['doctor', 'nurse', 'manager'].includes(profile?.clinic_role ?? '')
 
   const [name, setName] = useState(pet.name)
   const [species, setSpecies] = useState(pet.species)
@@ -560,12 +562,12 @@ function PetDetail({
                             {t('common.print')}
                           </button>
                           {/* A nurse edits her own or nurse-only records, never deletes (0075); records seen at a branch you don't work at are read-only (0076). */}
-                          {isVet && canWriteAt(record.branch_id) && (!isNurse || !record.vet_id || record.vet_id === profile?.id) && (
+                          {isClinician && canWriteAt(record.branch_id) && (!isNurse || !record.vet_id || record.vet_id === profile?.id) && (
                             <button type="button" className="secondary-button" onClick={() => startEditingRecord(record)}>
                               {t('common.edit')}
                             </button>
                           )}
-                          {isVet && !isNurse && canWriteAt(record.branch_id) && (
+                          {isClinician && !isNurse && canWriteAt(record.branch_id) && (
                             <button type="button" className="delete-button" onClick={() => handleDeleteRecord(record)}>
                               {t('common.delete')}
                             </button>

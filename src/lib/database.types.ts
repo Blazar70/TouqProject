@@ -392,6 +392,7 @@ export type Database = {
           owner_file_id: string | null
           sent_at: string
           sent_by: string | null
+          skipped: boolean
         }
         // 0085: sent_at and sent_by are filled by the database.
         Insert: {
@@ -400,6 +401,7 @@ export type Database = {
           item_key: string
           kind: string
           owner_file_id?: string | null
+          skipped?: boolean
         }
         Update: Record<string, never>
         Relationships: [
@@ -508,6 +510,7 @@ export type Database = {
           branch_id: string
           clinic_id: string
           discharge_note: string | null
+          discharge_outcome: string | null
           discharged_at: string | null
           discharged_by: string | null
           id: string
@@ -520,6 +523,7 @@ export type Database = {
           branch_id: string
           clinic_id: string
           discharge_note?: string | null
+          discharge_outcome?: string | null
           discharged_at?: string | null
           discharged_by?: string | null
           id?: string
@@ -529,6 +533,7 @@ export type Database = {
         // 0081: only the discharge columns are client-writable.
         Update: {
           discharge_note?: string | null
+          discharge_outcome?: string | null
           discharged_at?: string | null
         }
         Relationships: [
