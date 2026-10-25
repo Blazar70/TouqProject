@@ -2889,8 +2889,8 @@ input[type='checkbox']:focus-visible {
   color: var(--text-h);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
   font: inherit;
+  font-size: 0.85rem;
 }
 
 .secondary-button:hover {
@@ -2905,9 +2905,9 @@ input[type='checkbox']:focus-visible {
   color: var(--danger);
   border-radius: 6px;
   cursor: pointer;
+  font: inherit;
   font-size: 0.85rem;
   flex-shrink: 0;
-  font: inherit;
   font-weight: 600;
 }
 
@@ -3047,8 +3047,8 @@ button.cancel-button:disabled,
   color: var(--text-h);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 0.85rem;
   font: inherit;
+  font-size: 0.85rem;
 }
 
 .cancel-button:hover {
@@ -4661,11 +4661,6 @@ img.waiver-signature {
 
 .pet-file .panel-header h3 {
   font-size: 1rem;
-}
-
-/* One size for every secondary action in the file (the base rule's font: inherit cancels its own 0.85rem). */
-.pet-file :is(.secondary-button, .delete-button, .cancel-button) {
-  font-size: 0.85rem;
 }
 
 /* Forms inside sections sit flat on the section instead of becoming another card. */
