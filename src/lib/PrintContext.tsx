@@ -44,6 +44,7 @@ export type VisitSummary = {
   date: string
   visitType?: string
   doctor?: string | null
+  nurse?: string | null
   /** Owner name and phone, printed under the pet (single summary only). */
   owner?: string | null
   record: VisitRecordFields
@@ -175,6 +176,7 @@ function buildDocument(
                 <span class="print-history-date">${escapeHtml(formatDate(visit.date))}</span>
                 ${visit.visitType ? `<span class="print-badge">${escapeHtml(visit.visitType)}</span>` : ''}
                 ${visit.doctor ? `<span class="print-hero-id">${escapeHtml(t('printSummary.doctor'))}: ${escapeHtml(visit.doctor)}</span>` : ''}
+                ${visit.nurse ? `<span class="print-hero-id">${escapeHtml(t('printSummary.nurse'))}: ${escapeHtml(visit.nurse)}</span>` : ''}
               </div>
               ${fieldsHtml(t, visit)}
             </div>
@@ -210,6 +212,7 @@ function buildDocument(
         ${petNumber ? `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${petNumber}</span></div>` : ''}
         ${!isHistory && visits[0].owner ? `<div class="print-hero-id">${escapeHtml(t('pets.owner'))}: ${escapeHtml(visits[0].owner)}</div>` : ''}
         ${!isHistory && visits[0].doctor ? `<div class="print-hero-id">${escapeHtml(t('printSummary.doctor'))}: ${escapeHtml(visits[0].doctor)}</div>` : ''}
+        ${!isHistory && visits[0].nurse ? `<div class="print-hero-id">${escapeHtml(t('printSummary.nurse'))}: ${escapeHtml(visits[0].nurse)}</div>` : ''}
       </div>
       ${heroDate}
     </div>

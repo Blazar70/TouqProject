@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { BALANCE_EMBED, flatBalance } from '../lib/owners'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
@@ -81,10 +82,10 @@ function RegisterPetPage() {
     }
     supabase
       .from('owner_files')
-      .select('id, name, phone, email, balance')
+      .select(`id, name, phone, email, ${BALANCE_EMBED}`)
       .eq('phone', `+966${ownerPhone}`)
       .limit(1)
-      .then(({ data }) => setPhoneMatch(data?.[0] ?? null))
+      .then(({ data }) => setPhoneMatch(data?.[0] ? flatBalance(data[0]) : null))
   }, [owner, ownerPhone])
 
   // Pasting a screenshot/copied image (Ctrl+V) works the same as picking a

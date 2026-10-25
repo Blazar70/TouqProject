@@ -37,8 +37,8 @@ import { formatDate } from '../lib/format'
 import FormError from './FormError'
 
 type Pet = Database['public']['Tables']['pets']['Row']
-type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null }
-const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name)'
+type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null; nurse: { full_name: string } | null }
+const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name), nurse:profiles!medical_records_nurse_id_fkey(full_name)'
 
 
 function PetDetail({
@@ -379,6 +379,7 @@ function PetDetail({
                         date: record.visit_date,
                         visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
                         doctor: record.vet?.full_name,
+                        nurse: record.nurse?.full_name,
                         record,
                         photoUrl: includeHistoryPhotos ? record.photo_url : null,
                       })),
@@ -477,7 +478,7 @@ function PetDetail({
                         </>
                       )}
                       {/* Notes is the pre-0040 field; only records that already have it show it. */}
-                      {record.notes && (
+                      {record.notes && !isNurse && (
                         <label>
                           {t('common.notes')}
                           <textarea value={edit.notes} onChange={(e) => setEditField('notes', e.target.value)} rows={3} />
@@ -553,6 +554,7 @@ function PetDetail({
                                 date: record.visit_date,
                                 visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
                                 doctor: record.vet?.full_name,
+                                nurse: record.nurse?.full_name,
                                 owner: [pet.owner_name, pet.owner_phone && `⁦${pet.owner_phone}⁩`].filter(Boolean).join(' · '),
                                 record,
                                 photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,

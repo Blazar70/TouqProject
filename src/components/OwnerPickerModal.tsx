@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { isValidSaudiMobile } from '../lib/phone'
-import { matchesOwner } from '../lib/owners'
+import { BALANCE_EMBED, flatBalance, matchesOwner } from '../lib/owners'
 import { formatMoney } from '../lib/format'
 import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
@@ -40,11 +40,11 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
   useEffect(() => {
     supabase
       .from('owner_files')
-      .select('id, name, phone, email, balance')
+      .select(`id, name, phone, email, ${BALANCE_EMBED}`)
       .order('name')
       .then(({ data, error: loadError }) => {
         if (loadError) setError(loadError.message)
-        setOwners(data ?? [])
+        setOwners((data ?? []).map(flatBalance))
       })
   }, [])
 
@@ -60,14 +60,14 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
     const { data, error: insertError } = await supabase
       .from('owner_files')
       .insert({ clinic_id: profile.clinic_id, name: name.trim(), phone: `+966${phone}`, email: email.trim() || null })
-      .select('id, name, phone, email, balance')
+      .select('id, name, phone, email')
       .single()
     setSaving(false)
     if (insertError || !data) {
       setError(insertError?.message ?? t('common.couldNotSave'))
       return
     }
-    onPick(data)
+    onPick({ ...data, balance: 0 })
   }
 
   const matches = (owners ?? []).filter((o) => o.id !== excludeId && matchesOwner(o, query)).slice(0, 20)

@@ -102,11 +102,11 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
     setError(null)
     if (invoice.pets) {
       supabase
-        .from('owner_files')
+        .from('owner_balances')
         .select('balance')
-        .eq('id', invoice.pets.owner_file_id)
-        .single()
-        .then(({ data }) => setOwnerBalance(data?.balance ?? null))
+        .eq('owner_file_id', invoice.pets.owner_file_id)
+        .maybeSingle()
+        .then(({ data }) => setOwnerBalance(data?.balance ?? 0))
     }
   }
 

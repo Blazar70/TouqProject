@@ -148,7 +148,7 @@ function SessionPage() {
 
   // Writes only the fields changed on this screen, so the doctor and the nurse don't
   // overwrite each other's work; returns the merged record.
-  // shortcut: no live sync and two first saves at the same moment make two records; add realtime + a unique appointment_id if that bites.
+  // shortcut: no live sync; each person sees the other's changes on their next save or reload. Add realtime if that bites.
   async function saveRecord(): Promise<MedicalRecord | null> {
     if (!appointment || !profile?.clinic_id) return null
     const vitalsResult = parseVitals(form)
@@ -163,7 +163,7 @@ function SessionPage() {
       ),
     ) as RecordColumns
     const target = record ?? (await loadRecord(appointment.id))
-    const { data: saved, error: recordError } = target
+    let { data: saved, error: recordError } = target
       ? await supabase.from('medical_records').update(changes).eq('id', target.id).select().single()
       : await supabase
           .from('medical_records')
@@ -178,6 +178,11 @@ function SessionPage() {
           })
           .select()
           .single()
+    // The other person's first save landed a moment earlier (one record per visit, 0088): save into theirs.
+    if (recordError?.code === '23505') {
+      const theirs = await loadRecord(appointment.id)
+      if (theirs) ({ data: saved, error: recordError } = await supabase.from('medical_records').update(changes).eq('id', theirs.id).select().single())
+    }
     if (recordError || !saved) {
       setError(t('appointments.recordFailed', { error: recordError?.message ?? '' }))
       return null

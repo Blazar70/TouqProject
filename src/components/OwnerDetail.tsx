@@ -15,6 +15,7 @@ import { formatDateTime, formatMoney } from '../lib/format'
 import { isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { METHOD_LABEL_KEYS, PAYMENT_METHODS } from '../lib/invoiceMath'
 import { balancesAfter } from '../lib/owners'
+import { BALANCE_EMBED, flatBalance } from '../lib/owners'
 import { speciesLabel } from '../lib/species'
 import OwnerPickerModal from './OwnerPickerModal'
 import PaymentStatusBadge from './PaymentStatusBadge'
@@ -27,7 +28,7 @@ import FormError from './FormError'
 import Modal from './Modal'
 
 type Tables = Database['public']['Tables']
-type Owner = Tables['owner_files']['Row']
+type Owner = Tables['owner_files']['Row'] & { balance: number }
 type Entry = Tables['owner_balance_entries']['Row']
 type Pet = Tables['pets']['Row']
 type InvoiceRow = { id: string; invoice_number: string; created_at: string; amount_total: number; payment_status: string; pets: { name: string } | null }
@@ -77,13 +78,13 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
 
   const load = useCallback(async () => {
     const [o, p, e] = await Promise.all([
-      supabase.from('owner_files').select('*').eq('id', ownerId).maybeSingle(),
+      supabase.from('owner_files').select(`*, ${BALANCE_EMBED}`).eq('id', ownerId).maybeSingle(),
       supabase.from('pets').select('*').eq('owner_file_id', ownerId).is('deleted_at', null).order('created_at'),
       supabase.from('owner_balance_entries').select('*').eq('owner_file_id', ownerId).order('created_at', { ascending: false }),
     ])
     const loadError = o.error ?? p.error ?? e.error
     if (loadError) setError(loadError.message)
-    setOwner(o.data)
+    setOwner(o.data ? flatBalance(o.data) : null)
     setPets(p.data ?? [])
     setEntries(e.data ?? [])
     const petIds = (p.data ?? []).map((pet) => pet.id)

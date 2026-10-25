@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
 import { formatMoney } from '../lib/format'
-import { matchesOwner } from '../lib/owners'
+import { BALANCE_EMBED, flatBalance, matchesOwner } from '../lib/owners'
 import LoadingScreen from '../components/LoadingScreen'
 import OwnerDetail from '../components/OwnerDetail'
 import Ltr from '../components/Ltr'
@@ -26,11 +26,11 @@ function OwnersPage() {
   async function load() {
     const { data, error: loadError } = await supabase
       .from('owner_files')
-      .select('id, name, phone, balance, pets(count)')
+      .select(`id, name, phone, ${BALANCE_EMBED}, pets(count)`)
       .is('pets.deleted_at', null)
       .order('name')
     if (loadError) setError(loadError.message)
-    else setOwners((data ?? []) as unknown as OwnerRow[])
+    else setOwners(((data ?? []) as unknown as (Omit<OwnerRow, 'balance'> & { balance: { balance: number } | null })[]).map(flatBalance))
     setLoading(false)
   }
 

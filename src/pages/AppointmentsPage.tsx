@@ -47,8 +47,8 @@ type Appointment = Database['public']['Tables']['appointments']['Row'] & {
 }
 type Pet = Database['public']['Tables']['pets']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
-type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null }
-const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name)'
+type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null; nurse: { full_name: string } | null }
+const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name), nurse:profiles!medical_records_nurse_id_fkey(full_name)'
 // Day view: one event per appointment. Week view: one event per busy hour,
 // carrying only the count (appointment is null).
 type CalendarEvent = {
@@ -905,6 +905,7 @@ function AppointmentsPage() {
                             date: record.visit_date,
                             visitType: record.visit_type ? visitTypeLabel(t, record.visit_type) : undefined,
                             doctor: record.vet?.full_name,
+                            nurse: record.nurse?.full_name,
                             owner: [appointment.pets?.owner_name, appointment.pets?.owner_phone && `⁦${appointment.pets.owner_phone}⁩`].filter(Boolean).join(' · '),
                             record,
                             photoUrl: includePhoto ? record.photo_url : null,

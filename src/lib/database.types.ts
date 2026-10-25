@@ -911,6 +911,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "medical_records_nurse_id_fkey"
+            columns: ["nurse_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       owner_balance_entries: {
@@ -934,9 +941,27 @@ export type Database = {
         Update: never
         Relationships: []
       }
-      owner_files: {
+      owner_balances: {
         Row: {
           balance: number
+          clinic_id: string
+          owner_file_id: string
+        }
+        // 0088: written only by the balance ledger trigger and merge_owner_files.
+        Insert: never
+        Update: never
+        Relationships: [
+          {
+            foreignKeyName: "owner_balances_owner_file_id_fkey"
+            columns: ["owner_file_id"]
+            isOneToOne: true
+            referencedRelation: "owner_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owner_files: {
+        Row: {
           clinic_id: string
           created_at: string
           email: string | null

@@ -213,11 +213,11 @@ function PaymentsPage() {
     setOwnerBalance(null)
     if (!ownerFileId) return
     supabase
-      .from('owner_files')
+      .from('owner_balances')
       .select('balance')
-      .eq('id', ownerFileId)
-      .single()
-      .then(({ data }) => setOwnerBalance(data?.balance ?? null))
+      .eq('owner_file_id', ownerFileId)
+      .maybeSingle()
+      .then(({ data }) => setOwnerBalance(data?.balance ?? 0))
   }, [ownerFileId])
 
   useEffect(() => {
