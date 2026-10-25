@@ -21,7 +21,10 @@ export function stayDay(admittedAt: string, now: Date = new Date()) {
   return Math.round((Date.parse(clinicDay(now)) - Date.parse(clinicDay(admittedAt))) / 86_400_000) + 1
 }
 
-export const isVideo = (path: string) => /\.(mp4|mov|webm)$/i.test(path)
+// Nights billed for a stay (0086): clinic days crossed between admit and discharge; a same-day stay is 1.
+export const stayNights = (admittedAt: string, dischargedAt: string) => Math.max(1, stayDay(admittedAt, new Date(dischargedAt)) - 1)
+
+export const isVideo =(path: string) => /\.(mp4|mov|webm)$/i.test(path)
 
 // "Copy as text": today's updates as a message reception can paste to the owner (WhatsApp etc.).
 // Media can't travel in text, so it is only counted.

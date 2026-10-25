@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -17,7 +17,8 @@ import PaymentStatusBadge from '../components/PaymentStatusBadge'
 import InvoiceDetail from '../components/InvoiceDetail'
 import { Trash2 } from 'lucide-react'
 import { priceWithVat } from '../lib/vat'
-import { clinicDay, clinicMidnight, formatDateTime, formatMoney } from '../lib/format'
+import { stayNights } from '../lib/inpatient'
+import { clinicDay, clinicMidnight, formatDate, formatDateTime, formatMoney } from '../lib/format'
 import { clinicTimeToIso } from '../lib/timeOff'
 import { toPaymentLines } from '../lib/visitServices'
 import { matchesPetSearch } from '../lib/appointmentSearch'
@@ -70,6 +71,8 @@ function PaymentsPage() {
   const forPetId = searchParams.get('pet')
   // From an owner's invoice list: open that invoice (fetched if older than the loaded history).
   const invoiceParam = searchParams.get('invoice')
+  // From a discharged stay's 'Bill this stay' (0086): nights from the price list's hospital night.
+  const stayParam = searchParams.get('stay')
   const isManager = profile?.clinic_role === 'manager'
   const toast = useToast()
 
@@ -87,6 +90,9 @@ function PaymentsPage() {
 
   const [petId, setPetId] = useState('')
   const [appointmentId, setAppointmentId] = useState('')
+  const [stay, setStay] = useState<{ id: string; admitted_at: string; discharged_at: string } | null>(null)
+  // Read by the visit auto-pick below, which runs in a promise after the pet changes.
+  const billingStay = useRef(false)
   const [items, setItems] = useState<LineItem[]>([newLineItem()])
   const [billDiscount, setBillDiscount] = useState<DiscountDraft | null>(null)
   const [payRows, setPayRows] = useState<PayRow[]>([newPayRow()])
@@ -155,6 +161,34 @@ function PaymentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forPetId])
 
+  useEffect(() => {
+    if (!stayParam) return
+    setSearchParams({}, { replace: true })
+    Promise.all([
+      supabase.from('inpatient_stays').select('id, pet_id, admitted_at, discharged_at').eq('id', stayParam).maybeSingle(),
+      supabase.from('services').select('*').eq('hospital_night', true).eq('active', true).maybeSingle(),
+    ]).then(([stayRes, nightRes]) => {
+      const row = stayRes.data
+      if (!row?.discharged_at) return
+      const night = nightRes.data
+      billingStay.current = true
+      setPetId(row.pet_id)
+      setAppointmentId('')
+      setStay({ id: row.id, admitted_at: row.admitted_at, discharged_at: row.discharged_at })
+      setItems([
+        {
+          ...newLineItem(),
+          serviceId: night?.id ?? '',
+          description: night?.name ?? t('inpatient.nightLine'),
+          unitPrice: night ? String(priceWithVat(night.price, night.vat_rate)) : '',
+          quantity: String(stayNights(row.admitted_at, row.discharged_at)),
+        },
+        newLineItem(),
+      ])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stayParam])
+
   // Pre-fill the form from the visit: its pet, the visit link and one line per service.
   useEffect(() => {
     if (!billId) return
@@ -201,7 +235,8 @@ function PaymentsPage() {
         setPetAppointments(data ?? [])
         // Most bills are for today's visit: pick it unless one was chosen (e.g. "Bill this visit").
         const today = (data ?? []).find((a) => !a.invoice && a.status !== 'cancelled' && clinicDay(a.scheduled_at) === clinicDay())
-        if (today) setAppointmentId((current) => current || today.id)
+        // A stay bill is not a visit bill: don't link (and so mark billed) today's visit.
+        if (today && !billingStay.current) setAppointmentId((current) => current || today.id)
       })
   }, [petId])
 
@@ -314,6 +349,7 @@ function PaymentsPage() {
       p_pet: petId,
       p_branch: branchId,
       p_appointment: appointmentId || null,
+      p_stay: stay?.id ?? null,
       p_notes: notes.trim() || null,
       p_lines: lines.map((item) => ({
         service_id: item.serviceId || null,
@@ -329,7 +365,9 @@ function PaymentsPage() {
 
     if (error || !id) {
       setFormError(
-        error?.code === '23505'
+        error?.message.includes('invoices_stay_id_key')
+          ? t('inpatient.stayAlreadyBilled')
+          : error?.code === '23505'
           ? t('payments.alreadyBilled')
           : error?.message.includes('staff limit')
             ? t('payments.discountOverLimit', { max: String(maxDiscount) })
@@ -353,6 +391,8 @@ function PaymentsPage() {
     }
     setPetId('')
     setAppointmentId('')
+    billingStay.current = false
+    setStay(null)
     if (billId) setSearchParams({}, { replace: true })
     setItems([newLineItem()])
     setBillDiscount(null)
@@ -477,9 +517,16 @@ function PaymentsPage() {
                 onChange={(id) => {
                   setPetId(id)
                   setAppointmentId('')
+                  billingStay.current = false
+                  setStay(null)
                 }}
               />
             </label>
+            {stay && (
+              <p className="owner-balance-note">
+                {t('inpatient.billForStay', { from: formatDate(stay.admitted_at), to: formatDate(stay.discharged_at), count: String(stayNights(stay.admitted_at, stay.discharged_at)) })}
+              </p>
+            )}
             {ownerBalance !== null && (
               <p className="owner-balance-note">
                 {t('owners.ownerBalance', { amount: `${formatMoney(ownerBalance)} ${t('common.currency')}` })}

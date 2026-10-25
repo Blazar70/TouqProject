@@ -99,6 +99,7 @@ function SettingsPage() {
       : '',
   )
   const [notifyStatuses, setNotifyStatuses] = useState<string[]>(profile?.push_notify_statuses ?? [])
+  const [dosePush, setDosePush] = useState(profile?.inpatient_dose_push ?? true)
   const [savingNotifications, setSavingNotifications] = useState(false)
   const [notificationsError, setNotificationsError] = useState<string | null>(null)
 
@@ -235,6 +236,25 @@ function SettingsPage() {
         </p>
       </>
     )
+  }
+
+  // The old mark is cleared first: the database allows one hospital night per clinic.
+  async function handleHospitalNight(id: string) {
+    const old = services.find((s) => s.hospital_night)
+    setSavingServiceId(id || old?.id || null)
+    const steps = [old && supabase.from('services').update({ hospital_night: false }).eq('id', old.id), id && supabase.from('services').update({ hospital_night: true }).eq('id', id)]
+    for (const step of steps) {
+      if (!step) continue
+      const { error } = await step
+      if (error) {
+        toast.error(error.message)
+        break
+      }
+    }
+    // Re-read rather than assume: a failed step leaves the mark where the database has it.
+    const { data } = await supabase.from('services').select('*').eq('clinic_id', profile!.clinic_id!).order('name', { ascending: true })
+    if (data) setServices(data)
+    setSavingServiceId(null)
   }
 
   async function handleToggleServiceActive(service: Service) {
@@ -391,6 +411,7 @@ function SettingsPage() {
       .update({
         push_reminder_lead_minutes: leadMinutes,
         push_notify_statuses: notifyStatuses,
+        inpatient_dose_push: dosePush,
       })
       .eq('id', profile.id)
     if (error) {
@@ -598,6 +619,28 @@ function SettingsPage() {
             </ul>
           )}
 
+          {/* 0086: "Bill this stay" fills this service × nights. One per clinic. */}
+          {services.length > 0 && (
+            <label className="hospital-night-pick">
+              {t('settings.hospitalNight')}
+              <select
+                value={services.find((s) => s.hospital_night)?.id ?? ''}
+                onChange={(e) => handleHospitalNight(e.target.value)}
+                disabled={!isManager || savingServiceId !== null}
+              >
+                <option value="">{t('settings.hospitalNightNone')}</option>
+                {services
+                  .filter((s) => s.active)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+              </select>
+              <span className="pet-owner">{t('settings.hospitalNightHint')}</span>
+            </label>
+          )}
+
           <form onSubmit={handleAddService} className="pet-form pet-form-grid">
             <FormError message={serviceError} />
             <label>
@@ -748,6 +791,13 @@ function SettingsPage() {
                       </label>
                     ))}
                   </fieldset>
+                  {/* Only doctors and nurses get inpatient dose pushes (0082); 0086 lets each switch them off. */}
+                  {(profile?.clinic_role === 'doctor' || profile?.clinic_role === 'nurse') && (
+                    <label className="checkbox-label">
+                      <input type="checkbox" checked={dosePush} onChange={(e) => setDosePush(e.target.checked)} />
+                      {t('settings.dosePush')}
+                    </label>
+                  )}
                   <button type="submit" disabled={savingNotifications}>
                     {savingNotifications ? t('common.saving') : t('common.saveChanges')}
                   </button>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inpatientMessage, isVideo, stayDay } from './inpatient'
+import { inpatientMessage, isVideo, stayDay, stayNights } from './inpatient'
 
 // Echoes the key and its values, so the test doesn't depend on the wording.
 const t = (key: string, vars?: Record<string, string>) => `${key}${vars ? `(${Object.values(vars).join(',')})` : ''}`
@@ -19,6 +19,14 @@ describe('stayDay', () => {
     // 22:30 Riyadh on the 24th is already the 25th's clinic day after 21:00Z.
     expect(stayDay('2026-10-24T05:00:00Z', new Date('2026-10-24T21:30:00Z'))).toBe(2)
     expect(stayDay('2026-10-20T10:00:00Z', new Date('2026-10-24T10:00:00Z'))).toBe(5)
+  })
+})
+
+describe('stayNights', () => {
+  it('counts clinic midnights crossed, at least 1', () => {
+    expect(stayNights('2026-10-24T05:00:00Z', '2026-10-24T12:00:00Z')).toBe(1)
+    expect(stayNights('2026-10-24T05:00:00Z', '2026-10-25T08:00:00Z')).toBe(1)
+    expect(stayNights('2026-10-20T18:00:00Z', '2026-10-24T08:00:00Z')).toBe(4)
   })
 })
 

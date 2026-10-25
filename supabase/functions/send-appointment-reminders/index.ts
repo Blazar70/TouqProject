@@ -115,6 +115,8 @@ async function sendInpatientDoseReminders(admin: SupabaseClient, now: number) {
       .eq('disabled', false)
       .eq('clinics.disabled', false)
       .in('clinic_role', ['doctor', 'nurse'])
+      // 0086: each person can switch dose pushes off in Settings.
+      .eq('inpatient_dose_push', true)
     const recipients = (staff ?? []).filter((p) =>
       getsInpatientAlert({ id: p.id, clinic_role: p.clinic_role, branchIds: (p.staff_branches as { branch_id: string }[]).map((b) => b.branch_id) }, stay.branch_id),
     )

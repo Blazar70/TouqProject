@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { ChangeEvent, FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -10,7 +11,7 @@ import type { Database } from '../lib/database.types'
 import { formatDate, formatDateTime, formatTime } from '../lib/format'
 import { validateImageFile } from '../lib/imageUpload'
 import { toLatinDigits } from '../lib/arabicDigits'
-import { INPATIENT_MEDIA_BUCKET, MAX_VIDEO_BYTES, inpatientMessage, isVideo, stayDay } from '../lib/inpatient'
+import { INPATIENT_MEDIA_BUCKET, MAX_VIDEO_BYTES, inpatientMessage, isVideo, stayDay, stayNights } from '../lib/inpatient'
 import Ltr from './Ltr'
 import FormError from './FormError'
 import InpatientReminders from './InpatientReminders'
@@ -29,7 +30,7 @@ const num = (value: string) => (value.trim() ? Number(toLatinDigits(value)) : nu
 export type OpenStay = Pick<Stay, 'admitted_at' | 'branch_id'>
 
 function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?: (stay: OpenStay | null) => void }) {
-  const { profile } = useAuth()
+  const { profile, handlesMoney } = useAuth()
   const { branchId, branchName, canWriteAt } = useBranch()
   const { t } = useLanguage()
   const confirm = useConfirm()
@@ -40,6 +41,10 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
 
   const [stays, setStays] = useState<Stay[] | null>(null)
   const [updates, setUpdates] = useState<Update[]>([])
+  // Earlier stays (0086): their bill, and the updates of the one opened.
+  const [billByStay, setBillByStay] = useState<Record<string, { id: string; invoice_number: string }>>({})
+  const [openPastId, setOpenPastId] = useState<string | null>(null)
+  const [pastUpdates, setPastUpdates] = useState<Update[] | null>(null)
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({})
   const [admitting, setAdmitting] = useState(false)
   const [reason, setReason] = useState('')
@@ -60,22 +65,42 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     if (stayError) return setError(stayError.message)
     const rows = (data as Stay[] | null) ?? []
     setStays(rows)
+    const closed = rows.filter((s) => s.discharged_at).map((s) => s.id)
+    if (closed.length) {
+      const { data: bills } = await supabase.from('invoices').select('id, invoice_number, stay_id').in('stay_id', closed)
+      setBillByStay(Object.fromEntries((bills ?? []).map((b) => [b.stay_id!, b])))
+    }
     const current = rows.find((s) => !s.discharged_at)
     onOpenStayChange?.(current ?? null)
     if (!current) return setUpdates([])
+    const list = await loadUpdates(current.id)
+    if (list) setUpdates(list)
+  }
+
+  async function loadUpdates(stayId: string) {
     const { data: ups, error: upError } = await supabase
       .from('inpatient_updates')
       .select('*, author:profiles!inpatient_updates_author_id_fkey(full_name)')
-      .eq('stay_id', current.id)
+      .eq('stay_id', stayId)
       .order('created_at', { ascending: false })
-    if (upError) return setError(upError.message)
+    if (upError) {
+      setError(upError.message)
+      return null
+    }
     const list = (ups as Update[] | null) ?? []
-    setUpdates(list)
     const paths = list.flatMap((u) => u.media)
     if (paths.length) {
       const { data: signed } = await supabase.storage.from(INPATIENT_MEDIA_BUCKET).createSignedUrls(paths, SIGNED_URL_SECONDS)
-      setMediaUrls(Object.fromEntries((signed ?? []).filter((s) => s.signedUrl).map((s) => [s.path, s.signedUrl])))
+      setMediaUrls((current) => ({ ...current, ...Object.fromEntries((signed ?? []).filter((s) => s.signedUrl).map((s) => [s.path, s.signedUrl])) }))
     }
+    return list
+  }
+
+  async function togglePast(stayId: string) {
+    if (openPastId === stayId) return setOpenPastId(null)
+    setOpenPastId(stayId)
+    setPastUpdates(null)
+    setPastUpdates((await loadUpdates(stayId)) ?? [])
   }
 
   useEffect(() => {
@@ -183,6 +208,62 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     }
   }
 
+  // One stay's updates; earlier stays are read-only.
+  const updateList = (list: Update[], readOnly: boolean) => (
+    <ul className="record-list">
+      {list.map((u) => (
+        <li key={u.id}>
+          <div className="record-row">
+            <div>
+              <strong>
+                <Ltr>{formatDate(u.created_at)} {formatTime(u.created_at)}</Ltr>
+              </strong>{' '}
+              <span className="pet-owner">
+                · {u.author?.full_name ?? '—'} · {branchName(u.branch_id)}
+              </span>
+              {u.note && (
+                <div className="inpatient-note" dir="auto">
+                  {u.note}
+                </div>
+              )}
+              {(u.temperature_c != null || u.heart_rate != null || u.weight_kg != null) && (
+                <div className="pet-owner">
+                  {[
+                    u.temperature_c != null && t('inpatient.tempShort', { value: String(u.temperature_c) }),
+                    u.heart_rate != null && t('inpatient.hrShort', { value: String(u.heart_rate) }),
+                    u.weight_kg != null && t('inpatient.weightShort', { value: String(u.weight_kg) }),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </div>
+              )}
+              {u.media.length > 0 && (
+                <div className="inpatient-media">
+                  {u.media.map((path) =>
+                    !mediaUrls[path] ? null : isVideo(path) ? (
+                      <video key={path} src={mediaUrls[path]} controls preload="metadata" />
+                    ) : (
+                      <a key={path} href={mediaUrls[path]} target="_blank" rel="noreferrer">
+                        <img src={mediaUrls[path]} alt={t('inpatient.photoAlt', { name: pet.name })} />
+                      </a>
+                    ),
+                  )}
+                </div>
+              )}
+            </div>
+            {!readOnly && (u.author_id === profile?.id || role === 'manager') && (
+              <div className="record-actions">
+                <button type="button" className="delete-button" onClick={() => handleDeleteUpdate(u)}>
+                  {t('common.delete')}
+                </button>
+              </div>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+
   if (stays === null) return null
 
   return (
@@ -274,77 +355,55 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
       )}
 
       {open && updates.length === 0 && <p className="pet-owner">{t('inpatient.noUpdates')}</p>}
-      {open && updates.length > 0 && (
-        <ul className="record-list">
-          {updates.map((u) => (
-            <li key={u.id}>
-              <div className="record-row">
-                <div>
-                  <strong>
-                    <Ltr>{formatDate(u.created_at)} {formatTime(u.created_at)}</Ltr>
-                  </strong>{' '}
-                  <span className="pet-owner">
-                    · {u.author?.full_name ?? '—'} · {branchName(u.branch_id)}
-                  </span>
-                  {u.note && (
-                    <div className="inpatient-note" dir="auto">
-                      {u.note}
-                    </div>
-                  )}
-                  {(u.temperature_c != null || u.heart_rate != null || u.weight_kg != null) && (
-                    <div className="pet-owner">
-                      {[
-                        u.temperature_c != null && t('inpatient.tempShort', { value: String(u.temperature_c) }),
-                        u.heart_rate != null && t('inpatient.hrShort', { value: String(u.heart_rate) }),
-                        u.weight_kg != null && t('inpatient.weightShort', { value: String(u.weight_kg) }),
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </div>
-                  )}
-                  {u.media.length > 0 && (
-                    <div className="inpatient-media">
-                      {u.media.map((path) =>
-                        !mediaUrls[path] ? null : isVideo(path) ? (
-                          <video key={path} src={mediaUrls[path]} controls preload="metadata" />
-                        ) : (
-                          <a key={path} href={mediaUrls[path]} target="_blank" rel="noreferrer">
-                            <img src={mediaUrls[path]} alt={t('inpatient.photoAlt', { name: pet.name })} />
-                          </a>
-                        ),
-                      )}
-                    </div>
-                  )}
-                </div>
-                {(u.author_id === profile?.id || role === 'manager') && (
-                  <div className="record-actions">
-                    <button type="button" className="delete-button" onClick={() => handleDeleteUpdate(u)}>
-                      {t('common.delete')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      {open && updates.length > 0 && updateList(updates, false)}
 
       {past.length > 0 && (
         <>
           <h4 className="vaccination-history-title">{t('inpatient.pastStays')}</h4>
           <ul className="record-list">
-            {past.map((s) => (
-              <li key={s.id}>
-                <div className="record-row">
-                  <div>
-                    <Ltr>
-                      {formatDate(s.admitted_at)} – {formatDate(s.discharged_at!)}
-                    </Ltr>
-                    {s.reason && <span className="pet-owner"> · {s.reason}</span>}
+            {past.map((s) => {
+              const bill = billByStay[s.id]
+              return (
+                <li key={s.id}>
+                  <div className="record-row">
+                    <div>
+                      <Ltr>
+                        {formatDate(s.admitted_at)} – {formatDate(s.discharged_at!)}
+                      </Ltr>
+                      <span className="pet-owner">
+                        {' · '}
+                        {t('inpatient.nights', { count: String(stayNights(s.admitted_at, s.discharged_at!)) })}
+                        {s.reason && ` · ${s.reason}`}
+                      </span>
+                    </div>
+                    <div className="record-actions">
+                      <button type="button" className="secondary-button" aria-expanded={openPastId === s.id} onClick={() => togglePast(s.id)}>
+                        {t(openPastId === s.id ? 'inpatient.hideUpdates' : 'inpatient.showUpdates')}
+                      </button>
+                      {bill ? (
+                        <Link to={`/payments?invoice=${bill.id}`} className="status-badge status-completed">
+                          {t('inpatient.billed', { number: bill.invoice_number })}
+                        </Link>
+                      ) : (
+                        handlesMoney && (
+                          <Link to={`/payments?stay=${s.id}`} className="secondary-button">
+                            {t('inpatient.billStay')}
+                          </Link>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                  {openPastId === s.id &&
+                    (pastUpdates === null ? (
+                      <p className="pet-owner">{t('common.loading')}</p>
+                    ) : pastUpdates.length === 0 ? (
+                      <p className="pet-owner">{t('inpatient.noUpdates')}</p>
+                    ) : (
+                      updateList(pastUpdates, true)
+                    ))}
+                </li>
+              )
+            })}
           </ul>
         </>
       )}

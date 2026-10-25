@@ -4740,3 +4740,12 @@ img.waiver-signature {
 .reminders-section a.secondary-button {
   text-decoration: none;
 }
+
+/* Price list: which service "Bill this stay" uses per night (0086). */
+.hospital-night-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 24rem;
+  margin-block: 1rem;
+}

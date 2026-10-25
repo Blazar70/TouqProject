@@ -738,6 +738,8 @@ export type Database = {
           amount_refunded: number
           amount_total: number
           appointment_id: string | null
+          // 0086: set by create_invoice(p_stay); one invoice per stay.
+          stay_id: string | null
           branch_id: string
           clinic_id: string
           created_at: string
@@ -1204,6 +1206,7 @@ export type Database = {
           phone: string | null
           push_notify_statuses: string[]
           push_reminder_lead_minutes: number | null
+          inpatient_dose_push: boolean
           role: Database["public"]["Enums"]["user_role"]
           takes_appointments: boolean
           title: string | null
@@ -1222,6 +1225,7 @@ export type Database = {
           phone?: string | null
           push_notify_statuses?: string[]
           push_reminder_lead_minutes?: number | null
+          inpatient_dose_push?: boolean
           role: Database["public"]["Enums"]["user_role"]
           takes_appointments?: boolean
           title?: string | null
@@ -1240,6 +1244,7 @@ export type Database = {
           phone?: string | null
           push_notify_statuses?: string[]
           push_reminder_lead_minutes?: number | null
+          inpatient_dose_push?: boolean
           role?: Database["public"]["Enums"]["user_role"]
           takes_appointments?: boolean
           title?: string | null
@@ -1300,6 +1305,7 @@ export type Database = {
       services: {
         Row: {
           active: boolean
+          hospital_night: boolean
           clinic_id: string
           created_at: string
           id: string
@@ -1309,6 +1315,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          hospital_night?: boolean
           clinic_id: string
           created_at?: string
           id?: string
@@ -1318,6 +1325,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          hospital_night?: boolean
           clinic_id?: string
           created_at?: string
           id?: string
@@ -1594,6 +1602,7 @@ export type Database = {
           p_discount: Json | null
           p_payments: Json
           p_paid_at?: string
+          p_stay?: string | null
         }
         Returns: string
       }
