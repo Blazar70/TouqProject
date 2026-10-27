@@ -17,8 +17,7 @@ begin
   assert to_regclass('public.caregivers') is null, 'caregivers still exists';
   assert not exists (select 1 from information_schema.columns where table_name = 'appointments' and column_name = 'assigned_staff_id'),
     'assigned_staff_id still exists';
-  assert not exists (select 1 from staff_branches sb join profiles p on p.id = sb.profile_id where p.clinic_role = 'manager'),
-    'a manager still has branch rows';
+  -- (0047 removed managers' branch rows; branch managers made since then have them on purpose.)
 
   select clinic_id, id into clinic_a, mgr from profiles where clinic_role = 'manager' order by created_at limit 1;
   select clinic_id, id into clinic_b, doc_b from profiles where role = 'vet' and clinic_id <> clinic_a limit 1;

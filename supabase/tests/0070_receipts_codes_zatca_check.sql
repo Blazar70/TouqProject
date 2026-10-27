@@ -20,8 +20,8 @@ begin
   update branches set invoice_code = 'RCX' where clinic_id = 'f7000000-0000-0000-0000-00000000000a' and is_main;
   v_code := 'RCX';
 
-  perform public.add_owner_balance('f7000000-0000-0000-0000-0000000000c1', 50, 'cash');
-  perform public.add_owner_balance('f7000000-0000-0000-0000-0000000000c1', 30, 'card');
+  perform public.add_owner_balance('f7000000-0000-0000-0000-0000000000c1', 50, 'cash', null, (select id from branches where clinic_id = 'f7000000-0000-0000-0000-00000000000a' and is_main)); -- 0088: entries need a branch;
+  perform public.add_owner_balance('f7000000-0000-0000-0000-0000000000c1', 30, 'card', null, (select id from branches where clinic_id = 'f7000000-0000-0000-0000-00000000000a' and is_main));
   assert (select array_agg(receipt_number order by created_at) from owner_balance_entries
           where owner_file_id = 'f7000000-0000-0000-0000-0000000000c1')
          = array['DEP-' || v_code || '-000001', 'DEP-' || v_code || '-000002'],

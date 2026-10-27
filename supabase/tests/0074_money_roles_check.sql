@@ -57,7 +57,7 @@ begin
     '[{"service_id": "f7400000-0000-0000-0000-0000000000d1", "description": "Exam", "unit_price": 115, "quantity": 1}]', null,
     '[{"method": "cash", "amount": 50}]');
   perform set_config('check.inv', v_inv::text, true);
-  perform add_owner_balance(v_owner, 20, 'cash');
+  perform add_owner_balance(v_owner, 20, 'cash', null, v_branch); -- 0088: entries need a branch
   insert into cash_counts (clinic_id, branch_id, day, counted) values ('f7400000-0000-0000-0000-00000000000a', v_branch, (now() at time zone 'Asia/Riyadh')::date, 70);
   assert (select count(*) from invoices where id = v_inv) = 1, 'receptionist must see the invoice';
   assert (select count(*) from invoice_items where invoice_id = v_inv) = 1, 'receptionist must see the items';
@@ -101,7 +101,7 @@ begin
   exception when sqlstate 'P0001' then null;
   end;
   begin
-    perform add_owner_balance((select owner_file_id from pets where id = 'f7400000-0000-0000-0000-0000000000c1'), 5, 'cash');
+    perform add_owner_balance((select owner_file_id from pets where id = 'f7400000-0000-0000-0000-0000000000c1'), 5, 'cash', null, (select id from branches where clinic_id = 'f7400000-0000-0000-0000-00000000000a' and is_main));
     assert false, 'doctor deposit must be refused';
   exception when insufficient_privilege then null;
   end;

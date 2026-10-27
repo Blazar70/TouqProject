@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch, useBranchView } from '../lib/BranchContext'
@@ -90,7 +90,7 @@ function PaymentsPage() {
 
   const [petId, setPetId] = useState('')
   const [appointmentId, setAppointmentId] = useState('')
-  const [stay, setStay] = useState<{ id: string; admitted_at: string; discharged_at: string } | null>(null)
+  const [stay, setStay] = useState<{ id: string; admitted_at: string; discharged_at: string; noNightService: boolean } | null>(null)
   // Read by the visit auto-pick below, which runs in a promise after the pet changes.
   const billingStay = useRef(false)
   const [items, setItems] = useState<LineItem[]>([newLineItem()])
@@ -174,7 +174,7 @@ function PaymentsPage() {
       billingStay.current = true
       setPetId(row.pet_id)
       setAppointmentId('')
-      setStay({ id: row.id, admitted_at: row.admitted_at, discharged_at: row.discharged_at })
+      setStay({ id: row.id, admitted_at: row.admitted_at, discharged_at: row.discharged_at, noNightService: !night })
       setItems([
         {
           ...newLineItem(),
@@ -227,7 +227,7 @@ function PaymentsPage() {
     }
     supabase
       .from('appointments')
-      .select('*, invoice:invoices(id)')
+      .select('*, invoice:invoices!invoices_appointment_id_fkey(id)')
       .eq('pet_id', petId)
       .order('scheduled_at', { ascending: false })
       .limit(10)
@@ -525,6 +525,13 @@ function PaymentsPage() {
             {stay && (
               <p className="owner-balance-note">
                 {t('inpatient.billForStay', { from: formatDate(stay.admitted_at), to: formatDate(stay.discharged_at), count: String(stayNights(stay.admitted_at, stay.discharged_at)) })}
+              </p>
+            )}
+            {/* Nightly H24: without a hospital-night service the night line has no price. */}
+            {stay?.noNightService && (
+              <p className="owner-balance-note" role="status">
+                {t('inpatient.noNightService')}{' '}
+                {isManager ? <Link to="/settings">{t('inpatient.noNightServiceLink')}</Link> : t('inpatient.noNightServiceAsk')}
               </p>
             )}
             {ownerBalance !== null && (

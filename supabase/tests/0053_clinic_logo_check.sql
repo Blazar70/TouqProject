@@ -80,7 +80,8 @@ end $$;
 set local role anon;
 select set_config('request.jwt.claims', json_build_object('role', 'anon')::text, true);
 do $$ begin
-  assert exists (select 1 from storage.objects where bucket_id = 'clinic-logos'), 'anon cannot read logos';
+  -- 0083: listing the bucket is closed (logos load by public URL, which needs no RLS).
+  assert not exists (select 1 from storage.objects where bucket_id = 'clinic-logos'), 'anon must not list logos';
   begin
     insert into storage.objects (bucket_id, name) values ('clinic-logos', 'f5300000-0000-0000-0000-00000000000a/anon.png');
     raise exception 'anon uploaded a logo';

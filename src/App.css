@@ -3840,6 +3840,16 @@ button.cancel-button:disabled,
   color: var(--text-muted);
 }
 
+/* Nightly H12/H19: a pet waiting 20+ minutes stands out. */
+.dash-waiting {
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-waiting.is-long {
+  color: var(--status-amber-fg);
+  font-weight: 600;
+}
+
 .dash-footer {
   margin-top: 1.5rem;
 }
@@ -4486,6 +4496,63 @@ button.cancel-button:disabled,
   margin: 0;
   white-space: pre-wrap;
   line-height: 1.7;
+}
+
+.waiver-hand-over {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* Nightly H18: the owner's full-screen reading and signing view. */
+.admin-modal-card.waiver-owner-view {
+  position: fixed;
+  inset: 0;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  padding: max(1.5rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));
+}
+
+.waiver-owner-view > * {
+  max-width: 760px;
+  margin-inline: auto;
+}
+
+.waiver-owner-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.waiver-owner-bar h2 {
+  margin: 0;
+}
+
+.waiver-lang-switch {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.waiver-lang-switch button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.waiver-owner-view .waiver-text {
+  max-height: none;
+  padding: 1.5rem;
+}
+
+.waiver-owner-view .waiver-text p {
+  font-size: 1.15rem;
 }
 
 .waiver-voided {

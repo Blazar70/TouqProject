@@ -6,6 +6,8 @@ export const SAUDI_MOBILE_MAX_DIGITS = 9
 
 export function formatSaudiPhoneInput(raw: string) {
   let digits = toLatinDigits(raw).replace(/\D/g, '')
+  // A pasted +966 / 00966 number: drop the country code (a mobile never starts with 9).
+  if (digits.length > SAUDI_MOBILE_MAX_DIGITS) digits = digits.replace(/^(00)?966/, '')
   if (digits.startsWith('0')) digits = digits.slice(1)
   return digits.slice(0, SAUDI_MOBILE_MAX_DIGITS)
 }

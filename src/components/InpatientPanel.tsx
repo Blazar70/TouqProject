@@ -58,7 +58,8 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
   const [admitting, setAdmitting] = useState(false)
   // Discharge asks how the stay ended (0087): only 'home' gets an owner pickup reminder.
   const [discharging, setDischarging] = useState(false)
-  const [outcome, setOutcome] = useState<Outcome>('home')
+  // Nothing chosen at first (nightly H21): a hurried tap must not tell the owner a pet that died is ready.
+  const [outcome, setOutcome] = useState<Outcome | null>(null)
   const [dischargeNote, setDischargeNote] = useState('')
   const [reason, setReason] = useState('')
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
@@ -204,7 +205,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
 
   async function handleDischarge(e: FormEvent) {
     e.preventDefault()
-    if (!open) return
+    if (!open || !outcome) return
     setBusy(true)
     const { error: dischargeError } = await supabase
       .from('inpatient_stays')
@@ -213,7 +214,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     setBusy(false)
     if (dischargeError) return setError(dischargeError.message)
     setDischarging(false)
-    setOutcome('home')
+    setOutcome(null)
     setDischargeNote('')
     toast.success(t('inpatient.discharged', { name: pet.name }))
     load()
@@ -331,7 +332,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
             <legend>{t('inpatient.outcome', { name: pet.name })}</legend>
             {OUTCOMES.map((o) => (
               <label key={o} className="checkbox-label">
-                <input type="radio" name="discharge-outcome" value={o} checked={outcome === o} onChange={() => setOutcome(o)} />
+                <input type="radio" name="discharge-outcome" value={o} checked={outcome === o} onChange={() => setOutcome(o)} required />
                 {t(OUTCOME_KEYS[o])}
               </label>
             ))}
@@ -341,10 +342,13 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
             <input value={dischargeNote} onChange={(e) => setDischargeNote(e.target.value)} />
           </label>
           <div className="record-edit-actions">
-            <button type="submit" disabled={busy}>
+            <button type="submit" disabled={busy || !outcome}>
               {busy ? t('common.saving') : t('inpatient.discharge')}
             </button>
-            <button type="button" className="cancel-button" onClick={() => setDischarging(false)}>
+            <button type="button" className="cancel-button" onClick={() => {
+                setDischarging(false)
+                setOutcome(null)
+              }}>
               {t('common.cancel')}
             </button>
           </div>

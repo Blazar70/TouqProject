@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
+import { translations } from '../lib/i18n/translations'
+import type { TranslationKey } from '../lib/i18n/translations'
 import { useToast } from '../lib/ToastContext'
 import { usePrintSummary } from '../lib/PrintContext'
 import type { Database } from '../lib/database.types'
@@ -201,6 +203,9 @@ function SignWaiverModal({
   const [signature, setSignature] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Nightly H18: the owner reads and signs full screen, in their language, with no staff controls.
+  const [ownerView, setOwnerView] = useState(false)
+  const tl = (key: TranslationKey) => (ownerView ? (translations[lang] as Record<string, string>)[key] ?? t(key) : t(key))
 
   const template = templates.find((tpl) => tpl.id === templateId)!
   const chosen = links.find((l) => l.value === link)
@@ -228,9 +233,23 @@ function SignWaiverModal({
   }
 
   return (
-    <Modal onClose={onClose} labelledBy="sign-waiver-title" className="booking-modal">
-      <h2 id="sign-waiver-title">{t('waivers.collectFor', { name: pet.name })}</h2>
-      <form onSubmit={handleSubmit} className="pet-form">
+    <Modal onClose={onClose} labelledBy="sign-waiver-title" className={ownerView ? 'booking-modal waiver-owner-view' : 'booking-modal'}>
+      {ownerView ? (
+        <div className="waiver-owner-bar" dir={lang === 'ar' ? 'rtl' : 'ltr'} lang={lang}>
+          <h2 id="sign-waiver-title">{lang === 'ar' ? template.title_ar : template.title_en}</h2>
+          <div className="waiver-lang-switch" role="group" aria-label={tl('waivers.language')}>
+            {(['en', 'ar'] as const).map((l) => (
+              <button key={l} type="button" className="secondary-button" aria-pressed={lang === l} onClick={() => setLang(l)}>
+                {l === 'en' ? 'English' : 'العربية'}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <h2 id="sign-waiver-title">{t('waivers.collectFor', { name: pet.name })}</h2>
+      )}
+      <form onSubmit={handleSubmit} className="pet-form" dir={ownerView ? (lang === 'ar' ? 'rtl' : 'ltr') : undefined} lang={ownerView ? lang : undefined}>
+        {!ownerView && (
         <div className="pet-form-grid">
           <label>
             {t('waivers.template')}
@@ -263,31 +282,45 @@ function SignWaiverModal({
             </label>
           )}
         </div>
+        )}
 
         <section className="waiver-text" dir={lang === 'ar' ? 'rtl' : 'ltr'} lang={lang}>
-          <h3>{lang === 'ar' ? template.title_ar : template.title_en}</h3>
+          {!ownerView && <h3>{lang === 'ar' ? template.title_ar : template.title_en}</h3>}
           <p>{lang === 'ar' ? template.body_ar : template.body_en}</p>
         </section>
 
-        <p className="pet-owner">{t('waivers.handOver', { branch: branchName(branchId) })}</p>
+        {!ownerView && (
+          <div className="waiver-hand-over">
+            <p className="pet-owner">{t('waivers.handOver', { branch: branchName(branchId) })}</p>
+            <button type="button" className="secondary-button" onClick={() => setOwnerView(true)}>
+              {t('waivers.showToOwner')}
+            </button>
+          </div>
+        )}
         <FormError message={error} />
         <label>
-          {t('waivers.signerName')}
+          {tl('waivers.signerName')}
           <RequiredMark />
           <input value={signerName} onChange={(e) => setSignerName(e.target.value)} required />
         </label>
         <label className="checkbox-label">
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} required />
-          {t('waivers.agree')}
+          {tl('waivers.agree')}
         </label>
-        <SignaturePad onChange={setSignature} label={t('waivers.signHere')} />
+        <SignaturePad onChange={setSignature} label={tl('waivers.signHere')} clearLabel={tl('waivers.clearSignature')} />
         <div className="record-edit-actions">
           <button type="submit" disabled={busy || !signature || !agreed || !signerName.trim()}>
-            {busy ? t('common.saving') : t('waivers.sign')}
+            {busy ? tl('common.saving') : tl('waivers.sign')}
           </button>
-          <button type="button" className="cancel-button" onClick={onClose}>
-            {t('common.cancel')}
-          </button>
+          {ownerView ? (
+            <button type="button" className="cancel-button" onClick={() => setOwnerView(false)}>
+              {t('waivers.backToStaff')}
+            </button>
+          ) : (
+            <button type="button" className="cancel-button" onClick={onClose}>
+              {t('common.cancel')}
+            </button>
+          )}
         </div>
       </form>
     </Modal>

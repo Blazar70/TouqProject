@@ -12,6 +12,7 @@ import { formatDate, formatDateTime, formatMoney } from './format'
 import { clinicLogoUrl } from './imageUpload'
 import { zatcaTlvBase64 } from './zatcaQr'
 import qrcode from 'qrcode-generator'
+import { getReceiptSize } from './printSize'
 
 /** An invoice, credit note or balance deposit receipt, ready to print. Amounts are VAT-inclusive. */
 export type InvoiceDoc = {
@@ -245,6 +246,20 @@ const INVOICE_STYLES = `
   .print-logo { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; }
 `
 
+// An 80 mm receipt roll: one column, smaller type, the page as long as the receipt.
+const RECEIPT_80MM_STYLES = `
+  @page { size: 80mm auto; margin: 0; }
+  body { width: 80mm; padding: 4mm 4mm 6mm; font-size: 11px; }
+  .print-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .print-header h1 { font-size: 1.15rem; }
+  .inv-meta { grid-template-columns: 1fr; gap: 0; margin-bottom: 0.75rem; }
+  th, td { padding: 0.25rem 0.1rem; }
+  .inv-totals { width: 100%; }
+  .inv-foot { flex-direction: column; align-items: center; gap: 0.75rem; }
+  .print-qr svg { width: 120px; height: 120px; }
+  .print-footer { margin-top: 1rem; }
+`
+
 function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone: string | null, logo: string | null, rtl: boolean) {
   const title = bi(doc.kind === 'invoice' ? 'print.taxInvoice' : doc.kind === 'credit_note' ? 'payments.creditNote' : 'owners.depositReceipt')
   const deposit = doc.kind === 'deposit'
@@ -306,7 +321,7 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
   <head>
     <meta charset="utf-8" />
     <title>${escapeHtml(doc.number)}</title>
-    <style>${PRINT_STYLES}${INVOICE_STYLES}</style>
+    <style>${PRINT_STYLES}${INVOICE_STYLES}${getReceiptSize() === '80mm' ? RECEIPT_80MM_STYLES : ''}</style>
   </head>
   <body>
     <header class="print-header">

@@ -21,6 +21,12 @@ describe('formatSaudiPhoneInput', () => {
     expect(formatSaudiPhoneInput('٠٥٠١٢٣٤٥٦٧')).toBe('501234567')
   })
 
+  it('drops a pasted country code', () => {
+    expect(formatSaudiPhoneInput('+966 50 123 4567')).toBe('501234567')
+    expect(formatSaudiPhoneInput('00966501234567')).toBe('501234567')
+    expect(formatSaudiPhoneInput('0501234567')).toBe('501234567')
+  })
+
   it('drops a leading 0 (local dialing prefix)', () => {
     expect(formatSaudiPhoneInput('0512345678')).toBe('512345678')
   })

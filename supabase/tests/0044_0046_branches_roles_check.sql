@@ -27,6 +27,7 @@ do $$ begin
   ), 'a clinic with accounts has no manager';
   assert not exists (
     select 1 from appointments a join branches b on b.id = a.branch_id where not b.is_main
+      and a.created_at < (select min(created_at) from branches where not is_main) -- only rows from before branches existed
   ), 'backfilled appointment not on main branch';
 end $$;
 
@@ -78,8 +79,8 @@ begin
     ('f0000000-0000-0000-0000-0000000000e1', 'f0000000-0000-0000-0000-00000000000a', now(), 'f0000000-0000-0000-0000-000000000001');
   assert (select branch_id from appointments where pet_id = 'f0000000-0000-0000-0000-0000000000e1') = x_main,
     'appointment did not get the main branch';
-  insert into invoices (clinic_id, pet_id, created_by, method, amount_total) values
-    ('f0000000-0000-0000-0000-00000000000a', 'f0000000-0000-0000-0000-0000000000e1', 'f0000000-0000-0000-0000-000000000001', 'cash', 10);
+  insert into invoices (clinic_id, pet_id, created_by, amount_total) values -- (0061 moved the method to payments)
+    ('f0000000-0000-0000-0000-00000000000a', 'f0000000-0000-0000-0000-0000000000e1', 'f0000000-0000-0000-0000-000000000001', 10);
   assert (select branch_id from invoices where pet_id = 'f0000000-0000-0000-0000-0000000000e1') = x_main,
     'invoice did not get the main branch';
 
@@ -144,6 +145,7 @@ end $$;
 
 -- disabled clinic: same for its manager
 reset role;
+select set_config('request.jwt.claims', '', true); -- 0054 clinic guard: no logged-in user for this setup step
 update clinics set disabled = true where id = 'f0000000-0000-0000-0000-00000000000b';
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', 'f0000000-0000-0000-0000-000000000004', 'role', 'authenticated')::text, true);

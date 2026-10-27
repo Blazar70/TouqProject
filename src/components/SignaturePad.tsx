@@ -3,7 +3,8 @@ import type { PointerEvent } from 'react'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 
 // Finger / pen / mouse signature (0084). Always black ink on white, so the saved PNG prints the same in dark mode.
-function SignaturePad({ onChange, label }: { onChange: (dataUrl: string | null) => void; label: string }) {
+// clearLabel: the owner's full-screen view passes it in the owner's language.
+function SignaturePad({ onChange, label, clearLabel }: { onChange: (dataUrl: string | null) => void; label: string; clearLabel?: string }) {
   const { t } = useLanguage()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
@@ -84,7 +85,7 @@ function SignaturePad({ onChange, label }: { onChange: (dataUrl: string | null) 
         onPointerCancel={end}
       />
       <button type="button" className="secondary-button" onClick={clear}>
-        {t('waivers.clearSignature')}
+        {clearLabel ?? t('waivers.clearSignature')}
       </button>
     </div>
   )

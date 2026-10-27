@@ -12,7 +12,7 @@ import { useConfirm } from '../lib/ConfirmContext'
 import { usePrintSummary } from '../lib/PrintContext'
 import type { Database } from '../lib/database.types'
 import { formatDateTime, formatMoney } from '../lib/format'
-import { isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
+import { isValidSaudiMobile, phoneKey, stripSaudiPrefix } from '../lib/phone'
 import { METHOD_LABEL_KEYS, PAYMENT_METHODS } from '../lib/invoiceMath'
 import { balancesAfter } from '../lib/owners'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
@@ -78,6 +78,9 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
   const [saving, setSaving] = useState(false)
   const [doneEntryId, setDoneEntryId] = useState<string | null>(null)
   const [exportData, setExportData] = useState<OwnerData | null>(null)
+  // Nightly H23: deleting personal data asks the manager to type the owner's phone (or name) first.
+  const [deleting, setDeleting] = useState(false)
+  const [deleteCheck, setDeleteCheck] = useState('')
 
   const load = useCallback(async () => {
     const [o, p, e] = await Promise.all([
@@ -239,9 +242,17 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
     }
   }
 
+  const deleteMatches = current.phone
+    ? phoneKey(deleteCheck) !== '' && phoneKey(deleteCheck) === phoneKey(current.phone)
+    : deleteCheck.trim() === current.name.trim()
+
+  function closeDelete() {
+    setDeleting(false)
+    setDeleteCheck('')
+  }
+
   async function handleAnonymise() {
-    const ok = await confirm(t('owners.deleteDataConfirm', { name: current.name }), { danger: true, confirmLabel: t('owners.deleteData') })
-    if (!ok) return
+    closeDelete()
     const { error: rpcError } = await supabase.rpc('anonymise_owner_file', { p_owner: current.id })
     if (rpcError) return toast.error(rpcError.message)
     toast.success(t('owners.dataDeleted'))
@@ -297,7 +308,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
             </button>
           )}
           {isManager && !current.anonymised_at && (
-            <button type="button" className="delete-button" onClick={handleAnonymise}>
+            <button type="button" className="delete-button" onClick={() => setDeleting(true)}>
               {t('owners.deleteData')}
             </button>
           )}
@@ -553,6 +564,50 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
           onPick={(target) => handleMove(modal.move, target)}
           onClose={() => setModal(null)}
         />
+      )}
+      {deleting && (
+        <Modal onClose={closeDelete} labelledBy="delete-data-title" className="booking-modal">
+          <form
+            className="pet-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (deleteMatches) handleAnonymise()
+            }}
+          >
+            <h2 id="delete-data-title">{t('owners.deleteDataTitle', { name: current.name })}</h2>
+            <p>{t('owners.deleteDataGone')}</p>
+            <p className="pet-owner">{t('owners.deleteDataKept')}</p>
+            <label>
+              {t(current.phone ? 'owners.deleteDataTypePhone' : 'owners.deleteDataTypeName')}
+              <input
+                value={deleteCheck}
+                onChange={(e) => setDeleteCheck(e.target.value)}
+                dir={current.phone ? 'ltr' : undefined}
+                inputMode={current.phone ? 'numeric' : undefined}
+                autoComplete="off"
+                autoFocus
+              />
+            </label>
+            <div className="admin-modal-actions">
+              <button type="submit" className="delete-button" disabled={!deleteMatches}>
+                {t('owners.deleteData')}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  closeDelete()
+                  handleExport()
+                }}
+              >
+                {t('owners.deleteDataExportFirst')}
+              </button>
+              <button type="button" className="cancel-button" onClick={closeDelete}>
+                {t('common.cancel')}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
       {exportData && (
         <Modal onClose={() => setExportData(null)} labelledBy="export-title">

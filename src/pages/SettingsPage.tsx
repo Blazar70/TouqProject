@@ -13,6 +13,8 @@ import Ltr from '../components/Ltr'
 import BranchesPanel from '../components/BranchesPanel'
 import ClinicLogoField from '../components/ClinicLogoField'
 import { toLatinDigits } from '../lib/arabicDigits'
+import { getReceiptSize, setReceiptSize } from '../lib/printSize'
+import type { ReceiptSize } from '../lib/printSize'
 import { isValidVatNumber } from '../lib/invoiceMath'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
@@ -64,6 +66,7 @@ function SettingsPage() {
 
   const [clinicName, setClinicName] = useState('')
   const [clinicPhone, setClinicPhone] = useState('')
+  const [receiptSize, setReceiptSizeState] = useState<ReceiptSize>(getReceiptSize)
   const [savingClinic, setSavingClinic] = useState(false)
   const [clinicError, setClinicError] = useState<string | null>(null)
   const [vatNumber, setVatNumber] = useState('')
@@ -731,6 +734,32 @@ function SettingsPage() {
         </form>
         </div>
       </div>
+
+      {isVet && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('settings.printing')}</h2>
+            <p className="pet-owner">{t('settings.printingHint')}</p>
+          </div>
+          <div className="settings-body">
+            <label className="pet-form">
+              {t('settings.receiptSize')}
+              <select
+                value={receiptSize}
+                onChange={(e) => {
+                  const size = e.target.value as ReceiptSize
+                  setReceiptSize(size)
+                  setReceiptSizeState(size)
+                  toast.success(t('settings.receiptSizeSaved'))
+                }}
+              >
+                <option value="a4">{t('settings.receiptA4')}</option>
+                <option value="80mm">{t('settings.receipt80mm')}</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
 
       {isVet && (
         <div className="settings-section">

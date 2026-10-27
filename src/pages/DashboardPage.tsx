@@ -48,6 +48,8 @@ function DashboardPage() {
   const [cancellationCounts, setCancellationCounts] = useState<{ category: string; count: number }[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // Ticks once a minute so "waiting 18 min" stays true (nightly H12/H19).
+  const [now, setNow] = useState(() => Date.now())
   // Doctors open on their own patients (U32); the choice sticks per device.
   const isDoctor = profile?.clinic_role === 'doctor'
   const [mineChoice, setMineChoice] = useState(() => {
@@ -128,6 +130,11 @@ function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.clinic_id, viewBranch, mine])
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+
   async function handleRefresh() {
     setRefreshing(true)
     await load()
@@ -142,6 +149,20 @@ function DashboardPage() {
         <h1>{t('dashboard.title')}</h1>
         <p>{t('dashboard.welcome')}</p>
       </div>
+    )
+  }
+
+  // "waiting 18 min · arrived 10:42 · " first in the line (it is what a doctor scans for), amber from 20 minutes.
+  const waitingNote = (a: TodayAppointment) => {
+    if (a.status !== 'arrived' || !a.arrived_at) return null
+    const minutes = Math.max(0, Math.floor((now - Date.parse(a.arrived_at)) / 60_000))
+    return (
+      <>
+        <span className={`dash-waiting${minutes >= 20 ? ' is-long' : ''}`}>{t('dashboard.waiting', { count: String(minutes) })}</span>
+        {' · '}
+        {t('appointments.arrivedAt', { time: formatTime(a.arrived_at) })}
+        {' · '}
+      </>
     )
   }
 
@@ -233,7 +254,15 @@ function DashboardPage() {
             </Link>
           </div>
           {nextAppt && (
-            <Link to={`/appointments?open=${nextAppt.id}`} className="dash-next">
+            <Link
+              to={`/appointments?open=${nextAppt.id}`}
+              className="dash-next"
+              aria-label={t('dashboard.nextUpLabel', {
+                name: nextAppt.pets?.name ?? t('dashboard.unknownPet'),
+                time: formatTime(nextAppt.scheduled_at),
+                status: STATUS_LABEL_KEYS[nextAppt.status] ? t(STATUS_LABEL_KEYS[nextAppt.status]) : nextAppt.status,
+              })}
+            >
               <span className="dash-next-label">{t('dashboard.nextUp')}</span>
               <span className="dash-next-time">
                 <Ltr>{formatTime(nextAppt.scheduled_at)}</Ltr>
@@ -241,8 +270,8 @@ function DashboardPage() {
               <span className="dash-next-main">
                 <strong>{nextAppt.pets?.name ?? t('dashboard.unknownPet')}</strong>
                 <span className="dash-row-sub">
+                  {waitingNote(nextAppt)}
                   {[nextAppt.pets?.owner_name, nextAppt.reason].filter(Boolean).join(' · ')}
-                  {nextAppt.status === 'arrived' && nextAppt.arrived_at && ` · ${t('appointments.arrivedAt', { time: formatTime(nextAppt.arrived_at) })}`}
                 </span>
               </span>
               <span className="dash-next-side">
@@ -255,6 +284,8 @@ function DashboardPage() {
           )}
           {shown.length === 0 ? (
             <p className="dash-empty">{t(mine ? 'dashboard.noPatientsToday' : 'dashboard.noAppointmentsToday')}</p>
+          ) : shown.every((appt) => appt.id === nextAppt?.id) ? (
+            <p className="dash-empty">{t('dashboard.nothingElseToday')}</p>
           ) : (
             <ul className="dash-list">
               {/* The next one is in the "Next up" banner above; the list holds the rest of the day. */}
@@ -270,13 +301,8 @@ function DashboardPage() {
                     <span className="dash-row-main">
                       <strong>{appt.pets?.name ?? t('dashboard.unknownPet')}</strong>
                       <span className="dash-row-sub">
+                        {waitingNote(appt)}
                         {[appt.pets?.owner_name, appt.reason].filter(Boolean).join(' · ')}
-                        {appt.status === 'arrived' && appt.arrived_at && (
-                          <>
-                            {' · '}
-                            {t('appointments.arrivedAt', { time: formatTime(appt.arrived_at) })}
-                          </>
-                        )}
                       </span>
                     </span>
                     <span className="today-doctor">{appt.doctor?.full_name ?? t('calendar.unassigned')}</span>

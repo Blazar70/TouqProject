@@ -66,7 +66,7 @@ type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Re
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
 const localizer = dayjsLocalizer(dayjs)
-const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
+const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -974,15 +974,21 @@ function AppointmentsPage() {
                         {t('session.start')}
                       </button>
                     )}
-                    <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
-                      {t('appointments.reschedule')}
-                    </button>
-                    {/* Check-in: reception marks the pet as here, so doctors see who is waiting (P3). */}
+                    {/* Check-in: reception marks the pet as here, so doctors see who is waiting (P3). For reception
+                        it is today's one main tap on a confirmed visit (nightly H13). */}
                     {appointment.status !== 'arrived' && clinicDay(appointment.scheduled_at) === clinicDay() && (
-                      <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'arrived')}>
+                      <button
+                        type="button"
+                        className={!isClinician && appointment.status === 'confirmed' ? 'primary-button' : 'secondary-button'}
+                        onClick={() => setRequestStatus(appointment, 'arrived')}
+                        autoFocus={!isClinician && appointment.status === 'confirmed'}
+                      >
                         {t('appointments.markArrived')}
                       </button>
                     )}
+                    <button type="button" className="secondary-button" onClick={() => startReschedule(appointment)}>
+                      {t('appointments.reschedule')}
+                    </button>
                     {appointment.status === 'arrived' && (
                       <button type="button" className="secondary-button" onClick={() => setRequestStatus(appointment, 'confirmed')}>
                         {t('appointments.notArrived')}

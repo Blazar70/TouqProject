@@ -749,6 +749,8 @@ export type Database = {
           clinic_id: string
           created_at: string
           created_by: string
+          credited_appointment_id: string | null
+          credited_stay_id: string | null
           discount_amount: number
           discount_reason: string | null
           discount_type: string | null
