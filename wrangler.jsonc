@@ -1,0 +1,11 @@
+// Cloudflare Workers static hosting for the staging site (10-27). Only serves the built app in dist/;
+// SPA mode sends deep links like /pets/123 to index.html. Build-time VITE_* values are set in the
+// Cloudflare dashboard (Settings → Build → Variables), never here.
+{
+  "name": "touqproject",
+  "compatibility_date": "2026-10-23",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}

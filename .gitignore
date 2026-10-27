@@ -40,3 +40,6 @@ dev-dist
 
 # Reticle trial: local runtime data (flows, pairing token); never commit
 .reticle/
+
+# Cloudflare wrangler local state
+.wrangler
