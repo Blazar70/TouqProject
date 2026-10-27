@@ -11,7 +11,7 @@ type T = (key: TranslationKey, vars?: Record<string, string>) => string
 export async function collectOwnerData(ownerId: string) {
   const { data: owner, error } = await supabase.from('owner_files').select('id, name, phone, email, notes, created_at').eq('id', ownerId).single()
   if (error || !owner) throw new Error(error?.message ?? 'Owner not found')
-  const { data: pets, error: petsError } = await supabase.from('pets').select('id, name, species, breed, date_of_birth, pet_number, created_at').eq('owner_file_id', ownerId)
+  const { data: pets, error: petsError } = await supabase.from('pets').select('id, name, species, breed, date_of_birth, pet_number, created_at, owner_since').eq('owner_file_id', ownerId)
   if (petsError) throw petsError
   const petIds = (pets ?? []).map((p) => p.id)
   const none = { data: [] }
@@ -26,6 +26,9 @@ export async function collectOwnerData(ownerId: string) {
   ])
   // A failed query must not print as "None" in a PDPL hand-over.
   for (const r of [records, vaccines, appointments, invoices, contacts, waivers, balance]) if ('error' in r && r.error) throw r.error
+  // A pet's waivers and invoices from before it joined this owner belong to the previous owner (0092).
+  const since = new Map((pets ?? []).map((p) => [p.id, p.owner_since]))
+  const fromThisOwner = (petId: string | null, at: string) => petId !== null && Date.parse(at) >= Date.parse(since.get(petId) ?? '')
   return {
     exported_at: new Date().toISOString(),
     owner,
@@ -33,9 +36,9 @@ export async function collectOwnerData(ownerId: string) {
     visits: records.data ?? [],
     vaccines: vaccines.data ?? [],
     appointments: appointments.data ?? [],
-    invoices: invoices.data ?? [],
+    invoices: (invoices.data ?? []).filter((r) => fromThisOwner(r.pet_id, r.created_at)),
     trusted_contacts: contacts.data ?? [],
-    waivers: waivers.data ?? [],
+    waivers: (waivers.data ?? []).filter((r) => fromThisOwner(r.pet_id, r.signed_at)),
     balance_entries: balance.data ?? [],
   }
 }

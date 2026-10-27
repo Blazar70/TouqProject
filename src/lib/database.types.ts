@@ -1150,6 +1150,7 @@ export type Database = {
           owner_file_id: string
           owner_name: string
           owner_phone: string | null
+          owner_since: string
           pet_number: number
           photo_url: string | null
           species: string
@@ -1169,6 +1170,7 @@ export type Database = {
           owner_file_id?: string
           owner_name: string
           owner_phone?: string | null
+          owner_since?: string
           pet_number?: number
           photo_url?: string | null
           species: string
@@ -1188,6 +1190,7 @@ export type Database = {
           owner_file_id?: string
           owner_name?: string
           owner_phone?: string | null
+          owner_since?: string
           pet_number?: number
           photo_url?: string | null
           species?: string
