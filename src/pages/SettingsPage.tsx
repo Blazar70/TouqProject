@@ -6,12 +6,13 @@ import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
-import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
+import { formatSaudiPhoneInput, isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
 import BranchesPanel from '../components/BranchesPanel'
 import ClinicLogoField from '../components/ClinicLogoField'
+import { toLatinDigits } from '../lib/arabicDigits'
 import { isValidVatNumber } from '../lib/invoiceMath'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
@@ -443,7 +444,7 @@ function SettingsPage() {
             </label>
             <label>
               {t('settings.clinicPhone')}
-              <input value={clinicPhone} onChange={(e) => setClinicPhone(e.target.value)} readOnly={!isManager} dir="ltr" placeholder="+966 11 234 5678" />
+              <input value={clinicPhone} onChange={(e) => setClinicPhone(toLatinDigits(e.target.value))} readOnly={!isManager} dir="ltr" placeholder="+966 11 234 5678" />
             </label>
             {isManager && (
               <button type="submit" disabled={savingClinic}>
@@ -703,7 +704,6 @@ function SettingsPage() {
                 placeholder="5X-XXX-XXXX"
                 dir="ltr"
                 inputMode="numeric"
-                maxLength={SAUDI_MOBILE_MAX_DIGITS}
               />
             </div>
           </label>

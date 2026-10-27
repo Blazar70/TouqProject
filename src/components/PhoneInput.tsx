@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SAUDI_MOBILE_MAX_DIGITS, formatSaudiPhoneInput, isValidSaudiMobile } from '../lib/phone'
+import { formatSaudiPhoneInput, isValidSaudiMobile } from '../lib/phone'
 
 type PhoneInputProps = {
   value: string
@@ -32,7 +32,6 @@ function PhoneInput({ value, onChange, invalidMessage, autoFocus, required }: Ph
           placeholder="5X-XXX-XXXX"
           dir="ltr"
           inputMode="numeric"
-          maxLength={SAUDI_MOBILE_MAX_DIGITS}
           autoFocus={autoFocus}
           required={required}
           aria-invalid={showError}

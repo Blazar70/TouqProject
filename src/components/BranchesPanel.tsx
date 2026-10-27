@@ -5,6 +5,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { useConfirm } from '../lib/ConfirmContext'
 import { isValidClinicPhone } from '../lib/phone'
+import { toLatinDigits } from '../lib/arabicDigits'
 import { defaultInvoiceCode, isValidInvoiceCode } from '../lib/invoiceMath'
 import type { Database } from '../lib/database.types'
 import Ltr from './Ltr'
@@ -223,7 +224,7 @@ function BranchesPanel({ clinicId, branches, staffBranches, canManage, canEdit, 
           </label>
           <label>
             {t('common.phone')}
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} dir="ltr" placeholder="+966 11 234 5678" />
+            <input value={phone} onChange={(e) => setPhone(toLatinDigits(e.target.value))} dir="ltr" placeholder="+966 11 234 5678" />
           </label>
           <label>
             {t('admin.branchAddress')}

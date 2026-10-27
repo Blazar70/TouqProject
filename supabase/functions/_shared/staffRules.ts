@@ -54,7 +54,8 @@ export function staffChangeError(caller: StaffCaller, target: StaffTarget | null
     // A branch manager only reaches staff and branches inside their own branches.
     if (caller.branchIds && target && !self) {
       const inScope = (id: string) => caller.branchIds!.includes(id)
-      const reach = change.action === 'set_branches' ? target.branchIds.every(inScope) : target.branchIds.some(inScope)
+      // Name/phone edits need one shared branch; anything touching the login, role or access needs all of them.
+      const reach = change.action === 'update_staff' ? target.branchIds.some(inScope) : target.branchIds.every(inScope)
       if (!reach) return 'This staff member is outside your branches'
     }
     if (caller.branchIds && change.branchIds?.some((id) => !caller.branchIds!.includes(id))) {

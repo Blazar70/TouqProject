@@ -1,9 +1,11 @@
+import { toLatinDigits } from './arabicDigits'
+
 // Saudi mobile numbers are 9 digits after the +966 country code, always
 // starting with 5 (the leading 0 used in local dialing is dropped).
 export const SAUDI_MOBILE_MAX_DIGITS = 9
 
 export function formatSaudiPhoneInput(raw: string) {
-  let digits = raw.replace(/\D/g, '')
+  let digits = toLatinDigits(raw).replace(/\D/g, '')
   if (digits.startsWith('0')) digits = digits.slice(1)
   return digits.slice(0, SAUDI_MOBILE_MAX_DIGITS)
 }

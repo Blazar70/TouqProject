@@ -33,6 +33,10 @@ describe('staffChangeError', () => {
     expect(staffChangeError(branchManager, doctor(['b2']), { action: 'set_disabled', disabled: true }, 1)).toMatch(/outside/)
     expect(staffChangeError(branchManager, doctor(['b1', 'b2']), { action: 'update_staff' }, 1)).toBeNull()
     expect(staffChangeError(branchManager, doctor(['b1', 'b2']), { action: 'set_branches', branchIds: ['b1'] }, 1)).toMatch(/outside/)
+    for (const action of ['reset_password', 'set_role', 'set_disabled'] as const) {
+      expect(staffChangeError(branchManager, doctor(['b1', 'b2']), { action, clinicRole: 'nurse', disabled: true }, 1)).toMatch(/outside/)
+      expect(staffChangeError(branchManager, doctor(['b1']), { action, clinicRole: 'nurse', disabled: true }, 1)).toBeNull()
+    }
     expect(staffChangeError(branchManager, null, { action: 'create_staff', clinicRole: 'doctor', branchIds: ['b2'] }, 1)).toMatch(/own branches/)
   })
 

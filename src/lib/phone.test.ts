@@ -18,6 +18,7 @@ describe('formatSaudiPhoneInput', () => {
   it('strips non-digit characters', () => {
     expect(formatSaudiPhoneInput('5X-XXX-XXXX'.replace(/X/g, '1'))).toBe('511111111')
     expect(formatSaudiPhoneInput('50 123 4567')).toBe('501234567')
+    expect(formatSaudiPhoneInput('٠٥٠١٢٣٤٥٦٧')).toBe('501234567')
   })
 
   it('drops a leading 0 (local dialing prefix)', () => {
