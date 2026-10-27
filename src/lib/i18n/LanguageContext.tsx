@@ -16,7 +16,8 @@ const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 function getInitialLanguage(): Language {
   const stored = localStorage.getItem(STORAGE_KEY)
-  return stored === 'ar' ? 'ar' : 'en'
+  // A new device set to Arabic starts in Arabic (nightly H26); a saved choice always wins.
+  return stored === 'ar' || (!stored && navigator.language.startsWith('ar')) ? 'ar' : 'en'
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -34,9 +35,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }
 
   function t(key: TranslationKey, vars?: Record<string, string>) {
-    // "1 pet" not "1 pets": a `<key>_one` variant, when this language has one, wins for count 1.
-    const one = vars?.count === '1' ? (translations[language] as Record<string, string>)[`${key}_one`] : undefined
-    let text: string = one ?? translations[language][key] ?? translations.en[key] ?? key
+    // "1 pet" not "1 pets": a `<key>_<form>` variant wins when this language has one. Arabic also has
+    // _two and _few (3-10); its base text uses the singular noun, right for 11 and up.
+    const form = vars?.count === undefined ? undefined : new Intl.PluralRules(language).select(Number(vars.count))
+    const plural = form ? (translations[language] as Record<string, string>)[`${key}_${form}`] : undefined
+    let text: string = plural ?? translations[language][key] ?? translations.en[key] ?? key
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
         text = text.replaceAll(`{${k}}`, v)

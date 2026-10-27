@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { formatSaudiPhoneInput, isValidSaudiMobile } from '../lib/phone'
 
 type PhoneInputProps = {
@@ -15,6 +15,7 @@ type PhoneInputProps = {
 // it blank counts as invalid too, not just a malformed number.
 function PhoneInput({ value, onChange, invalidMessage, autoFocus, required }: PhoneInputProps) {
   const [touched, setTouched] = useState(false)
+  const errorId = useId()
   const showError = touched && ((required && value === '') || (value !== '' && !isValidSaudiMobile(value)))
 
   return (
@@ -31,13 +32,20 @@ function PhoneInput({ value, onChange, invalidMessage, autoFocus, required }: Ph
           onBlur={() => setTouched(true)}
           placeholder="5X-XXX-XXXX"
           dir="ltr"
+          type="tel"
           inputMode="numeric"
+          autoComplete="tel-national"
           autoFocus={autoFocus}
           required={required}
           aria-invalid={showError}
+          aria-describedby={showError ? errorId : undefined}
         />
       </div>
-      {showError && <p className="field-error">{invalidMessage}</p>}
+      {showError && (
+        <p className="field-error" id={errorId} role="alert">
+          {invalidMessage}
+        </p>
+      )}
     </div>
   )
 }

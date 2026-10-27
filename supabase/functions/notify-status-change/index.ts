@@ -24,16 +24,7 @@ Deno.serve(async (req) => {
 
   const admin = createClient(supabaseUrl, secretKey)
 
-  const { data: appointment } = await admin
-    .from('appointments')
-    .select('id, clinic_id, status, doctor_id, branch_id, pets(name, photo_url)')
-    .eq('id', appointmentId)
-    .maybeSingle()
-  if (!appointment) return new Response('not found', { status: 404, headers: corsHeaders })
-
-  // Confirm the caller belongs to the same clinic as the appointment —
-  // otherwise anyone with a valid login could trigger a push for another
-  // clinic's appointment by guessing/observing an ID.
+  // Caller first, so the response never tells a stranger whether an appointment id exists.
   const callerClient = createClient(supabaseUrl, publishableKey, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
   })
@@ -44,9 +35,16 @@ Deno.serve(async (req) => {
 
   // A removed (disabled) member's access token stays valid until it expires.
   const { data: callerProfile } = await admin.from('profiles').select('clinic_id, disabled').eq('id', user.id).maybeSingle()
-  if (!callerProfile || callerProfile.disabled || callerProfile.clinic_id !== appointment.clinic_id) {
-    return new Response('forbidden', { status: 403, headers: corsHeaders })
-  }
+  if (!callerProfile || callerProfile.disabled) return new Response('forbidden', { status: 403, headers: corsHeaders })
+
+  // Another clinic's appointment answers like a missing one: no pushes for guessed or observed ids.
+  const { data: appointment } = await admin
+    .from('appointments')
+    .select('id, clinic_id, status, doctor_id, branch_id, pets(name, photo_url)')
+    .eq('id', appointmentId)
+    .eq('clinic_id', callerProfile.clinic_id)
+    .maybeSingle()
+  if (!appointment) return new Response('not found', { status: 404, headers: corsHeaders })
 
   const { data: profiles } = await admin
     .from('profiles')
@@ -79,9 +77,10 @@ Deno.serve(async (req) => {
     icon: await petPhotoIcon(admin, pet?.photo_url),
   }
 
-  const results = await sendToSubscriptions(admin, subscriptions ?? [], payload)
+  // Results stay on the server: they hold other staff members' push endpoints.
+  await sendToSubscriptions(admin, subscriptions ?? [], payload)
 
-  return new Response(JSON.stringify({ recipientCount: recipientIds.length, results }), {
+  return new Response(JSON.stringify({ recipientCount: recipientIds.length }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 })
