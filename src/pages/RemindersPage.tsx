@@ -210,7 +210,8 @@ function RemindersPage() {
                             </span>
                           )}
                           <div className="pet-owner">
-                            <Link to={`/pets/${item.petId}`}>{item.title}</Link> · {item.detail}
+                            {/* bdi: an Arabic pet name must not reorder the time after it */}
+                            <bdi><Link to={`/pets/${item.petId}`}>{item.title}</Link></bdi> · {item.detail}
                           </div>
                         </div>
                         <div className="record-actions">
