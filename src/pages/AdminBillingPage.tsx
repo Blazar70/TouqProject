@@ -340,6 +340,7 @@ function AdminBillingPage() {
                 </span>
                 <div className="record-actions data-end">
                   <select
+                    aria-label={`${t('admin.billingStatus')} · ${clinicNameById[payment.clinic_id] ?? '—'}`}
                     value={payment.status}
                     onChange={(e) => handleUpdatePaymentStatus(payment, e.target.value)}
                     disabled={savingPaymentId === payment.id}
