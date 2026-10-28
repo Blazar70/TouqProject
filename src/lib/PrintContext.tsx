@@ -202,7 +202,7 @@ function buildDocument(
     <header class="print-header">
       <div>
         <h1>${escapeHtml(clinicLabel)}</h1>
-        ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
+        ${clinicPhone ? `<p class="print-clinic-phone"><span dir="ltr">${escapeHtml(clinicPhone)}</span></p>` : ''}
         <p>${escapeHtml(title)}</p>
       </div>
       <div class="print-printed-at">${escapeHtml(t('printSummary.printedOn'))} ${escapeHtml(formatDateTime(new Date()))}</div>
@@ -224,8 +224,8 @@ function buildDocument(
 }
 
 // Saudi tax invoices carry both languages: every label prints in English and Arabic.
-// Spans let the 80 mm receipt stack the Arabic under the English instead of wrapping mid-label.
-const bi = (key: TranslationKey) => `<span class="bi">${translations.en[key]}<span class="bi-sep"> · </span><span class="bi-ar">${translations.ar[key]}</span></span>`
+// Spans let the 80 mm receipt stack the Arabic under the English; bdi keeps "Invoice no." whole on an Arabic print.
+const bi = (key: TranslationKey) => `<span class="bi"><bdi>${translations.en[key]}</bdi><span class="bi-sep"> · </span><span class="bi-ar">${translations.ar[key]}</span></span>`
 const money = (amount: number) => `<span dir="ltr">${formatMoney(amount)} SAR</span>`
 
 const INVOICE_STYLES = `
@@ -334,7 +334,7 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
         ${logo ? `<img class="print-logo" src="${escapeHtml(logo)}" alt="" />` : ''}
         <div>
           <h1>${escapeHtml(clinicLabel)}</h1>
-          ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
+          ${clinicPhone ? `<p class="print-clinic-phone"><span dir="ltr">${escapeHtml(clinicPhone)}</span></p>` : ''}
           <p>${title}</p>
         </div>
       </div>
@@ -387,7 +387,7 @@ function buildWaiverDocument(doc: WaiverDoc, clinicLabel: string, clinicPhone: s
         ${logo ? `<img class="print-logo" src="${escapeHtml(logo)}" alt="" />` : ''}
         <div>
           <h1>${escapeHtml(clinicLabel)}</h1>
-          ${clinicPhone ? `<p class="print-clinic-phone">${escapeHtml(clinicPhone)}</p>` : ''}
+          ${clinicPhone ? `<p class="print-clinic-phone"><span dir="ltr">${escapeHtml(clinicPhone)}</span></p>` : ''}
           <p>${escapeHtml(doc.title)}</p>
         </div>
       </div>
