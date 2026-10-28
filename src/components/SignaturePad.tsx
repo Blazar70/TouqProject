@@ -23,8 +23,9 @@ function SignaturePad({ onChange, label, clearLabel }: { onChange: (dataUrl: str
     const canvas = canvasRef.current!
     let width = 0
     function size() {
-      // Height never changes; only a new width (rotation, split view) needs a resize.
-      if (canvas.clientWidth === width) return
+      // Height never changes; only a new width (rotation, split view) needs a resize. Width 0 = being removed
+      // (the observer fires once more before React's cleanup, when the ref is already null) or hidden.
+      if (canvas.clientWidth === 0 || canvas.clientWidth === width) return
       width = canvas.clientWidth
       // Capped at 2x: sharp on tablets, and the PNG stays well under the 0084 size check.
       const scale = Math.min(window.devicePixelRatio || 1, 2)
