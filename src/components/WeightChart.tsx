@@ -4,7 +4,6 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { formatDate } from '../lib/format'
 import { weightPoints } from '../lib/weightPoints'
 import type { WeightPoint } from '../lib/weightPoints'
-import Ltr from './Ltr'
 
 const W = 300
 const H = 110
@@ -40,7 +39,7 @@ function WeightChart({ petId }: { petId: string }) {
       <div className="panel-header">
         <h3>{t('weight.title')}</h3>
         <span className="pet-file-meta">
-          {t('weight.latest')}: <Ltr>{t('weight.kg', { value: String(last.kg) })}</Ltr>
+          {t('weight.latest')}: {t('weight.kg', { value: String(last.kg) })}
         </span>
       </div>
       {points.length > 1 && (
@@ -56,11 +55,9 @@ function WeightChart({ petId }: { petId: string }) {
           </svg>
           {/* time runs left to right in both languages, like the plot */}
           <div className="weight-chart-axis" dir="ltr">
-            <span>{formatDate(points[0].at)}</span>
-            <span>
-              <Ltr>{t('weight.kg', { value: `${k0}–${k1}` })}</Ltr>
-            </span>
-            <span>{formatDate(last.at)}</span>
+            {/* bdi: an Arabic date inside this left-to-right row keeps its own order */}
+            <bdi>{formatDate(points[0].at)}</bdi>
+            <bdi>{formatDate(last.at)}</bdi>
           </div>
         </>
       )}
@@ -69,7 +66,7 @@ function WeightChart({ petId }: { petId: string }) {
         <ul className="record-list">
           {[...points].reverse().map((p, i) => (
             <li key={i}>
-              {formatDate(p.at)}: <Ltr>{t('weight.kg', { value: String(p.kg) })}</Ltr>
+              {formatDate(p.at)}: {t('weight.kg', { value: String(p.kg) })}
             </li>
           ))}
         </ul>
