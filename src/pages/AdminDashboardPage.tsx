@@ -7,7 +7,7 @@ import { billingDueState } from '../lib/billingDue'
 import LoadingScreen from '../components/LoadingScreen'
 import SimpleBarChart from '../components/SimpleBarChart'
 import Ltr from '../components/Ltr'
-import { formatDate, formatMoney } from '../lib/format'
+import { clinicMidnight, formatDate, formatMoney } from '../lib/format'
 
 type Payment = Database['public']['Tables']['payments']['Row']
 type ClinicStub = { id: string; name: string; deleted_at: string | null }
@@ -72,19 +72,18 @@ function AdminDashboardPage() {
   }, [appointmentsRaw, liveClinicIds])
 
   const weeklyChartData = useMemo(() => {
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
+    // Weeks end at the clinic's midnight, not the device's (Riyadh has no DST, so 7-day steps stay on midnight).
+    const now = clinicMidnight().getTime()
+    const week = 7 * 24 * 60 * 60 * 1000
     const weeks: { label: string; value: number; start: number; end: number }[] = []
     for (let i = CHART_WEEKS - 1; i >= 0; i--) {
-      const end = new Date(now)
-      end.setDate(end.getDate() - i * 7)
-      const start = new Date(end)
-      start.setDate(start.getDate() - 7)
+      const end = now - i * week
+      const start = end - week
       weeks.push({
-        label: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        label: new Date(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Riyadh' }),
         value: 0,
-        start: start.getTime(),
-        end: end.getTime(),
+        start,
+        end,
       })
     }
     for (const a of appointmentsRaw) {
