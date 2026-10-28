@@ -38,6 +38,18 @@ Most journeys SAVE data on the demo clinic "Al Nakheel"; that data is wiped in t
 | `admin-billing.cjs` | admin payment create → paid → delete (self-cleaning) | no net change |
 | `removed-staff-login.cjs` | remove "Sweep Test Nurse" (row-scoped) → login refused | yes |
 
+**Whole matrix** (6 roles in `matrix.txt` × EN/AR × light/dark × tablet/phone = 48 runs, six at a time, ~10 min), then list only the problems:
+
+```sh
+while read user key role; do for lang in ar en; do for theme in light dark; do for s in "820 1180 tablet" "390 844 phone"; do set -- $s; a=""; [ "$role" = A ] && a=admin
+  echo "node scripts/sweep/pages.cjs $user $key $lang $theme $1 $2 $role-$lang-$theme-$3 $a > scripts/sweep/out/matrix-$role-$lang-$theme-$3.txt 2>&1"
+done; done; done; done < scripts/sweep/matrix.txt | xargs -P 6 -I{} sh -c '{}'
+cat scripts/sweep/out/matrix-*.txt | grep "^!!" | sort | uniq -c | sort -rn
+```
+
+`forms.cjs` takes `[en|ar]` and `[admin]` after the label; button names come from `translations.ts` via `i18n.cjs`.
+Known false alarms: hidden file pickers (23×20, 1×1), checkboxes inside labels, English names in test data flagged as "wrong language".
+
 `passKey` is a key of `PASS` in `config.cjs` (`demoStaff`, `cofounder`, `admin`, `eastMgr`, `sweepNurse`), so no password is typed on the command line.
 Example: `node scripts/sweep/pages.cjs khalid.vet demoStaff ar dark 820 1180 D-ar-dark-tablet`
 
