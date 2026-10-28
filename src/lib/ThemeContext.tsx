@@ -13,8 +13,13 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function getStoredTheme(): Theme | null {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  return stored === 'dark' || stored === 'light' ? stored : null
+  // Storage can throw (blocked in some private modes); start on the system theme then.
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored === 'dark' || stored === 'light' ? stored : null
+  } catch {
+    return null
+  }
 }
 
 function systemTheme(): Theme {
@@ -66,7 +71,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   function toggleTheme() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark'
-    localStorage.setItem(STORAGE_KEY, next)
+    try {
+      localStorage.setItem(STORAGE_KEY, next)
+    } catch {
+      // Not remembered after a reload, but the switch still works.
+    }
     setOverride(next)
   }
 

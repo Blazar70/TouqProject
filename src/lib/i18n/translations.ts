@@ -633,6 +633,10 @@ export const translations = {
     'settings.notifications': 'Notifications',
     'settings.notificationsHint': 'Alerts on this device: a reminder before your appointments, and a message when an appointment changes to a status you tick below. Each device you use is turned on separately.',
     'settings.pushNotSupported': "Push notifications aren't supported in this browser.",
+    'settings.pushInstallIntro': 'On iPhone and iPad, notifications work only in the Touq app on your Home Screen (iOS 16.4 or later):',
+    'settings.pushInstallStep1': 'Tap the Share button (the square with an arrow) and choose "Add to Home Screen".',
+    'settings.pushInstallStep2': 'Close this tab and open Touq from its new icon on the Home Screen.',
+    'settings.pushInstallStep3': 'Sign in, come back to Settings and turn on notifications.',
     'settings.enablePush': 'Enable notifications',
     'settings.disablePush': 'Disable notifications',
     'settings.pushToggleFailed': "Couldn't update notification settings.",
@@ -1201,6 +1205,7 @@ export const translations = {
     'errors.alreadyCredited': 'One of these lines is already credited.',
     'errors.balanceRole': 'Only receptionists and managers can add balance.',
     'errors.resetLinkExpired': 'This password reset link has expired or was already used. Request a new one below.',
+    'errors.resetEmailFailed': "Couldn't send the email. Try again in an hour or ask the Touq admin.",
   },
   ar: {
     'nav.dashboard': 'لوحة التحكم',
@@ -1837,6 +1842,10 @@ export const translations = {
     'settings.notifications': 'الإشعارات',
     'settings.notificationsHint': 'تنبيهات على هذا الجهاز: تذكير قبل مواعيدك، ورسالة عندما يتغير الموعد إلى حالة تحددها أدناه. يُفعَّل كل جهاز تستخدمه على حدة.',
     'settings.pushNotSupported': 'الإشعارات غير مدعومة في هذا المتصفح.',
+    'settings.pushInstallIntro': 'على iPhone وiPad تعمل الإشعارات فقط في تطبيق Touq على الشاشة الرئيسية (iOS 16.4 أو أحدث):',
+    'settings.pushInstallStep1': 'اضغط زر المشاركة (المربع مع السهم) واختر "إضافة إلى الشاشة الرئيسية".',
+    'settings.pushInstallStep2': 'أغلق هذه الصفحة وافتح Touq من أيقونته الجديدة على الشاشة الرئيسية.',
+    'settings.pushInstallStep3': 'سجّل الدخول، ثم ارجع إلى الإعدادات وفعّل الإشعارات.',
     'settings.enablePush': 'تفعيل الإشعارات',
     'settings.disablePush': 'إيقاف الإشعارات',
     'settings.pushToggleFailed': 'تعذر تحديث إعدادات الإشعارات.',
@@ -2407,6 +2416,7 @@ export const translations = {
     'errors.alreadyCredited': 'أحد هذه البنود تم إصدار إشعار دائن له مسبقًا.',
     'errors.balanceRole': 'فقط موظفو الاستقبال والمديرون يمكنهم إضافة رصيد.',
     'errors.resetLinkExpired': 'انتهت صلاحية رابط إعادة تعيين كلمة المرور أو تم استخدامه. اطلب رابطًا جديدًا أدناه.',
+    'errors.resetEmailFailed': 'تعذّر إرسال البريد. حاول مرة أخرى بعد ساعة أو اطلب المساعدة من مسؤول Touq.',
   },
 } as const
 

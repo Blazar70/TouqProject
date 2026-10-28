@@ -114,6 +114,8 @@ function DashboardPage() {
           .gte('scheduled_at', monthStart.toISOString()),
       ),
     ])
+    // A failed (e.g. offline) background reload keeps the last good lists instead of emptying them.
+    if ([todayRes, paymentsRes, recordsRes, petsRes, cancellationsRes].some((r) => r.error)) return
     setToday(todayRes.data ?? [])
     setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount))
     setRecentRecords(recordsRes.data ?? [])
@@ -134,6 +136,24 @@ function DashboardPage() {
     const timer = setInterval(() => setNow(Date.now()), 60_000)
     return () => clearInterval(timer)
   }, [])
+
+  // Tablets stay on this page all day: reload quietly every 2 minutes and when the tab comes back (nightly H31).
+  // shortcut: polling, not Realtime; switch to a Supabase Realtime subscription on appointments if 2 min is too slow.
+  useEffect(() => {
+    if (!profile?.clinic_id) return
+    const reload = () => {
+      if (document.visibilityState !== 'visible') return
+      setNow(Date.now())
+      load()
+    }
+    const timer = setInterval(reload, 120_000)
+    document.addEventListener('visibilitychange', reload)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', reload)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.clinic_id, viewBranch, mine])
 
   async function handleRefresh() {
     setRefreshing(true)

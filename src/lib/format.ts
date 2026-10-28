@@ -12,7 +12,7 @@ export function setDisplayLanguage(language: string) {
 
 // Always shown in clinic time, not the device's zone (nightly B4): a laptop set to another zone
 // must not shift visit times or the "signed at" on a waiver.
-const CLINIC_TZ = 'Asia/Riyadh'
+export const CLINIC_TZ = 'Asia/Riyadh'
 const DATE: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric', timeZone: CLINIC_TZ }
 const TIME: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit', timeZone: CLINIC_TZ }
 

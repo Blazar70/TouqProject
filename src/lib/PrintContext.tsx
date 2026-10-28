@@ -224,7 +224,8 @@ function buildDocument(
 }
 
 // Saudi tax invoices carry both languages: every label prints in English and Arabic.
-const bi = (key: TranslationKey) => `${translations.en[key]} · ${translations.ar[key]}`
+// Spans let the 80 mm receipt stack the Arabic under the English instead of wrapping mid-label.
+const bi = (key: TranslationKey) => `<span class="bi">${translations.en[key]}<span class="bi-sep"> · </span><span class="bi-ar">${translations.ar[key]}</span></span>`
 const money = (amount: number) => `<span dir="ltr">${formatMoney(amount)} SAR</span>`
 
 const INVOICE_STYLES = `
@@ -246,10 +247,14 @@ const INVOICE_STYLES = `
   .print-logo { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; }
 `
 
-// An 80 mm receipt roll: one column, smaller type, the page as long as the receipt.
+// An 80 mm receipt roll: one column, the page as long as the receipt. Thermal heads print only
+// solid black, so greys and gold go black; 12px keeps Arabic legible at 203 dpi.
 const RECEIPT_80MM_STYLES = `
   @page { size: 80mm auto; margin: 0; }
-  body { width: 80mm; padding: 4mm 4mm 6mm; font-size: 11px; }
+  body { width: 80mm; padding: 4mm 4mm 6mm; font-size: 12px; }
+  * { color: #000 !important; border-color: #000 !important; }
+  .bi-sep { display: none; }
+  .bi-ar { display: block; }
   .print-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
   .print-header h1 { font-size: 1.15rem; }
   .inv-meta { grid-template-columns: 1fr; gap: 0; margin-bottom: 0.75rem; }

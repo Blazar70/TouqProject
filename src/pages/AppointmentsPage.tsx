@@ -4,6 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Calendar, dayjsLocalizer } from 'react-big-calendar'
 import type { View } from 'react-big-calendar'
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -33,8 +35,8 @@ import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import VisitServices from '../components/VisitServices'
 import PaymentStatusBadge from '../components/PaymentStatusBadge'
-import { calendarCulture, clinicDay, formatDateTime, formatTime } from '../lib/format'
-import { isAway } from '../lib/timeOff'
+import { CLINIC_TZ, calendarCulture, clinicDay, clinicMidnight, formatDateTime, formatTime } from '../lib/format'
+import { clinicTimeToIso, isAway, isoToClinicFields } from '../lib/timeOff'
 import FormError from '../components/FormError'
 import Modal from '../components/Modal'
 import BookingPetInfo from '../components/BookingPetInfo'
@@ -65,7 +67,16 @@ type CalendarEvent = {
 type AwayPeriod = Database['public']['Functions']['doctor_time_off_periods']['Returns'][number]
 type CalendarResource = { id: string; title: string; subtitle: string | null }
 
+// The calendar grid runs in clinic time whatever the device's zone (nightly B15): the localizer
+// switches to dayjs.tz once the timezone plugin is loaded, so extend before creating it.
+dayjs.extend(utc)
+dayjs.extend(timezone)
+dayjs.tz.setDefault(CLINIC_TZ)
 const localizer = dayjsLocalizer(dayjs)
+// The library's merge() re-reads an "MM/DD/YYYY" string in device time, which shifts the day grid's
+// first hour on a non-Riyadh device; rebuild the day + time in clinic time instead.
+localizer.merge = (date: Date, time: Date) =>
+  dayjs.tz(`${dayjs.tz(date).format('YYYY-MM-DD')} ${dayjs.tz(time).format('HH:mm:ss')}`, CLINIC_TZ).toDate()
 const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
@@ -81,26 +92,28 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]) {
   return Array.from(map.values())
 }
 
-// The form's 12-hour picker (hour, minute, AM/PM) as a UTC ISO timestamp.
-// shortcut: the calendar grid (react-big-calendar) and this picker use the device clock, which clinic devices
-// set to Riyadh time; labels elsewhere are always clinic time (format.ts). Move both to clinic time with the
-// dayjs timezone plugin if staff ever use a device set to another zone.
+// The form's 12-hour picker (hour, minute, AM/PM), in clinic time, as a UTC ISO timestamp.
 function toScheduledAt(date: string, hour: string, minute: string, period: string) {
   let hour24 = parseInt(hour, 10) % 12
   if (period === 'PM') hour24 += 12
-  return new Date(`${date}T${String(hour24).padStart(2, '0')}:${minute}`).toISOString()
+  return clinicTimeToIso(date, `${String(hour24).padStart(2, '0')}:${minute}`)
 }
 
-// A date as the 12-hour picker's fields.
+// A date as the 12-hour picker's fields, in clinic time.
 function toPickerFields(date: Date) {
-  const hour24 = date.getHours()
+  const { date: day, time } = isoToClinicFields(date.toISOString())
+  const [hour24, minutes] = time.split(':').map(Number)
   return {
-    date: date.toLocaleDateString('en-CA'), // yyyy-mm-dd, matches <input type="date">
+    date: day, // yyyy-mm-dd, matches <input type="date">
     hour: String(hour24 % 12 || 12),
-    minute: String(Math.floor(date.getMinutes() / 15) * 15).padStart(2, '0'),
+    minute: String(Math.floor(minutes / 15) * 15).padStart(2, '0'),
     period: (hour24 >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
   }
 }
+
+// MiniMonth works in device calendar days; the page's date is a clinic-time instant.
+const toDeviceDay = (date: Date) => new Date(`${clinicDay(date)}T12:00`)
+const fromDeviceDay = (day: Date) => new Date(`${day.toLocaleDateString('en-CA')}T12:00:00+03:00`)
 
 // A dedicated query, not the loaded calendar range — that only holds the
 // visible day or week and could miss a real conflict just outside it.
@@ -117,7 +130,7 @@ async function fetchConflicts(candidate: ConflictCandidate) {
 
 function visibleRange(date: Date, view: View) {
   const unit = view === 'week' ? 'week' : 'day'
-  const start = dayjs(date).startOf(unit)
+  const start = dayjs.tz(date).startOf(unit)
   return { start: start.toDate(), end: start.add(1, unit).toDate() }
 }
 
@@ -190,6 +203,8 @@ function AppointmentsPage() {
   useUnsavedChangesWarning(Boolean(petId || reason.trim()) || (selected !== null && panelMode !== 'details'))
 
   const { start: rangeStart, end: rangeEnd } = visibleRange(date, view)
+  // Same object until the date changes: MiniMonth resets its shown month whenever its value changes.
+  const miniMonthDay = useMemo(() => toDeviceDay(date), [date])
   const rangeKey = `${rangeStart.getTime()}-${rangeEnd.getTime()}-${viewBranch}`
 
   async function loadRange() {
@@ -200,7 +215,7 @@ function AppointmentsPage() {
       .lt('scheduled_at', rangeEnd.toISOString())
     if (viewBranch !== ALL_BRANCHES) rangeQuery = rangeQuery.eq('branch_id', viewBranch)
     // Time off from today (or the shown range) onwards, so the booking forms know any future date.
-    const awayFrom = new Date(Math.min(rangeStart.getTime(), dayjs().startOf('day').valueOf())).toISOString()
+    const awayFrom = new Date(Math.min(rangeStart.getTime(), clinicMidnight().getTime())).toISOString()
     const [{ data, error: loadError }, awayRes, reasonsRes] = await Promise.all([
       rangeQuery.order('scheduled_at', { ascending: true }),
       supabase.rpc('doctor_time_off_periods', { p_from: awayFrom, p_to: 'infinity' }),
@@ -584,7 +599,7 @@ function AppointmentsPage() {
       // The box shows the count (user: no more detail in week view); its tooltip lists who.
       const byHour = new Map<number, string[]>()
       for (const a of visible) {
-        const hour = dayjs(a.scheduled_at).startOf('hour').valueOf()
+        const hour = dayjs.tz(a.scheduled_at).startOf('hour').valueOf()
         byHour.set(hour, [...(byHour.get(hour) ?? []), `${formatTime(a.scheduled_at)} ${a.pets?.name ?? t('dashboard.unknownPet')}`])
       }
       return Array.from(byHour, ([hour, names]) => ({
@@ -652,13 +667,13 @@ function AppointmentsPage() {
   // Opens at 8 AM, or earlier if the first visible appointment is before that.
   // Only events inside the shown range count: right after navigating, the
   // previous range's events are still loaded for a moment.
-  const eightAm = dayjs(date).startOf('day').add(8, 'hour')
+  const eightAm = dayjs.tz(date).startOf('day').add(8, 'hour')
   const firstStart = events
     .filter((e) => e.start >= rangeStart && e.start < rangeEnd)
     .reduce<Date | null>((min, e) => (!min || e.start < min ? e.start : min), null)
-  const scrollTo = firstStart && dayjs(firstStart).hour() < 8 ? firstStart : eightAm.toDate()
+  const scrollTo = firstStart && dayjs.tz(firstStart).hour() < 8 ? firstStart : eightAm.toDate()
   // Time of day only; the library applies scrollToTime on mount, so a new target remounts it.
-  const scrollKey = dayjs(scrollTo).format('HH:mm')
+  const scrollKey = dayjs.tz(scrollTo).format('HH:mm')
   const resources: CalendarResource[] = [
     ...columnStaff.map((s) => ({ id: s.id, title: s.full_name, subtitle: s.title })),
     ...(hasUnassigned || columnStaff.length === 0 ? [{ id: UNASSIGNED, title: t('calendar.unassigned'), subtitle: null }] : []),
@@ -1073,7 +1088,7 @@ function AppointmentsPage() {
       {/* Follows the page direction: Arabic mirrors the calendar (user, 2026-10-23). */}
       <div className="appointments-layout">
       <div className="appointments-side">
-        <MiniMonth value={date} onChange={setDate} />
+        <MiniMonth value={miniMonthDay} onChange={(day) => setDate(fromDeviceDay(day))} />
         {/* Cancelled appointments never show on the calendar, so these colours cover it. */}
         <div className="calendar-legend" dir={language === 'ar' ? 'rtl' : 'ltr'}>
           <h2>{t('appointments.legend')}</h2>

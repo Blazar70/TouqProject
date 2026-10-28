@@ -8,7 +8,7 @@ import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { formatSaudiPhoneInput, isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
-import { REMINDER_LEAD_OPTIONS, isPushSupported, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
+import { REMINDER_LEAD_OPTIONS, isPushSupported, needsHomeScreenInstall, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
 import BranchesPanel from '../components/BranchesPanel'
 import ClinicLogoField from '../components/ClinicLogoField'
@@ -768,7 +768,16 @@ function SettingsPage() {
             <p className="pet-owner">{t('settings.notificationsHint')}</p>
           </div>
           <div className="settings-body">
-          {!isPushSupported() ? (
+          {needsHomeScreenInstall() ? (
+            <div className="pet-owner">
+              <p>{t('settings.pushInstallIntro')}</p>
+              <ol>
+                <li>{t('settings.pushInstallStep1')}</li>
+                <li>{t('settings.pushInstallStep2')}</li>
+                <li>{t('settings.pushInstallStep3')}</li>
+              </ol>
+            </div>
+          ) : !isPushSupported() ? (
             <p className="pet-owner">{t('settings.pushNotSupported')}</p>
           ) : (
             <>

@@ -5,6 +5,9 @@ describe('friendlyErrorKey', () => {
   it('maps network, login and wrapped DB errors', () => {
     expect(friendlyErrorKey('TypeError: Failed to fetch')).toBe('errors.offline')
     expect(friendlyErrorKey('Invalid login credentials')).toBe('errors.invalidLogin')
+    expect(friendlyErrorKey('Email address not authorized')).toBe('errors.resetEmailFailed')
+    expect(friendlyErrorKey('email rate limit exceeded')).toBe('errors.resetEmailFailed')
+    expect(friendlyErrorKey('Email rate limit exceeded')).toBe('errors.resetEmailFailed')
     expect(friendlyErrorKey("Couldn't save: A discount needs a reason")).toBe('errors.needsReason')
     expect(friendlyErrorKey('Not enough balance (available 40.00)')).toBe('errors.notEnoughBalance')
     // 0074/0076 raise these through require_clinic_role(), out of sight of the scan below.

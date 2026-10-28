@@ -7,6 +7,10 @@ const KNOWN: [string, TranslationKey][] = [
   ['NetworkError', 'errors.offline'],
   ['Load failed', 'errors.offline'],
   ['Invalid login credentials', 'errors.invalidLogin'],
+  // Password reset email refused by Supabase Auth (team-only default sender, or its hourly limit).
+  ['Email address not authorized', 'errors.resetEmailFailed'],
+  ['mail rate limit exceeded', 'errors.resetEmailFailed'],
+  ['you can only request this after', 'errors.resetEmailFailed'],
   ['Notification permission denied', 'errors.pushDenied'],
   ['This doctor is away', 'errors.doctorAway'],
   ['This visit is already billed', 'errors.visitBilled'],

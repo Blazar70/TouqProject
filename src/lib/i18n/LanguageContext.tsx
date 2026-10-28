@@ -15,7 +15,12 @@ type LanguageContextValue = {
 const LanguageContext = createContext<LanguageContextValue | null>(null)
 
 function getInitialLanguage(): Language {
-  const stored = localStorage.getItem(STORAGE_KEY)
+  let stored: string | null = null
+  try {
+    stored = localStorage.getItem(STORAGE_KEY)
+  } catch {
+    // Storage blocked (some private modes): fall back to the device language.
+  }
   // A new device set to Arabic starts in Arabic (nightly H26); a saved choice always wins.
   return stored === 'ar' || (!stored && navigator.language.startsWith('ar')) ? 'ar' : 'en'
 }
@@ -30,7 +35,11 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [language])
 
   function setLanguage(lang: Language) {
-    localStorage.setItem(STORAGE_KEY, lang)
+    try {
+      localStorage.setItem(STORAGE_KEY, lang)
+    } catch {
+      // Not remembered after a reload, but the switch still works.
+    }
     setLanguageState(lang)
   }
 

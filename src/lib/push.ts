@@ -21,6 +21,13 @@ export function isPushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window
 }
 
+// iPhone/iPad get web push only in the Home Screen app (iOS 16.4+), never in a browser tab (nightly H32).
+// iPadOS reports itself as a Mac, so a touch Mac counts as an iPad.
+export function needsHomeScreenInstall() {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  return ios && !window.matchMedia('(display-mode: standalone)').matches
+}
+
 function urlBase64ToUint8Array(base64: string) {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4)
   const base64Safe = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/')

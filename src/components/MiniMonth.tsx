@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { monthGrid } from '../lib/monthGrid'
-import { calendarCulture } from '../lib/format'
+import { calendarCulture, clinicDay } from '../lib/format'
 
 // A known Sunday: weekday headers in the current language, Sunday first like monthGrid.
 const SUNDAY = dayjs('2026-10-18')
@@ -42,7 +42,7 @@ function MiniMonth({ value, onChange }: { value: Date; onChange: (date: Date) =>
           const classes = [
             'mini-month-day',
             d.month() !== month.month() && 'is-other-month',
-            d.isSame(dayjs(), 'day') && 'is-today',
+            d.format('YYYY-MM-DD') === clinicDay() && 'is-today',
             d.isSame(value, 'day') && 'is-selected',
           ]
           return (
