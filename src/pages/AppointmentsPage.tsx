@@ -1058,6 +1058,7 @@ function AppointmentsPage() {
         <input
           type="search"
           className="search-input"
+          aria-label={t('appointments.searchPlaceholder')}
           placeholder={t('appointments.searchPlaceholder')}
           value={search}
           onChange={(e) => {

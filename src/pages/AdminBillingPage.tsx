@@ -292,6 +292,7 @@ function AdminBillingPage() {
       <input
         type="search"
         className="search-input"
+        aria-label={t('admin.searchPayments')}
         placeholder={t('admin.searchPayments')}
         value={billingSearch}
         onChange={(e) => setBillingSearch(e.target.value)}

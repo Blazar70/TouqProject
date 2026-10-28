@@ -2861,11 +2861,20 @@ input[type='checkbox']:focus-visible {
   width: 100%;
   background: none;
   border: none;
-  padding: 0;
+  /* Taller tap area, same look (sweep 10-28: was 20 px tall). */
+  padding: 0.75rem 0;
+  margin: -0.75rem 0;
   cursor: pointer;
   color: inherit;
   font: inherit;
   text-align: start;
+}
+
+/* Owner link in the pet file header: bigger tap area without moving the line. */
+.pet-file-owner > a {
+  display: inline-block;
+  padding-block: 0.75rem;
+  margin-block: -0.75rem;
 }
 
 .record-accordion-header:hover .record-date {
@@ -3743,6 +3752,10 @@ button.cancel-button:disabled,
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
+  /* Bigger tap area without moving the header (sweep 10-28: was 20 px tall). */
+  display: inline-block;
+  padding-block: 0.75rem;
+  margin-block: -0.75rem;
 }
 
 .dash-panel-link:hover {
@@ -4626,7 +4639,8 @@ img.waiver-signature {
   min-width: 14rem;
 }
 
-.pet-file-identity h2 {
+/* h1: the pet's name is the page's main heading while the file is open (sweep 10-28). */
+.pet-file-identity h1 {
   margin: 0;
   font-size: 1.75rem;
   line-height: 1.2;
@@ -4791,6 +4805,13 @@ img.waiver-signature {
 
 .reminders-section a.secondary-button {
   text-decoration: none;
+}
+
+/* Pet-name links: bigger tap area without changing the line (sweep 10-28: were 18 px tall). */
+.reminders-section bdi > a {
+  display: inline-block;
+  padding-block: 0.75rem;
+  margin-block: -0.75rem;
 }
 
 /* Price list: which service "Bill this stay" uses per night (0086). */

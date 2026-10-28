@@ -314,7 +314,7 @@ function PetDetail({
       <header className={`pet-file-header${dragActive ? ' pet-photo-row-drag-active' : ''}`} {...dragHandlers}>
         <PetAvatar pet={pet} size={72} />
         <div className="pet-file-identity">
-          <h2>{pet.name}</h2>
+          <h1>{pet.name}</h1>
           <p className="pet-file-meta">
             {[speciesLabel(t, pet.species), pet.breed].filter(Boolean).join(' · ')} · {t('pets.petId')} <Ltr>{pet.pet_number}</Ltr>
           </p>
