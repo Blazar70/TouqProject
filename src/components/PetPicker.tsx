@@ -9,7 +9,9 @@ import { matchesPetSearch } from '../lib/appointmentSearch'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
-function petLabel(t: (key: TranslationKey) => string, pet: Pet) {
+// compact: just name and Pet ID, for forms that show the owner right below (booking; user 10-28: the full label clipped on phones).
+function petLabel(t: (key: TranslationKey) => string, pet: Pet, compact = false) {
+  if (compact) return `${pet.name} · ${pet.pet_number}`
   const species = speciesLabel(t, pet.species)
   const details = pet.breed ? `${species}, ${pet.breed}` : species
   return `${pet.name} · ${pet.pet_number} (${details}) — ${pet.owner_name}`
@@ -19,10 +21,12 @@ function PetPicker({
   pets,
   value,
   onChange,
+  compact = false,
 }: {
   pets: Pet[]
   value: string
   onChange: (petId: string) => void
+  compact?: boolean
 }) {
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
@@ -33,7 +37,7 @@ function PetPicker({
   const selectedPet = pets.find((p) => p.id === value)
 
   useEffect(() => {
-    setQuery(selectedPet ? petLabel(t, selectedPet) : '')
+    setQuery(selectedPet ? petLabel(t, selectedPet, compact) : '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id])
 
@@ -63,7 +67,7 @@ function PetPicker({
 
   function handleSelect(pet: Pet) {
     onChange(pet.id)
-    setQuery(petLabel(t, pet))
+    setQuery(petLabel(t, pet, compact))
     setOpen(false)
   }
 

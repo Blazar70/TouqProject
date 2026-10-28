@@ -22,6 +22,11 @@ describe('matchesAppointmentSearch', () => {
     expect(matchesAppointmentSearch(appointment, 'amal')).toBe(true)
   })
 
+  it('matches by reason, and copes with no reason', () => {
+    expect(matchesAppointmentSearch({ ...appointment, reason: 'Spay surgery' }, 'spay')).toBe(true)
+    expect(matchesAppointmentSearch({ ...appointment, reason: null }, 'spay')).toBe(false)
+  })
+
   it('matches by owner phone substring', () => {
     expect(matchesAppointmentSearch(appointment, '512345')).toBe(true)
   })

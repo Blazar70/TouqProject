@@ -963,9 +963,12 @@ function AppointmentsPage() {
                 )}
                 {isVet && canWriteAt(appointment.branch_id) && inSession && (
                   <>
-                    <button type="button" className="secondary-button" onClick={() => handleStopSession(appointment)}>
-                      {t('session.stop')}
-                    </button>
+                    {/* Undoing a visit is clinical: doctors, nurses and managers only (user 10-28), not reception. */}
+                    {(isClinician || profile?.clinic_role === 'manager') && (
+                      <button type="button" className="secondary-button" onClick={() => handleStopSession(appointment)}>
+                        {t('session.stop')}
+                      </button>
+                    )}
                     <button type="button" className="delete-button" onClick={() => setPanelMode('cancel')}>
                       {t('appointments.cancelAppointment')}
                     </button>
@@ -1229,7 +1232,7 @@ function AppointmentsPage() {
           <label>
             {t('appointments.pet')}
             <RequiredMark />
-            <PetPicker pets={pets} value={petId} onChange={setPetId} />
+            <PetPicker pets={pets} value={petId} onChange={setPetId} compact />
           </label>
           {pets.find((p) => p.id === petId) && <BookingPetInfo pet={pets.find((p) => p.id === petId)!} />}
           <label>

@@ -4,6 +4,7 @@ type SearchablePet = { name: string; owner_phone: string | null; pet_number: num
 
 type SearchableAppointment = {
   scheduled_at: string
+  reason?: string | null
   pets: SearchablePet | null
   doctor: { full_name: string } | null
 }
@@ -22,7 +23,7 @@ export function matchesPetSearch(pet: SearchablePet, query: string): boolean {
   )
 }
 
-// Matches on the pet (see matchesPetSearch), staff name (substring), or on date —
+// Matches on the pet (see matchesPetSearch), staff name or reason (substring), or on date —
 // the highest specificity supported for date is day, matched against either
 // the ISO date or the viewer's locale date format so both "2026-07-23" and
 // "7/23/2026" style queries work, plus the app's own display format ("Jul 23").
@@ -34,6 +35,7 @@ export function matchesAppointmentSearch(appointment: SearchableAppointment, que
   return (
     (appointment.pets ? matchesPetSearch(appointment.pets, normalized) : false) ||
     (appointment.doctor?.full_name ?? '').toLowerCase().includes(normalized) ||
+    (appointment.reason ?? '').toLowerCase().includes(normalized) ||
     clinicDay(scheduled).includes(normalized) ||
     formatDate(scheduled).toLowerCase().includes(normalized)
   )
