@@ -698,7 +698,7 @@ function AppointmentsPage() {
                   {appointment.pets.owner_phone && (
                     <>
                       {' · '}
-                      <a href={`tel:${appointment.pets.owner_phone}`}>
+                      <a href={`tel:${appointment.pets.owner_phone}`} className="tap-link">
                         <Ltr>{appointment.pets.owner_phone}</Ltr>
                       </a>
                     </>

@@ -2870,7 +2870,8 @@ input[type='checkbox']:focus-visible {
   text-align: start;
 }
 
-/* Owner link in the pet file header: bigger tap area without moving the line. */
+/* Inline links (owner, phone): bigger tap area without moving the line. */
+.tap-link,
 .pet-file-owner > a {
   display: inline-block;
   padding-block: 0.75rem;

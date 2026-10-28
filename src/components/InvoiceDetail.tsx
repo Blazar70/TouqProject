@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -69,6 +69,11 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const { profile } = useAuth()
   const { printInvoice } = usePrintSummary()
   const [mode, setMode] = useState<'view' | 'pay' | 'credit'>('view')
+  // The button that opens a form disappears with it: move focus into the form so keyboard users keep their place.
+  const actionFormRef = useRef<HTMLFormElement>(null)
+  useEffect(() => {
+    if (mode !== 'view') actionFormRef.current?.querySelector<HTMLElement>('input:not(:disabled), select, textarea, button')?.focus()
+  }, [mode])
   const [method, setMethod] = useState<PaymentMethod>('cash')
   const [amount, setAmount] = useState('')
   const [paidAt, setPaidAt] = useState('')
@@ -359,7 +364,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
         {!vatNumber && isManager && <p className="pet-owner">{t('payments.noVatNumberHint')}</p>}
 
         {mode === 'pay' && (
-          <form className="pet-form invoice-action-form" onSubmit={handlePay}>
+          <form ref={actionFormRef} className="pet-form invoice-action-form" onSubmit={handlePay}>
             <FormError message={error} />
             <MethodToggle value={method} onChange={setMethod} methods={methodsFor(ownerBalance)} />
             {ownerBalance !== null && <p className="owner-balance-note">{t('owners.ownerBalance', { amount: balanceText })}</p>}
@@ -376,7 +381,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
         )}
 
         {mode === 'credit' && (
-          <form className="pet-form invoice-action-form" onSubmit={handleCredit}>
+          <form ref={actionFormRef} className="pet-form invoice-action-form" onSubmit={handleCredit}>
             <FormError message={error} />
             <fieldset className="invoice-credit-lines">
               <legend>{t('payments.creditLines')}</legend>
