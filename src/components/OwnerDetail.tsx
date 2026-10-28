@@ -454,7 +454,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
                   <li key={inv.id} className="record-row">
                     <span>
                       <strong>
-                        <Link to={`/payments?invoice=${inv.id}`}>
+                        <Link to={`/payments?invoice=${inv.id}`} className="tap-link">
                           <Ltr>{inv.invoice_number}</Ltr>
                         </Link>
                       </strong>

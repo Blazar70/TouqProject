@@ -1,35 +1,39 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
-// Opens each form / pop-up WITHOUT saving and checks it. Usage: node sweep-forms.cjs <user> <pass> <w> <h> <label>
+// Opens each form / pop-up WITHOUT saving and checks it. Usage: node forms.cjs <user> <passKey> <w> <h> <label> [en|ar] [admin]
 const { chromium } = require('./config.cjs').playwright
 const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
-const [user, passKey, w, h, label] = process.argv.slice(2)
+const [user, passKey, w, h, label, lang = 'en', admin] = process.argv.slice(2)
 const pass = PASS[passKey] // a key from config.cjs PASS (e.g. demoStaff), so no password is typed on the command line
 const PET_STAY = '/pets/b4fee9a0-64e4-409a-b7cf-37b9b3cb23e8'
 const PET_REC = '/pets/30359b93-8e11-481b-988c-e84be20ff062'
-// [name, route, button text (EN), what to scan]
-const FORMS = [
-  ['booking', '/appointments', /^\+?\s*New appointment$/],
+const { button } = require('./i18n.cjs')
+const k = (key, exact) => button(lang, key, exact)
+const INV = '/payments?invoice=d8ac35df-9950-4cc4-aba4-770b8fe2af8f'
+// [name, route, steps]: a step is a translation-key regex, 'event' (first calendar block) or 'accordion' (first visit record).
+const FORMS = admin ? [
+  ['new-clinic', '/clinics', k('admin.newClinic')],
+  ['clinic-view', '/clinics', k('admin.viewClinic')],
+  ['new-payment', '/billing', k('admin.newPayment')],
+] : [
+  ['booking', '/appointments', k('appointments.newAppointment', true)],
   ['appt-details', '/appointments', 'event'],
-  ['record-payment', '/payments', /Record payment/],
-  ['invoice-detail', '/payments?invoice=d8ac35df-9950-4cc4-aba4-770b8fe2af8f', null],
-  ['credit-note', '/payments?invoice=d8ac35df-9950-4cc4-aba4-770b8fe2af8f', /Issue credit note/],
-  ['owner-open', '/owners', /^Open$/],
-  ['owner-balance', '/owners', [/^Open$/, /Add balance/]],
-  ['pet-edit', PET_REC, /^Edit$/],
+  ['invoice-detail', INV, null],
+  ['credit-note', INV, k('payments.issueCreditNote')],
+  ['owner-open', '/owners', k('payments.open', true)],
+  ['owner-balance', '/owners', [k('payments.open', true), k('owners.addBalance')]],
+  ['pet-edit', PET_REC, k('common.edit', true)],
   ['pet-record-open', PET_REC, 'accordion'],
-  ['waiver-collect', PET_REC, /Collect a signature/],
-  ['admit', PET_REC, /^Admit/],
-  ['stay-update', PET_STAY, /Add update/],
-  ['discharge', PET_STAY, /^Discharge$/],
-  ['staff-add', '/staff', /Add a staff member/],
-  ['time-off', '/staff', /Add time off/],
+  ['waiver-collect', PET_REC, k('waivers.collect')],
+  ['admit', PET_REC, k('inpatient.admit', true)],
+  ['discharge', PET_STAY, k('inpatient.discharge', true)],
   ['register-pet', '/pets/new', null],
+  ['staff', '/staff', null],
   ['settings', '/settings', null],
 ]
 ;(async () => {
   const browser = await chromium.launch({ channel: 'chrome' })
   const ctx = await browser.newContext({ timezoneId: 'Asia/Riyadh', viewport: { width: +w, height: +h }, hasTouch: +w < 1000 })
-  await ctx.addInitScript(() => { localStorage.setItem('touq-language', 'en'); localStorage.setItem('touq-theme', 'light') })
+  await ctx.addInitScript((l) => { localStorage.setItem('touq-language', l); localStorage.setItem('touq-theme', 'light') }, lang)
   const page = await ctx.newPage()
   let errors = []
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 140)))
@@ -51,7 +55,7 @@ const FORMS = [
     const steps = Array.isArray(action) ? action : action ? [action] : []
     try {
       for (const step of steps) {
-        if (step === 'event') await page.locator('.rbc-event').first().click({ timeout: 4000 })
+        if (step === 'event') await page.locator('.rbc-event:visible').first().click({ timeout: 4000 })
         else if (step === 'accordion') await page.locator('.record-accordion-header').first().click({ timeout: 4000 })
         else await page.getByRole('button', { name: step }).or(page.getByRole('link', { name: step })).first().click({ timeout: 4000 })
         await page.waitForTimeout(1200)

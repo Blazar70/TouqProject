@@ -1,0 +1,6 @@
+amal.desk demoStaff R
+khalid.vet demoStaff D
+huda.nurse demoStaff N
+MohBaf@touq.app cofounder M
+east.mgr eastMgr BM
+staging.admin admin A
