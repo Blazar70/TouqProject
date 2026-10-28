@@ -48,7 +48,7 @@ Roles: **M** manager (whole clinic) · **BM** branch manager · **R** receptioni
 - [ ] Pets → search by name, Pet ID, owner name or phone → open the pet file
 ### 2.4 Edit a pet's details / photo — R, M, D, N
 - [ ] Pet file → **Edit** → change fields → **Save changes** · **Add photo**
-### 2.5 Trusted contacts — R, M
+### 2.5 Trusted contacts — all clinic roles
 - [ ] Pet file → **Add contact** → name + phone → save · remove one
 ### 2.6 Delete and restore a pet — M (delete in edit mode)
 - [ ] Pet file → **Edit** → **Delete pet** → confirm → Pets → **Deleted pets** → **Restore**
@@ -58,7 +58,8 @@ Roles: **M** manager (whole clinic) · **BM** branch manager · **R** receptioni
 - [ ] Merge two duplicate owners · move a pet to another owner
 - [ ] Refused: D, N cannot merge or move
 ### 2.8 Owner balance (prepaid credit) — R, M
-- [ ] Owner → add balance (top-up) → amount + method → save → print the deposit receipt (DEP-…)
+- [ ] Owner → **Add balance** (top-up) → amount + method → save → print the deposit receipt (DEP-…)
+- [ ] Owner → adjust balance (correction with a reason) — M only
 - [ ] Refused: D, N do not see the balance
 ### 2.9 Owner data export and delete (PDPL) — M
 - [ ] Owner → export the owner's data (file downloads)
@@ -133,10 +134,11 @@ Roles: **M** manager (whole clinic) · **BM** branch manager · **R** receptioni
 
 ## 7. Inpatients (hospital stays)
 
-### 7.1 Admit — D, N, M
-- [ ] Pet file → admit → reason, branch → save → appears on Inpatients
-### 7.2 Add an update (vitals, note, photo, video) — D, N
-- [ ] Inpatients → the stay → add update → vitals + note + photo/video → save · delete own update
+### 7.1 Admit — D, M (nurses can't admit or discharge, migration 0081)
+- [ ] Pet file → **Admit** → reason → save → appears on Inpatients
+- [ ] Refused: N, R (no Admit button)
+### 7.2 Add an update (vitals, note, photo, video) — D, N, M
+- [ ] Pet file (inpatient section) → **Add update at {branch}** → vitals + note + photo/video → save · delete own update
 ### 7.3 Medication reminders — D, N
 - [ ] Stay → add medicine ("Amoxicillin 50 mg every 8 h") → dose due → mark given · **Undo** · stop the reminder
 ### 7.4 Discharge — D, M
