@@ -20,6 +20,15 @@ describe('friendlyErrorKey', () => {
   })
 })
 
+describe('every staff-rule error has a friendly text', () => {
+  it('maps each message staffRules.ts returns', () => {
+    const src = import.meta.glob('../../supabase/functions/_shared/staffRules.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    const messages = Object.values(src).flatMap((text) => [...text.matchAll(/return '([^']+)'/g)].map((m) => m[1]))
+    expect(messages.length).toBeGreaterThan(4)
+    expect(messages.filter((m) => !friendlyErrorKey(m))).toEqual([])
+  })
+})
+
 describe('every database error has a friendly text', () => {
   it('maps each raise exception message in the migrations', () => {
     const sql = import.meta.glob('../../supabase/migrations/*.sql', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
