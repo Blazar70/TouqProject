@@ -8,6 +8,7 @@ import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { formatSaudiPhoneInput, isValidClinicPhone, isValidSaudiMobile, stripSaudiPrefix } from '../lib/phone'
 import { APPOINTMENT_STATUSES, STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
+import { isInstalledApp, promptInstall, useInstallState } from '../lib/install'
 import { REMINDER_LEAD_OPTIONS, isPushSupported, needsHomeScreenInstall, hasActivePushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import Ltr from '../components/Ltr'
 import BranchesPanel from '../components/BranchesPanel'
@@ -52,6 +53,7 @@ function SettingsPage() {
   const toast = useToast()
   const isVet = profile?.role === 'vet'
   const isManager = isVet && profile?.clinic_role === 'manager'
+  const install = useInstallState()
   const { branches, pickable, isClinicManager, reload: reloadBranches } = useBranch()
   const [staffBranches, setStaffBranches] = useState<{ profile_id: string; branch_id: string }[]>([])
 
@@ -430,6 +432,29 @@ function SettingsPage() {
   return (
     <div className="settings-page">
       <h1>{t('settings.title')}</h1>
+
+      {!isInstalledApp() && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('settings.install')}</h2>
+            <p className="pet-owner">{t('settings.installHint')}</p>
+          </div>
+          <div className="settings-body">
+            {needsHomeScreenInstall() ? (
+              <ol className="pet-owner">
+                <li>{t('settings.pushInstallStep1')}</li>
+                <li>{t('settings.pushInstallStep2')}</li>
+              </ol>
+            ) : install.prompt ? (
+              <button type="button" onClick={promptInstall}>
+                {t('settings.installButton')}
+              </button>
+            ) : (
+              <p className="pet-owner">{t(install.justInstalled ? 'settings.installDone' : 'settings.installManual')}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {isVet && (
         <div className="settings-section">

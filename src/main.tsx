@@ -11,8 +11,12 @@ import { ConfirmProvider } from './lib/ConfirmContext'
 import { ToastProvider } from './lib/ToastContext'
 import { PrintProvider } from './lib/PrintContext'
 import { installArabicDigitInput } from './lib/arabicDigits'
+import './lib/install' // catches the browser's one-time install offer at startup
 
 installArabicDigitInput()
+// Only builds with a DSN (the staging site) report crashes; loaded on demand to keep the main bundle small.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined
+if (sentryDsn) import('./lib/sentry').then((m) => m.startSentry(sentryDsn))
 import OfflineBanner from './components/OfflineBanner'
 import UpdatePrompt from './components/UpdatePrompt'
 

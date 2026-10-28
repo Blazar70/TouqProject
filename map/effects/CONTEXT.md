@@ -28,4 +28,5 @@ Not discoverable from the repo. Ask the owner and record here:
 - Two timed jobs, both migrations: nightly purge (0077: expired pets with their photos, then expired clinics, via `admin-manage-clinic` `purge_expired`) and reminders every 15 min (0079). They read Vault secrets `touq_project_url` + `cron_purge_secret`; a project without them gets failing job runs (see README step 6).
 - Both jobs authenticate with header `x-cron-secret` = function secret `CRON_PURGE_SECRET`; both functions are deployed with `--no-verify-jwt`.
 - Function secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_PURGE_SECRET`; env `VITE_VAPID_PUBLIC_KEY`.
+- `VITE_SENTRY_DSN` (Cloudflare build variable, staging site only): turns on crash reports (`src/lib/sentry.ts`, IDs only, no replay). Empty = no Sentry.
 - `scripts/*.mjs` use the service-role key and bypass RLS.
