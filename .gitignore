@@ -46,3 +46,7 @@ dev-dist
 
 # Sweep script screenshots and downloads
 scripts/sweep/out/
+
+# Session handoff for Claude (local only: holds staging logins; the repo is public)
+HANDOFF.md
+HANDOFF-history.md

@@ -11,7 +11,8 @@ Bilingual (EN/AR) vet-clinic PWA. React + Vite + Supabase. Commands: `npm run de
 | `map/` | catalog of the nouns and what a change hits — read `map/CLAUDE.md` first |
 | `src/` | app code |
 | `supabase/` | migrations and edge functions |
-| `scripts/` | one-off admin tools |
+| `scripts/` | one-off admin tools; `scripts/sweep/` browser checks for staging |
+| `HANDOFF.md` | local only (git-ignored, holds staging logins): current state and next steps — read first if present; archive in `HANDOFF-history.md` |
 
 ## Route
 
