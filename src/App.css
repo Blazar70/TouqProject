@@ -2851,6 +2851,9 @@ input[type='checkbox']:focus-visible {
 
 .record-accordion-header-row input[type='checkbox'] {
   flex-shrink: 0;
+  /* Admin row checkboxes have no clickable label: make the box itself tappable (sweep 10-28: was 18 px). */
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .record-accordion-header {
@@ -4672,6 +4675,7 @@ img.waiver-signature {
 }
 
 .pet-file-stay-chip {
+  min-height: 1.75rem; /* a link: at least 24 px to tap (sweep 10-28: was 22) */
   --status-bg: var(--status-amber-bg);
   --status-fg: var(--status-amber-fg);
   background: var(--status-bg);
@@ -4808,9 +4812,11 @@ img.waiver-signature {
   text-decoration: none;
 }
 
-/* Pet-name links: bigger tap area without changing the line (sweep 10-28: were 18 px tall). */
+/* Pet-name links: bigger tap area without changing the line (sweep 10-28: were 18 px tall; short names were 13 px wide). */
 .reminders-section bdi > a {
   display: inline-block;
+  min-width: 1.5rem;
+  text-align: center;
   padding-block: 0.75rem;
   margin-block: -0.75rem;
 }
