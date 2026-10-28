@@ -9,8 +9,6 @@ export function startSentry(dsn: string) {
     environment: import.meta.env.MODE,
     // v11 collects bodies, headers, cookies and query params by default; Supabase bodies hold owner names.
     dataCollection: { userInfo: false, cookies: false, httpHeaders: false, httpBodies: [], urlQueryParams: false },
-    integrations: [Sentry.browserTracingIntegration()],
-    tracesSampleRate: 0.1,
     // Search filters travel in Supabase URLs (owner names, phones): keep only the path.
     beforeBreadcrumb(crumb) {
       if (crumb.data?.url) crumb.data.url = String(crumb.data.url).split('?')[0]
