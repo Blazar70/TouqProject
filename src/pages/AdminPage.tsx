@@ -6,6 +6,8 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
 import { useConfirm } from '../lib/ConfirmContext'
+import AdminImportModal from '../components/AdminImportModal'
+import { MFA_ENABLED } from '../lib/mfa'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { speciesLabel, POPULAR_SPECIES } from '../lib/species'
@@ -89,6 +91,7 @@ function AdminPage() {
   const [savingClinicEdit, setSavingClinicEdit] = useState(false)
 
   const [selectedClinicIds, setSelectedClinicIds] = useState<Set<string>>(new Set())
+  const [importClinicId, setImportClinicId] = useState<string | null>(null)
   const [bulkClinicsBusy, setBulkClinicsBusy] = useState(false)
 
   const [globalQuery, setGlobalQuery] = useState('')
@@ -702,6 +705,13 @@ function AdminPage() {
     setResettingPassword(false)
   }
 
+  async function handleResetMfa(userId: string) {
+    if (!(await confirm(t('mfa.resetConfirm'), { danger: true, confirmLabel: t('mfa.reset') }))) return
+    const err = await invokeFn('admin-manage-clinic', { action: 'reset_mfa', userId })
+    if (err) toast.error(err)
+    else toast.success(t('mfa.resetDone'))
+  }
+
   function toggleClinicSelected(id: string) {
     setSelectedClinicIds((current) => {
       const next = new Set(current)
@@ -1207,6 +1217,9 @@ function AdminPage() {
                           <button type="button" className="secondary-button" onClick={() => openClinicActivity(clinic.id)}>
                             {t('admin.viewActivity')}
                           </button>
+                          <button type="button" className="secondary-button" onClick={() => setImportClinicId(clinic.id)}>
+                            {t('import.title')}
+                          </button>
                           <button
                             type="button"
                             className="secondary-button"
@@ -1651,6 +1664,11 @@ function AdminPage() {
                         <button type="button" className="secondary-button" onClick={() => setShowResetPassword(true)}>
                           {t('admin.resetPassword')}
                         </button>
+                        {MFA_ENABLED && (
+                          <button type="button" className="secondary-button" onClick={() => handleResetMfa(userModalProfile.id)}>
+                            {t('mfa.reset')}
+                          </button>
+                        )}
                         {userModalProfile.id !== currentProfile?.id && (
                           <button
                             type="button"
@@ -1731,6 +1749,10 @@ function AdminPage() {
               </button>
             </div>
         </Modal>
+      )}
+
+      {importClinicId && (
+        <AdminImportModal clinicId={importClinicId} clinicName={clinicNameById[importClinicId] ?? ''} onClose={() => setImportClinicId(null)} />
       )}
 
       {activityModalClinicId && (

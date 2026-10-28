@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { MIN_PASSWORD_LENGTH, parseStaffLogin } from '../_shared/staffRules.ts'
 import { publishableKey, secretKey } from '../_shared/keys.ts'
+import { MFA_ENFORCED, jwtAal } from '../_shared/aal.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const cronPurgeSecret = Deno.env.get('CRON_PURGE_SECRET')!
@@ -47,6 +48,7 @@ Deno.serve(async (req) => {
     if (!profile || profile.role !== 'admin' || profile.disabled) {
       return new Response('forbidden', { status: 403, headers: corsHeaders })
     }
+    if (MFA_ENFORCED && jwtAal(authHeader) !== 'aal2') return new Response('mfa_required', { status: 403, headers: corsHeaders })
     callerProfile = profile
   }
 
@@ -189,6 +191,25 @@ Deno.serve(async (req) => {
     if (updateError) return jsonError(updateError.message)
 
     await logAction('password_reset', 'profile', targetProfile.full_name, targetProfile.clinic_id)
+    return jsonOk({ ok: true })
+  }
+
+  // Lost phone: remove the user's two-step factors; they set up a new one at their next sign-in.
+  if (body.action === 'reset_mfa') {
+    if (isTrustedCaller) return jsonError('reset_mfa is not available to the scheduled job', 403)
+
+    const userId = String(body.userId ?? '')
+    const { data: targetProfile } = await admin.from('profiles').select('full_name, clinic_id').eq('id', userId).maybeSingle()
+    if (!targetProfile) return jsonError('User not found', 404)
+
+    const { data: factors, error: listError } = await admin.auth.admin.mfa.listFactors({ userId })
+    if (listError) return jsonError(listError.message)
+    for (const factor of factors.factors) {
+      const { error } = await admin.auth.admin.mfa.deleteFactor({ userId, id: factor.id })
+      if (error) return jsonError(error.message)
+    }
+
+    await logAction('mfa_reset', 'profile', targetProfile.full_name, targetProfile.clinic_id)
     return jsonOk({ ok: true })
   }
 

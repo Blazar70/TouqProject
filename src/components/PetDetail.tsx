@@ -16,6 +16,8 @@ import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from './SpeciesSelect'
 import TrustedContactsPanel from './TrustedContactsPanel'
 import VaccinationPanel from './VaccinationPanel'
+import WeightChart from './WeightChart'
+import PrescriptionEditor from './PrescriptionEditor'
 import InpatientPanel from './InpatientPanel'
 import type { OpenStay } from './InpatientPanel'
 import VaccinationBadge from './VaccinationBadge'
@@ -475,6 +477,7 @@ function PetDetail({
                             {t('petDetail.treatment')}
                             <input value={edit.treatment} onChange={(e) => setEditField('treatment', e.target.value)} />
                           </label>
+                          <PrescriptionEditor lines={edit.prescription} onChange={(lines) => setEdit((e) => (e ? { ...e, prescription: lines } : e))} />
                         </>
                       )}
                       {/* Notes is the pre-0040 field; only records that already have it show it. */}
@@ -589,6 +592,7 @@ function PetDetail({
 
       <aside className="pet-file-side">
         <VaccinationPanel pet={pet} onUpdated={onUpdated} />
+        {isClinician && <WeightChart petId={pet.id} />}
         <WaiversPanel pet={pet} />
         <TrustedContactsPanel petId={pet.id} />
 

@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { CLINIC_ROLES, MIN_PASSWORD_LENGTH, parseStaffLogin, staffChangeError } from '../_shared/staffRules.ts'
 import type { ClinicRole, StaffCaller, StaffChange, StaffTarget } from '../_shared/staffRules.ts'
 import { publishableKey, secretKey } from '../_shared/keys.ts'
+import { MFA_ENFORCED, jwtAal } from '../_shared/aal.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 
@@ -38,6 +39,7 @@ Deno.serve(async (req) => {
   const isAdmin = me?.role === 'admin' && !me.disabled
   const isManager = me?.role === 'vet' && me.clinic_role === 'manager' && !me.disabled && !me.clinics?.disabled
   if (!isAdmin && !isManager) return fail('forbidden', 403)
+  if (MFA_ENFORCED && jwtAal(req.headers.get('Authorization') ?? '') !== 'aal2') return fail('mfa_required', 403)
 
   const body = await req.json().catch(() => ({}))
   const action = String(body.action ?? '') as StaffChange['action']

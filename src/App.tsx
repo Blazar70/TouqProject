@@ -14,6 +14,7 @@ import StaffPage from './pages/StaffPage'
 import SettingsPage from './pages/SettingsPage'
 import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import MfaPage from './pages/MfaPage'
 import AdminPage from './pages/AdminPage'
 import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdminBillingPage from './pages/AdminBillingPage'
@@ -28,7 +29,7 @@ import BranchPicker from './components/BranchPicker'
 import './App.css'
 
 function App() {
-  const { session, profile, clinicName, clinicDisabled, handlesMoney, loading, passwordRecovery } = useAuth()
+  const { session, profile, clinicName, clinicDisabled, handlesMoney, loading, passwordRecovery, mfaStep } = useAuth()
   const { t } = useLanguage()
   const branch = useBranch()
 
@@ -41,6 +42,9 @@ function App() {
   if (loading || branch.loading) return <LoadingScreen />
 
   if (!session) return <LoginPage />
+
+  // Before the profile opens: admins and managers must use a code (0095), others only if they turned it on.
+  if (mfaStep) return <MfaPage step={mfaStep} />
 
   // profiles_select_own stays readable regardless of `disabled` specifically
   // so this screen can render — every other table is locked down by RLS the

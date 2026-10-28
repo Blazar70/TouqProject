@@ -8,6 +8,8 @@ import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
+import PrescriptionEditor from '../components/PrescriptionEditor'
+import TemplatePicker from '../components/TemplatePicker'
 import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit } from '../lib/clinicalFields'
 import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
 import { canWorkSession } from '../lib/appointmentStatus'
@@ -336,6 +338,7 @@ function SessionPage() {
             ))}
           </select>
         </label>
+        <TemplatePicker form={form} onApply={setForm} />
         <label>
           {t('clinical.presentingComplaint')}
           <textarea value={form.complaint} onChange={(e) => setField('complaint', e.target.value)} rows={2} />
@@ -382,6 +385,7 @@ function SessionPage() {
               <RequiredMark />
               <input value={form.treatment} onChange={(e) => setField('treatment', e.target.value)} required />
             </label>
+            <PrescriptionEditor lines={form.prescription} onChange={(lines) => setForm((f) => ({ ...f, prescription: lines }))} />
           </>
         )}
         <label>

@@ -52,3 +52,5 @@ Completion notes were deliberately written into this table, not new appointment 
 - Source: `src/lib/database.types.ts:366`
 - 0087: only doctors, nurses (0075 limits) and managers may add, edit or delete visit records (`enforce_medical_record_roles`); receptionists read them and see Print only on the pet file.
 - 0088: one visit record per appointment (`medical_records_one_per_visit`; SessionPage saves into the other person's record on a clash); nurses can't change the pre-0040 Notes field (hidden for them); prints show the nurse next to the doctor.
+- 0096: `prescription` jsonb = medicine lines `{medicine, dose, frequency, duration, note}` (free text; doctors/managers only, nurses refused like the diagnosis; `PrescriptionEditor.tsx`, shown/printed via `visitRecordFields`). Weight history from records + inpatient updates draws `WeightChart.tsx` on the pet file (clinicians only).
+- 0096: `visit_templates` = clinic-wide ready-made record texts + prescription; doctors/managers write (Settings > Visit templates, `VisitTemplatesSettings.tsx`), clinicians read and apply at the top of SessionPage (`TemplatePicker.tsx`, `lib/visitTemplates.ts`).

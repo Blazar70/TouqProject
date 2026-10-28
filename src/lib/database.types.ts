@@ -821,6 +821,7 @@ export type Database = {
           pet_id: string
           photo_url: string | null
           physical_exam: string | null
+          prescription: Json
           presenting_complaint: string | null
           remarks: string | null
           temperature_c: number | null
@@ -844,6 +845,7 @@ export type Database = {
           pet_id: string
           photo_url?: string | null
           physical_exam?: string | null
+          prescription?: Json
           presenting_complaint?: string | null
           remarks?: string | null
           temperature_c?: number | null
@@ -867,6 +869,7 @@ export type Database = {
           pet_id?: string
           photo_url?: string | null
           physical_exam?: string | null
+          prescription?: Json
           presenting_complaint?: string | null
           remarks?: string | null
           temperature_c?: number | null
@@ -1409,6 +1412,36 @@ export type Database = {
           },
         ]
       }
+      visit_templates: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          created_by: string | null
+          fields: Json
+          id: string
+          name: string
+          prescription: Json
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          created_by?: string | null
+          fields?: Json
+          id?: string
+          name: string
+          prescription?: Json
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          created_by?: string | null
+          fields?: Json
+          id?: string
+          name?: string
+          prescription?: Json
+        }
+        Relationships: []
+      }
       vaccines: {
         Row: {
           clinic_id: string
@@ -1609,6 +1642,10 @@ export type Database = {
         Returns: string
       }
       undo_vaccine_dose: { Args: { p_dose: string }; Returns: undefined }
+      admin_import_owners_pets: {
+        Args: { p_clinic: string; p_rows: Json }
+        Returns: Json
+      }
       admin_clinic_counts: {
         Args: never
         Returns: {

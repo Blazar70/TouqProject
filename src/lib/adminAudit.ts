@@ -43,6 +43,8 @@ export const AUDIT_ACTION_LABEL_KEYS: Record<string, TranslationKey> = {
   owners_merged: 'admin.action.ownersMerged',
   owner_anonymised: 'admin.action.ownerAnonymised',
   password_reset: 'admin.action.passwordReset',
+  mfa_reset: 'admin.action.mfaReset',
+  owners_pets_imported: 'admin.action.ownersPetsImported',
   profile_updated: 'admin.action.profileUpdated',
   pet_updated: 'admin.action.petUpdated',
 }

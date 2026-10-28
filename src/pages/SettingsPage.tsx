@@ -20,6 +20,9 @@ import { isValidVatNumber } from '../lib/invoiceMath'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
+import TwoStepSettings from '../components/TwoStepSettings'
+import { MFA_ENABLED } from '../lib/mfa'
+import VisitTemplatesSettings from '../components/VisitTemplatesSettings'
 import FormError from '../components/FormError'
 import VaccinesSettings from '../components/VaccinesSettings'
 import WaiverTemplatesSettings from '../components/WaiverTemplatesSettings'
@@ -697,6 +700,18 @@ function SettingsPage() {
         </div>
       )}
 
+      {(isManager || profile?.clinic_role === 'doctor') && profile?.clinic_id && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('templates.title')}</h2>
+            <p className="pet-owner">{t('templates.hint')}</p>
+          </div>
+          <div className="settings-body">
+            <VisitTemplatesSettings clinicId={profile.clinic_id} />
+          </div>
+        </div>
+      )}
+
       {isManager && profile?.clinic_id && (
         <div className="settings-section">
           <div className="settings-intro">
@@ -757,6 +772,8 @@ function SettingsPage() {
             {savingPassword ? t('common.saving') : t('settings.changePassword')}
           </button>
         </form>
+
+        {MFA_ENABLED && <TwoStepSettings />}
         </div>
       </div>
 

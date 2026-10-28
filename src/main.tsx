@@ -19,6 +19,7 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined
 if (sentryDsn) import('./lib/sentry').then((m) => m.startSentry(sentryDsn))
 import OfflineBanner from './components/OfflineBanner'
 import UpdatePrompt from './components/UpdatePrompt'
+import IdleLogout from './components/IdleLogout'
 
 // A data router (rather than plain BrowserRouter) is required for
 // useBlocker — the hook that lets a dirty form stop in-app navigation
@@ -34,6 +35,7 @@ const router = createBrowserRouter([
           <OfflineBanner />
           <UpdatePrompt />
           <AuthProvider>
+            <IdleLogout />
             <ToastProvider>
               <ConfirmProvider>
                 <PrintProvider>

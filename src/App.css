@@ -4978,3 +4978,80 @@ img.waiver-signature {
     justify-content: space-between;
   }
 }
+
+/* Weight chart on the pet file (WeightChart.tsx) */
+.weight-chart-plot {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.weight-chart-base {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.weight-chart-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.weight-chart-dot {
+  fill: var(--accent);
+  stroke: var(--bg-raised);
+  stroke-width: 2;
+}
+.weight-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+.weight-chart-table summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Two-step login QR (MfaSetup.tsx): white behind it so code apps can read it in dark mode */
+.mfa-qr {
+  background: #fff;
+  padding: 0.5rem;
+  border-radius: 8px;
+  align-self: center;
+}
+
+/* Prescription lines (PrescriptionEditor.tsx) */
+.prescription-editor {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.prescription-editor legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+.prescription-line {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 0.5rem;
+  align-items: end;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.prescription-note {
+  grid-column: 1 / -2;
+}
+@media (max-width: 640px) {
+  .prescription-line {
+    grid-template-columns: 1fr 1fr;
+  }
+  .prescription-line > label:first-child,
+  .prescription-note {
+    grid-column: 1 / -1;
+  }
+}

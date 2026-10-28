@@ -55,6 +55,29 @@ export function parseVitals(input: VitalsInput): VitalsResult {
   return { ok: true, vitals: { weight_kg: weight, temperature_c: temperature, heart_rate_bpm: heartRate } }
 }
 
+// One prescription line (0096). All free text, so it prints the way the doctor wrote it in either language.
+export type PrescriptionLine = { medicine: string; dose: string; frequency: string; duration: string; note: string }
+export const emptyPrescriptionLine = (): PrescriptionLine => ({ medicine: '', dose: '', frequency: '', duration: '', note: '' })
+
+// jsonb from the DB (or a template) to lines; anything malformed becomes empty text.
+export function toPrescription(value: unknown): PrescriptionLine[] {
+  if (!Array.isArray(value)) return []
+  return value.map((v) => {
+    const line = (v ?? {}) as Record<string, unknown>
+    const text = (k: keyof PrescriptionLine) => (typeof line[k] === 'string' ? (line[k] as string) : '')
+    return { medicine: text('medicine'), dose: text('dose'), frequency: text('frequency'), duration: text('duration'), note: text('note') }
+  })
+}
+
+// Lines without a medicine are dropped; the rest trimmed.
+export const cleanPrescription = (lines: PrescriptionLine[]) =>
+  lines
+    .map((l) => ({ medicine: l.medicine.trim(), dose: l.dose.trim(), frequency: l.frequency.trim(), duration: l.duration.trim(), note: l.note.trim() }))
+    .filter((l) => l.medicine !== '')
+
+export const prescriptionText = (lines: PrescriptionLine[]) =>
+  lines.map((l) => [l.medicine, l.dose, l.frequency, l.duration, l.note].filter(Boolean).join(' · ')).join('\n')
+
 export type VisitRecordFields = {
   presenting_complaint: string | null
   weight_kg: number | null
@@ -66,6 +89,7 @@ export type VisitRecordFields = {
   treatment: string | null
   notes: string | null
   remarks: string | null
+  prescription?: unknown
 }
 
 // The filled-in parts of a visit record, in clinical order, for display and
@@ -83,6 +107,7 @@ export function visitRecordFields(record: VisitRecordFields): { labelKey: Transl
     ['petDetail.treatment', record.treatment],
     ['common.notes', record.notes],
     ['clinical.remarks', record.remarks],
+    ['prescription.title', prescriptionText(toPrescription(record.prescription)) || null],
   ]
   return fields
     .filter(([, value]) => value !== null && String(value).trim() !== '')
@@ -105,6 +130,7 @@ export function recordToEdit(record: RecordFields | null) {
     treatment: record?.treatment ?? '',
     notes: record?.notes ?? '',
     remarks: record?.remarks ?? '',
+    prescription: toPrescription(record?.prescription),
   }
 }
 export type RecordEdit = ReturnType<typeof recordToEdit>
@@ -120,11 +146,12 @@ export function editToRecord(edit: RecordEdit, vitals: Vitals) {
     treatment: edit.treatment.trim() || null,
     notes: edit.notes || null,
     remarks: edit.remarks.trim() || null,
+    prescription: cleanPrescription(edit.prescription),
   }
 }
 
 export type RecordColumns = Partial<ReturnType<typeof editToRecord>>
 
 // Nurses never write these (0075); the DB refuses them too.
-const DOCTOR_ONLY_FIELDS: string[] = ['diagnosis', 'diagnostic_plan', 'treatment']
+const DOCTOR_ONLY_FIELDS: string[] = ['diagnosis', 'diagnostic_plan', 'treatment', 'prescription']
 export const isDoctorOnlyField = (column: string) => DOCTOR_ONLY_FIELDS.includes(column)

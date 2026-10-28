@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import type { Database } from './database.types'
+import { MFA_ENABLED, mfaRequired, mfaStep as nextMfaStep } from './mfa'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -19,6 +20,9 @@ type AuthContextValue = {
   loading: boolean
   passwordRecovery: boolean
   clearPasswordRecovery: () => void
+  /** Two-step login still to do (0095); the profile stays hidden until it is done. */
+  mfaStep: 'enroll' | 'verify' | null
+  recheckMfa: () => void
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -33,6 +37,8 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   passwordRecovery: false,
   clearPasswordRecovery: () => {},
+  mfaStep: null,
+  recheckMfa: () => {},
 })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -44,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [clinicLogoUrl, setClinicLogoUrl] = useState<string | null>(null)
   const [clinicDisabled, setClinicDisabled] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [mfaStep, setMfaStep] = useState<'enroll' | 'verify' | null>(null)
   // Set when the user arrives via a "reset your password" email link —
   // Supabase signs them into a temporary session and fires this specific
   // event so the app can show a "set new password" screen instead of
@@ -67,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = useCallback(async () => {
     if (!session) {
+      setMfaStep(null)
       setProfile(null)
       setClinicName(null)
       setClinicPhone(null)
@@ -88,7 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('id', session.user.id)
       .maybeSingle()
 
-    if (data) {
+    const step = MFA_ENABLED ? nextMfaStep((await supabase.auth.mfa.getAuthenticatorAssuranceLevel()).data, mfaRequired(data)) : null
+    setMfaStep(step)
+
+    if (data && !step) {
       const { clinics, ...profileRow } = data
       setProfile(profileRow as Profile)
       setClinicName(clinics?.name ?? null)
@@ -129,7 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, handlesMoney, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery }}
+      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, handlesMoney, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery, mfaStep, recheckMfa: refreshClinicName }}
     >
       {children}
     </AuthContext.Provider>
