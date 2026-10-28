@@ -446,7 +446,7 @@ function SettingsPage() {
                 <li>{t('settings.pushInstallStep2')}</li>
               </ol>
             ) : install.prompt ? (
-              <button type="button" onClick={promptInstall}>
+              <button type="button" className="primary-button" onClick={promptInstall}>
                 {t('settings.installButton')}
               </button>
             ) : (

@@ -377,7 +377,7 @@ function ViewWaiverModal({
       </section>
       <img className="waiver-signature" src={waiver.signature} alt={t('waivers.signatureOf', { name: waiver.signer_name })} />
       <div className="record-edit-actions">
-        <button type="button" onClick={onPrint}>
+        <button type="button" className="primary-button" onClick={onPrint}>
           {t('waivers.print')}
         </button>
         <button type="button" className="cancel-button" onClick={onClose}>
