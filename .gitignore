@@ -43,3 +43,6 @@ dev-dist
 
 # Cloudflare wrangler local state
 .wrangler
+
+# Sweep script screenshots and downloads
+scripts/sweep/out/

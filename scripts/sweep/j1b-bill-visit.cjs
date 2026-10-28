@@ -1,0 +1,50 @@
+// Sweep script (saved 10-28; see README.md). Staging only.
+// Journey part 2: reception adds a service to a completed visit, bills it, takes cash. Usage: node bill.cjs <appointmentId>
+const { chromium } = require('./config.cjs').playwright
+const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const APPT = process.argv[2]
+;(async () => {
+  const browser = await chromium.launch({ channel: 'chrome' })
+  const ctx = await browser.newContext({ timezoneId: 'Asia/Riyadh', viewport: { width: 1180, height: 820 } })
+  await ctx.addInitScript(() => { localStorage.setItem('touq-language', 'en'); localStorage.setItem('touq-theme', 'light') })
+  const r = await ctx.newPage()
+  r.on('pageerror', (e) => console.log('  PAGEERROR', e.message.slice(0, 140)))
+  r.on('console', (m) => m.type() === 'error' && console.log('  console', m.text().slice(0, 140)))
+  const shot = (n) => r.screenshot({ path: out + `bill-${n}.png` })
+  try {
+    await r.goto(SITE)
+    await r.fill('input[autocomplete=username]', 'amal.desk')
+    await r.fill('input[type=password]', PASS.demoStaff)
+    await r.click('form.login-form button[type=submit]')
+    await r.waitForTimeout(4000)
+    const pick = r.locator('.branch-picker-list button', { hasText: 'Al Olaya' }).first()
+    if (await pick.count()) { await pick.click(); await r.waitForTimeout(1500) }
+    await r.goto(SITE + '/appointments?open=' + APPT)
+    await r.waitForTimeout(3500)
+    const dlg = r.locator('[role=dialog]')
+    await dlg.locator('select').last().selectOption({ index: 1 })
+    await dlg.getByRole('button', { name: /^Add$/ }).click()
+    await r.waitForTimeout(2500)
+    console.log('ok service added:', (await dlg.innerText()).match(/Total: [\d.,]+/)?.[0])
+    await dlg.getByRole('button', { name: /Bill this visit/ }).click()
+    await r.waitForURL(/\/payments/, { timeout: 8000 })
+    await r.waitForTimeout(3000)
+    await shot('form')
+    await r.getByRole('button', { name: /Create invoice/ }).first().click()
+    await r.waitForTimeout(4000)
+    await shot('created')
+    const inv = r.locator('[role=dialog]').last()
+    console.log('ok invoice:', (await inv.innerText()).replace(/\s+/g, ' ').slice(0, 140))
+    await inv.getByRole('button', { name: /^Add payment$/ }).first().click()
+    await r.waitForTimeout(1200)
+    const focused = await r.evaluate(() => document.activeElement?.closest('form.invoice-action-form') !== null)
+    console.log('  focus moved into the pay form:', focused)
+    await r.locator('form.invoice-action-form button[type=submit]').click()
+    await r.waitForTimeout(3500)
+    await shot('paid')
+    console.log('ok after payment:', (await inv.innerText()).replace(/\s+/g, ' ').slice(0, 200))
+  } catch (e) {
+    console.log('FAIL', e.message.split('\n')[0].slice(0, 160)); await shot('fail')
+  }
+  await browser.close()
+})()
