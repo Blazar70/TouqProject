@@ -12,7 +12,7 @@ const INV = '/payments?invoice=d8ac35df-9950-4cc4-aba4-770b8fe2af8f'
 // [name, route, steps]: a step is a translation-key regex, 'event' (first calendar block) or 'accordion' (first visit record).
 const FORMS = admin ? [
   ['new-clinic', '/clinics', k('admin.newClinic')],
-  ['clinic-view', '/clinics', k('admin.viewClinic')],
+  ['clinic-open', '/clinics', 'accordion'], // details open inline; "View clinic" is a jump link inside the pet/user pop-ups,
   ['new-payment', '/billing', k('admin.newPayment')],
 ] : [
   ['booking', '/appointments', k('appointments.newAppointment', true)],
