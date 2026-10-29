@@ -1,6 +1,6 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
 const { chromium } = require('./config.cjs').playwright
-const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const { SITE, OUT: out, PASS } = require('./config.cjs')
 ;(async () => {
   const b = await chromium.launch({ channel: 'chrome' }); const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } })
   await ctx.addInitScript(() => localStorage.setItem('touq-language', 'ar'))

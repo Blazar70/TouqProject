@@ -44,7 +44,7 @@ async function check(name, page, fn) {
   const mgr = await login(b, 'MohBaf@touq.app', PASS.cofounder)
   await check('owner-merge', mgr, async () => {
     const A = `Sweep Owner A ${stamp}`, B = `Sweep Owner B ${stamp}`
-    const idA = sql(`insert into owner_files (clinic_id, name, phone) values (${CLINIC}, '${A}', '+96650000${stamp.slice(0, 4)}') returning id`).split('\n')[0]
+    sql(`insert into owner_files (clinic_id, name, phone) values (${CLINIC}, '${A}', '+96650000${stamp.slice(0, 4)}')`)
     const idB = sql(`insert into owner_files (clinic_id, name, phone) values (${CLINIC}, '${B}', '+96650001${stamp.slice(0, 4)}') returning id`).split('\n')[0]
     await mgr.go('/owners')
     await mgr.locator('li.pet-list-item, .data-row').filter({ hasText: A }).getByRole('button', { name: /^Open$/ }).first().click(); await mgr.waitForTimeout(2500)

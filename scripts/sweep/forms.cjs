@@ -1,7 +1,7 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
 // Opens each form / pop-up WITHOUT saving and checks it. Usage: node forms.cjs <user> <passKey> <w> <h> <label> [en|ar] [admin]
 const { chromium } = require('./config.cjs').playwright
-const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const { SITE, OUT: out, PASS } = require('./config.cjs')
 const [user, passKey, w, h, label, lang = 'en', admin] = process.argv.slice(2)
 const pass = PASS[passKey] // a key from config.cjs PASS (e.g. demoStaff), so no password is typed on the command line
 const PET_STAY = '/pets/b4fee9a0-64e4-409a-b7cf-37b9b3cb23e8'
@@ -51,7 +51,6 @@ const FORMS = admin ? [
     errors = []
     await page.goto(SITE + route)
     await page.waitForTimeout(3500)
-    let opened = 'page'
     const steps = Array.isArray(action) ? action : action ? [action] : []
     try {
       for (const step of steps) {

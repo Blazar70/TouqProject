@@ -32,6 +32,10 @@ function WeightChart({ petId }: { petId: string }) {
   const [t0, t1] = [Math.min(...times), Math.max(...times)]
   const [k0, k1] = [Math.min(...kgs), Math.max(...kgs)]
   const x = (time: number) => (t1 === t0 ? W / 2 : PAD + ((time - t0) / (t1 - t0)) * (W - 2 * PAD))
+  // More than 10% since the weighing before: flagged in text and on the last point (nightly H36).
+  const prev = points.length > 1 ? points[points.length - 2].kg : null
+  const changePct = prev ? Math.round(((last.kg - prev) / prev) * 100) : 0
+  const bigChange = Math.abs(changePct) > 10
   const y = (kg: number) => (k1 === k0 ? H / 2 : H - PAD - ((kg - k0) / (k1 - k0)) * (H - 2 * PAD))
 
   return (
@@ -40,15 +44,32 @@ function WeightChart({ petId }: { petId: string }) {
         <h3>{t('weight.title')}</h3>
         <span className="pet-file-meta">
           {t('weight.latest')}: {t('weight.kg', { value: String(last.kg) })}
+          {bigChange && (
+            <strong className="weight-chart-alert">
+              {' '}
+              {t('weight.bigChange', { pct: `${changePct > 0 ? '+' : ''}${changePct}%` })}
+            </strong>
+          )}
         </span>
       </div>
+      {points.length > 1 && (
+        <p className="weight-chart-range">
+          {t('weight.range')}: <bdi dir="ltr">{k0} – {k1}</bdi> {t('weight.unit')}
+        </p>
+      )}
       {points.length > 1 && (
         <>
           <svg viewBox={`0 0 ${W} ${H}`} className="weight-chart-plot" aria-hidden="true">
             <line x1={PAD} x2={W - PAD} y1={y(k0)} y2={y(k0)} className="weight-chart-base" />
             <polyline points={points.map((p, i) => `${x(times[i])},${y(p.kg)}`).join(' ')} className="weight-chart-line" />
             {points.map((p, i) => (
-              <circle key={i} cx={x(times[i])} cy={y(p.kg)} r={4} className="weight-chart-dot">
+              <circle
+                key={i}
+                cx={x(times[i])}
+                cy={y(p.kg)}
+                r={4}
+                className={`weight-chart-dot${bigChange && i === points.length - 1 ? ' weight-chart-dot-alert' : ''}`}
+              >
                 <title>{`${formatDate(p.at)}: ${t('weight.kg', { value: String(p.kg) })}`}</title>
               </circle>
             ))}

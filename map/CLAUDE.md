@@ -19,7 +19,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 | Routes and role gate | `src/App.tsx` (admin vs clinic route sets) |
 | Pages | `src/pages/` |
 | Business rules | `src/lib/` (cancellation, vaccination, appointmentConflicts, ...) |
-| DB schema | `supabase/migrations/` (0001-0097, applied in order; rollbacks in `supabase/rollbacks/`) |
+| DB schema | `supabase/migrations/` (0001-0099, 0095 parked in `supabase/v3-pending/`; applied in order; rollbacks in `supabase/rollbacks/`) |
 | Generated DB types | `src/lib/database.types.ts` |
 | Edge functions | `supabase/functions/` |
 
@@ -40,7 +40,7 @@ Touq is a bilingual (EN/AR) PWA for vet clinics: pets, appointments, medical rec
 |---|---|
 | asking "what is X" | `objects/_index.md`, then the card |
 | about to change something | `effects/CONTEXT.md` |
-| changing a table or policy | the card, then add a new numbered migration; never edit an old one |
+| changing a table or policy | the card, then add a new numbered migration; never edit an old one. A NEW table needs its own `grant ... to authenticated` (0099: Supabase stopped automatic grants on 30 Oct 2026) |
 | touching text shown to users | `src/lib/i18n/translations.ts` (both languages) |
 
 ## The one rule

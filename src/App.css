@@ -5055,3 +5055,40 @@ img.waiver-signature {
     grid-column: 1 / -1;
   }
 }
+
+/* Admin import preview (AdminImportModal.tsx) */
+.import-preview {
+  overflow-x: auto;
+}
+.import-preview table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  width: 100%;
+}
+.import-preview caption {
+  text-align: start;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.import-preview th,
+.import-preview td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.3rem 0.5rem;
+  text-align: start;
+}
+
+/* Visit record values keep their line breaks: one prescription line per medicine (nightly B27) */
+.record-field {
+  white-space: pre-line;
+}
+.weight-chart-range {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.weight-chart-alert {
+  color: var(--danger);
+}
+.weight-chart-dot-alert {
+  fill: var(--danger);
+}

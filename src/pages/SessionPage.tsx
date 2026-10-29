@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Timer } from 'lucide-react'
@@ -10,6 +10,7 @@ import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
 import PrescriptionEditor from '../components/PrescriptionEditor'
 import TemplatePicker from '../components/TemplatePicker'
+import { idleGuards } from '../lib/idleLogout'
 import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit } from '../lib/clinicalFields'
 import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
 import { canWorkSession } from '../lib/appointmentStatus'
@@ -74,6 +75,16 @@ function SessionPage() {
 
   const dirty = Boolean(photoFile) || JSON.stringify(form) !== JSON.stringify(recordToEdit(record))
   useUnsavedChangesWarning(dirty && !done)
+  // An idle sign-out saves the half-written record first instead of losing it (nightly B25).
+  const saveRef = useRef<() => Promise<unknown>>(async () => {})
+  useEffect(() => {
+    if (!dirty || done) return
+    const save = () => saveRef.current()
+    idleGuards.savers.add(save)
+    return () => {
+      idleGuards.savers.delete(save)
+    }
+  }, [dirty, done])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
@@ -151,6 +162,7 @@ function SessionPage() {
   // Writes only the fields changed on this screen, so the doctor and the nurse don't
   // overwrite each other's work; returns the merged record.
   // shortcut: no live sync; each person sees the other's changes on their next save or reload. Add realtime if that bites.
+  saveRef.current = () => saveRecord()
   async function saveRecord(): Promise<MedicalRecord | null> {
     if (!appointment || !profile?.clinic_id) return null
     const vitalsResult = parseVitals(form)

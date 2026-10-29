@@ -531,7 +531,7 @@ function PetDetail({
                             </div>
                           )}
                           {visitRecordFields(record).map((field) => (
-                            <div key={field.labelKey}>
+                            <div key={field.labelKey} className="record-field">
                               <strong>{t(field.labelKey)}:</strong> {field.value}
                             </div>
                           ))}

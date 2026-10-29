@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
-import { signOutThisDevice } from '../lib/push'
-import { IDLE_LIMIT_MS, LAST_ACTIVE_KEY, idleState } from '../lib/idleLogout'
+import { supabase } from '../lib/supabase'
+import { IDLE_LIMIT_DIRTY_MS, IDLE_LIMIT_MS, LAST_ACTIVE_KEY, idleGuards, idleState } from '../lib/idleLogout'
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
 
@@ -22,7 +22,13 @@ const writeLast = (value: number | null) => {
   }
 }
 
-// Signs the device out after 10 idle minutes, with a one-minute warning (lib/idleLogout.ts).
+// Signs the device out after 10 idle minutes (60 with unsaved typing), with a one-minute warning (lib/idleLogout.ts).
+// Session only: the push subscription stays, so a quiet device still gets check-in alerts (nightly B24);
+// the manual Log out (signOutThisDevice) is the one that stops alerts.
+async function idleSignOut() {
+  await Promise.allSettled([...idleGuards.savers].map((save) => save()))
+  await supabase.auth.signOut({ scope: 'local' })
+}
 function IdleLogout() {
   const { session, loading } = useAuth()
   const { t } = useLanguage()
@@ -36,9 +42,10 @@ function IdleLogout() {
     }
     let last = readLast() ?? Date.now()
     if (idleState(last, Date.now()) === 'out') {
-      signOutThisDevice()
+      idleSignOut() // reopened after 10+ minutes: nothing typed survives a closed tab anyway
       return
     }
+    let signingOut = false
     writeLast(last)
 
     function onActivity() {
@@ -50,9 +57,13 @@ function IdleLogout() {
     function tick() {
       last = Math.max(last, readLast() ?? last) // another tab may have been used
       const now = Date.now()
-      const state = idleState(last, now)
-      if (state === 'out') signOutThisDevice()
-      setSecondsLeft(state === 'warn' ? Math.ceil((last + IDLE_LIMIT_MS - now) / 1000) : null)
+      const limit = idleGuards.dirtyForms > 0 ? IDLE_LIMIT_DIRTY_MS : IDLE_LIMIT_MS
+      const state = idleState(last, now, limit)
+      if (state === 'out' && !signingOut) {
+        signingOut = true
+        idleSignOut()
+      }
+      setSecondsLeft(state === 'warn' ? Math.ceil((last + limit - now) / 1000) : null)
     }
     ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
     const timer = window.setInterval(tick, 1000)

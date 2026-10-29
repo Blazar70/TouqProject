@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useBlocker } from 'react-router-dom'
 import { useConfirm } from './ConfirmContext'
 import { useLanguage } from './i18n/LanguageContext'
+import { idleGuards } from './idleLogout'
 
 // Warns on both ways a dirty form's edits can get silently lost: closing/
 // refreshing the tab (beforeunload) and navigating to another in-app page
@@ -11,6 +12,14 @@ export function useUnsavedChangesWarning(isDirty: boolean) {
   const { t } = useLanguage()
   const confirm = useConfirm()
   const blocker = useBlocker(isDirty)
+
+  useEffect(() => {
+    if (!isDirty) return
+    idleGuards.dirtyForms++
+    return () => {
+      idleGuards.dirtyForms--
+    }
+  }, [isDirty])
 
   useEffect(() => {
     if (!isDirty) return

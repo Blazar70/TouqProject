@@ -1,7 +1,7 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
 // Prove: a removed staff member can't log in. Only touches "Sweep Test Nurse"; aborts if the confirm names anyone else.
 const { chromium } = require('./config.cjs').playwright
-const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const { SITE, PASS } = require('./config.cjs')
 const NAME = 'Sweep Test Nurse'
 ;(async () => {
   const b = await chromium.launch({ channel: 'chrome' })

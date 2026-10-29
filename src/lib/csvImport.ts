@@ -10,6 +10,13 @@ export type ImportRow = Record<Column, string>
 export type ImportError = { line: number; key: TranslationKey }
 export const IMPORT_MAX_ROWS = 5000
 
+// Excel on Arabic Windows saves plain "CSV" as Windows-1256, not UTF-8 (nightly B26): read as UTF-8 first and
+// fall back when that leaves replacement characters. The preview shows rows so a wrong guess is visible.
+export function decodeCsv(bytes: ArrayBuffer): string {
+  const utf8 = new TextDecoder('utf-8').decode(bytes)
+  return utf8.includes('�') ? new TextDecoder('windows-1256').decode(bytes) : utf8
+}
+
 // RFC 4180 CSV: quoted fields may hold commas, quotes ("") and line breaks. Excel set to Arabic/European
 // regions saves with ";" instead, so the header line picks the separator.
 export function parseCsv(text: string): string[][] {

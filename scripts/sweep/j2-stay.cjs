@@ -1,7 +1,7 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
 // Journey 2 with saves (demo clinic): doctor admits Sunny -> nurse adds an update -> doctor discharges -> reception bills the stay.
 const { chromium } = require('./config.cjs').playwright
-const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const { SITE, OUT: out, PASS } = require('./config.cjs')
 const PET = SITE + '/pets/30359b93-8e11-481b-988c-e84be20ff062'
 async function login(browser, user, pass, lang = 'en') {
   const ctx = await browser.newContext({ timezoneId: 'Asia/Riyadh', viewport: { width: 1180, height: 820 } })

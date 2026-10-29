@@ -1,7 +1,7 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
 // Journey 5 (demo clinic): WhatsApp reminder send + undo. Prints: print.cjs. Removing staff: removed-staff-login.cjs (row-scoped).
 const { chromium } = require('./config.cjs').playwright
-const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const { SITE, OUT: out, PASS } = require('./config.cjs')
 async function login(b, user, pass, lang = 'en') {
   const ctx = await b.newContext({ timezoneId: 'Asia/Riyadh', viewport: { width: 1280, height: 800 } })
   await ctx.addInitScript((l) => { localStorage.setItem('touq-language', l) }, lang)

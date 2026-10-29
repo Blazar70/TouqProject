@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react'
 import { supabase } from './supabase'
+import { scrubPhones } from './scrubPhones'
 
 // Crash reports (user 10-28): only the error, page, browser and the user's + clinic's IDs. No session replay,
 // no names. Loaded from main.tsx only when VITE_SENTRY_DSN is set (the staging site's build variable).
@@ -16,6 +17,11 @@ export function startSentry(dsn: string) {
     },
     beforeSend(event) {
       if (event.request?.url) event.request.url = event.request.url.split('?')[0]
+      // DB errors can quote a value, e.g. "(phone)=(+9665…)": blank out phone-like digit runs (nightly 10-29).
+      if (event.message) event.message = scrubPhones(event.message)
+      event.exception?.values?.forEach((e) => {
+        if (e.value) e.value = scrubPhones(e.value)
+      })
       return event
     },
   })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildImport, parseCsv } from './csvImport'
+import { buildImport, decodeCsv, parseCsv } from './csvImport'
 
 describe('parseCsv', () => {
   it('reads quotes, commas inside quotes, CRLF, BOM and skips blank lines', () => {
@@ -13,6 +13,14 @@ describe('parseCsv', () => {
       ['a', 'b'],
       ['1', '2'],
     ])
+  })
+})
+
+describe('decodeCsv', () => {
+  it('reads UTF-8, and Windows-1256 from Arabic Excel', () => {
+    expect(decodeCsv(new TextEncoder().encode('سارة').buffer as ArrayBuffer)).toBe('سارة')
+    // "سارة" in Windows-1256
+    expect(decodeCsv(new Uint8Array([0xd3, 0xc7, 0xd1, 0xc9]).buffer)).toBe('سارة')
   })
 })
 

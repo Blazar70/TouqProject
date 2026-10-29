@@ -4,10 +4,12 @@ import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { downloadCsv } from '../lib/csvExport'
-import { IMPORT_COLUMNS, buildImport, parseCsv } from '../lib/csvImport'
+import { IMPORT_COLUMNS, buildImport, decodeCsv, parseCsv } from '../lib/csvImport'
 import type { ImportError, ImportRow } from '../lib/csvImport'
 import Modal from './Modal'
 import FormError from './FormError'
+import Ltr from './Ltr'
+import { formatDate } from '../lib/format'
 
 // Admin > clinic > Import owners & pets (0097): pick a CSV, check the preview, import all or nothing.
 function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string; clinicName: string; onClose: () => void }) {
@@ -21,7 +23,7 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
     const file = e.target.files?.[0]
     setError(null)
     if (!file) return setParsed(null)
-    const { rows, errors } = buildImport(parseCsv(await file.text()))
+    const { rows, errors } = buildImport(parseCsv(decodeCsv(await file.arrayBuffer())))
     setParsed({ file: file.name, rows, errors })
   }
 
@@ -31,8 +33,9 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
     const { data, error: importError } = await supabase.rpc('admin_import_owners_pets', { p_clinic: clinicId, p_rows: parsed.rows })
     setImporting(false)
     if (importError) return setError(importError.message)
-    const result = data as unknown as { pets: number; new_owners: number; matched_owners: number }
-    toast.success(t('import.done', { pets: String(result.pets), newOwners: String(result.new_owners), matched: String(result.matched_owners) }))
+    const result = data as unknown as { pets: number; new_owners: number; matched_owners: number; skipped: number }
+    const counts = { pets: String(result.pets), newOwners: String(result.new_owners), matched: String(result.matched_owners), skipped: String(result.skipped) }
+    toast.success(t(result.skipped ? 'import.doneSkipped' : 'import.done', counts))
     onClose()
   }
 
@@ -63,7 +66,35 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
         </div>
       )}
       {parsed && parsed.errors.length === 0 && (
-        <p>{t('import.preview', { pets: String(parsed.rows.length), owners: String(owners) })}</p>
+        <>
+          <p>{t('import.preview', { pets: String(parsed.rows.length), owners: String(owners) })}</p>
+          {/* First rows as they will be saved: garbled letters, swapped columns or a misread date show here (nightly H37). */}
+          <div className="import-preview">
+            <table>
+              <caption>{t('import.firstRows')}</caption>
+              <thead>
+                <tr>
+                  <th>{t('import.colOwner')}</th>
+                  <th>{t('import.colPhone')}</th>
+                  <th>{t('import.colPet')}</th>
+                  <th>{t('import.colSpecies')}</th>
+                  <th>{t('import.colBirth')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsed.rows.slice(0, 5).map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.owner_name}</td>
+                    <td><Ltr>{r.owner_phone}</Ltr></td>
+                    <td>{r.pet_name}</td>
+                    <td>{r.species}</td>
+                    <td>{r.date_of_birth && formatDate(r.date_of_birth)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
       <FormError message={error} />
       <div className="record-edit-actions">

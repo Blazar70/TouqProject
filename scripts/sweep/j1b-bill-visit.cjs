@@ -1,7 +1,7 @@
 // Sweep script (saved 10-28; see README.md). Staging only.
 // Journey part 2: reception adds a service to a completed visit, bills it, takes cash. Usage: node bill.cjs <appointmentId>
 const { chromium } = require('./config.cjs').playwright
-const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
+const { SITE, OUT: out, PASS } = require('./config.cjs')
 const APPT = process.argv[2]
 ;(async () => {
   const browser = await chromium.launch({ channel: 'chrome' })

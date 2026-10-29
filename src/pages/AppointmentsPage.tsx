@@ -896,7 +896,7 @@ function AppointmentsPage() {
                       </p>
                     )}
                     {visitRecordFields(record).map((field) => (
-                      <p key={field.labelKey} className="pet-owner">
+                      <p key={field.labelKey} className="pet-owner record-field">
                         {t(field.labelKey)}: {field.value}
                       </p>
                     ))}
