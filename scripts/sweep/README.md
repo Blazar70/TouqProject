@@ -35,6 +35,7 @@ Most journeys SAVE data on the demo clinic "Al Nakheel"; that data is wiped in t
 | `j7-vaccine-register-void-export.cjs [rest]` | vaccine given + undo · register pet · void waiver · owner export | yes |
 | `j8-meds-staffedit-ownerdelete.cjs` | medicine reminder Done/Undo/Stop · staff edit · delete test owner's data | yes |
 | `j9-batch-1029.cjs [late]` | 10-29 batch: doctor template → reception books → doctor applies template (diagnosis + medicine), finishes → record shows prescription + weight chart → template deleted · receptionist sees neither · idle warning/Stay/sign-out (fake clock) + reopened-browser sign-out · admin CSV import into Clinic A (bad file refused, good imported). `late` = only the last three parts | yes |
+| `j10-nightly-1029.cjs` | nightly 10-29 fixes: unsaved visit survives 15 idle min, saved + signed out at 60 (fake clock), no push_subscriptions DELETE · record values `pre-line` · weight range · Windows-1256 CSV preview reads Arabic, second import skips (Clinic A) | yes |
 | `print.cjs <invoiceId>` | A4 + 80 mm print content | no |
 | `admin-billing.cjs` | admin payment create → paid → delete (self-cleaning) | no net change |
 | `removed-staff-login.cjs` | remove "Sweep Test Nurse" (row-scoped) → login refused | yes |
