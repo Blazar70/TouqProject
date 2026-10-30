@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
 import { formatMoney } from '../lib/format'
-import { BALANCE_EMBED, flatBalance, matchesOwner } from '../lib/owners'
+import { BALANCE_EMBED, flatBalance } from '../lib/owners'
+import { searchPattern } from '../lib/search'
 import LoadingScreen from '../components/LoadingScreen'
 import OwnerDetail from '../components/OwnerDetail'
 import Ltr from '../components/Ltr'
 import FormError from '../components/FormError'
+
+// The API returns at most 1,000 rows (nightly B29): the list shows the first names A–Z, search reaches the rest.
+const OWNER_LIST_LIMIT = 100
 
 type OwnerRow = { id: string; name: string; phone: string | null; balance: number; pets: { count: number }[] }
 
@@ -22,25 +26,35 @@ function OwnersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [total, setTotal] = useState(0)
+  const request = useRef(0)
 
+  // An older answer never overwrites a newer one.
   async function load() {
-    const { data, error: loadError } = await supabase
+    const mine = ++request.current
+    const pattern = searchPattern(search)
+    let query = supabase
       .from('owner_files')
-      .select(`id, name, phone, ${BALANCE_EMBED}, pets(count)`)
+      .select(`id, name, phone, ${BALANCE_EMBED}, pets(count)`, { count: 'exact' })
       .is('pets.deleted_at', null)
-      .order('name')
+    if (pattern) query = query.ilike('search_text', pattern)
+    const { data, count, error: loadError } = await query.order('name').limit(OWNER_LIST_LIMIT)
+    if (mine !== request.current) return
     if (loadError) setError(loadError.message)
-    else setOwners(((data ?? []) as unknown as (Omit<OwnerRow, 'balance'> & { balance: { balance: number } | null })[]).map(flatBalance))
+    else {
+      setOwners(((data ?? []) as unknown as (Omit<OwnerRow, 'balance'> & { balance: { balance: number } | null })[]).map(flatBalance))
+      setTotal(count ?? 0)
+    }
     setLoading(false)
   }
 
   useEffect(() => {
     // Reload when coming back from an owner: their balance or pets may have changed.
-    if (!openId) load()
+    if (openId) return
+    const timer = window.setTimeout(load, search.trim() ? 250 : 0)
+    return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId])
-
-  const filtered = useMemo(() => owners.filter((o) => matchesOwner(o, search)), [owners, search])
+  }, [openId, search])
 
   if (openId) return <OwnerDetail ownerId={openId} onClose={() => setSearchParams({})} />
   if (loading) return <LoadingScreen />
@@ -59,8 +73,13 @@ function OwnersPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {filtered.length === 0 ? (
-        <p className="empty-state">{owners.length === 0 ? t('owners.none') : t('owners.noneMatch')}</p>
+      {total > owners.length && (
+        <p className="search-result-count">
+          {t(search.trim() ? 'pets.resultCount' : 'owners.firstShown', { count: String(owners.length), total: String(total) })}
+        </p>
+      )}
+      {owners.length === 0 ? (
+        <p className="empty-state">{search.trim() ? t('owners.noneMatch') : t('owners.none')}</p>
       ) : (
         <ul className={`pet-list data-table data-owners${handlesMoney ? '' : ' data-owners-nomoney'}`}>
           <li className="data-head" aria-hidden>
@@ -70,7 +89,7 @@ function OwnersPage() {
             {handlesMoney && <span className="data-num">{t('owners.balance')}</span>}
             <span />
           </li>
-          {filtered.map((owner) => (
+          {owners.map((owner) => (
             <li key={owner.id} className="pet-list-item">
               <div className="pet-row data-row">
                 <button type="button" className="pet-row-toggle data-cell-wide" onClick={() => setSearchParams({ id: owner.id })}>

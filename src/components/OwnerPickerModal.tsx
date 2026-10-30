@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { isValidSaudiMobile } from '../lib/phone'
-import { BALANCE_EMBED, flatBalance, matchesOwner } from '../lib/owners'
+import { BALANCE_EMBED, flatBalance } from '../lib/owners'
+import { searchPattern } from '../lib/search'
 import { formatMoney } from '../lib/format'
 import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
@@ -37,16 +38,24 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Server search (nightly B29: the API returns at most 1,000 rows), after a pause in typing.
   useEffect(() => {
-    supabase
-      .from('owner_files')
-      .select(`id, name, phone, email, ${BALANCE_EMBED}`)
-      .order('name')
-      .then(({ data, error: loadError }) => {
-        if (loadError) setError(loadError.message)
-        setOwners((data ?? []).map(flatBalance))
-      })
-  }, [])
+    let live = true
+    const pattern = searchPattern(query)
+    const timer = window.setTimeout(async () => {
+      let request = supabase.from('owner_files').select(`id, name, phone, email, ${BALANCE_EMBED}`)
+      if (pattern) request = request.ilike('search_text', pattern)
+      if (excludeId) request = request.neq('id', excludeId)
+      const { data, error: loadError } = await request.order('name').limit(20)
+      if (!live) return
+      if (loadError) setError(loadError.message)
+      setOwners((data ?? []).map(flatBalance))
+    }, pattern ? 250 : 0)
+    return () => {
+      live = false
+      window.clearTimeout(timer)
+    }
+  }, [query, excludeId])
 
 
   async function handleCreate(e: FormEvent) {
@@ -70,7 +79,7 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
     onPick({ ...data, balance: 0 })
   }
 
-  const matches = (owners ?? []).filter((o) => o.id !== excludeId && matchesOwner(o, query)).slice(0, 20)
+  const matches = owners ?? []
 
   return (
     <Modal onClose={onClose} labelledBy="owner-picker-title">

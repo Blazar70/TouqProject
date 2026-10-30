@@ -8,7 +8,7 @@ entity: supabase/migrations/0001_init.sql
 
 # Medical records
 
-The clinical note for a visit. One per session, saved as the session goes (SessionPage Save / Finish) and shared by the doctor and the nurse (0075).
+The clinical note for a visit. One per session, saved as the session goes (SessionPage Save / Finish, and by itself 5 s after the last change since 10-30, nightly H41: status line "Saved 10:42" / "Not saved yet: <vitals problem>") and shared by the doctor and the nurse (0075).
 
 ## Why this shape
 
@@ -53,4 +53,5 @@ Completion notes were deliberately written into this table, not new appointment 
 - 0087: only doctors, nurses (0075 limits) and managers may add, edit or delete visit records (`enforce_medical_record_roles`); receptionists read them and see Print only on the pet file.
 - 0088: one visit record per appointment (`medical_records_one_per_visit`; SessionPage saves into the other person's record on a clash); nurses can't change the pre-0040 Notes field (hidden for them); prints show the nurse next to the doctor.
 - 0096: `prescription` jsonb = medicine lines `{medicine, dose, frequency, duration, note}` (free text; doctors/managers only, nurses refused like the diagnosis; `PrescriptionEditor.tsx`, shown/printed via `visitRecordFields`). Weight history from records + inpatient updates draws `WeightChart.tsx` on the pet file (clinicians only).
+- Prescription extras (10-30, no migration): quick-pick buttons for how often / how long and "Repeat last prescription" (the pet's newest prescription from another visit, SessionPage only) in `PrescriptionEditor.tsx`; "Print prescription" on the pet file record and the appointment panel prints the prescription alone (`PrintContext.printPrescription`, one page with a doctor line).
 - 0096: `visit_templates` = clinic-wide ready-made record texts + prescription; doctors/managers write (Settings > Visit templates, `VisitTemplatesSettings.tsx`), clinicians read and apply at the top of SessionPage (`TemplatePicker.tsx`, `lib/visitTemplates.ts`).

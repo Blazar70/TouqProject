@@ -33,6 +33,12 @@ describe('buildImport', () => {
     expect(rows[0]).toMatchObject({ owner_phone: '+966501234567', species: 'Cat', date_of_birth: '2022-03-01' })
   })
 
+  it('cleans and checks the optional microchip column', () => {
+    const { rows, errors } = buildImport([[...header, 'microchip'], ['A', '', 'P', 'Dog', '', '982 000 123456789'], ['B', '', 'Q', 'Dog', '', '123']])
+    expect(rows[0].microchip).toBe('982000123456789')
+    expect(errors).toEqual([{ line: 3, key: 'import.badMicrochip' }])
+  })
+
   it('lists bad rows with their spreadsheet line', () => {
     const { errors } = buildImport([header, ['A', '12345', 'P', 'Dog', ''], ['', '', 'Q', 'Dog', '31/02/2022']])
     expect(errors).toEqual([

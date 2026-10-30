@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -15,7 +15,7 @@ import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import { formatDate } from '../lib/format'
-import { matchesPetSearch } from '../lib/appointmentSearch'
+import { searchPattern } from '../lib/search'
 import { INPATIENT_MEDIA_BUCKET } from '../lib/inpatient'
 import FormError from '../components/FormError'
 import Modal from '../components/Modal'
@@ -23,6 +23,8 @@ import Modal from '../components/Modal'
 type Pet = Database['public']['Tables']['pets']['Row']
 
 const TRASH_RETENTION_DAYS = 7
+// The API returns at most 1,000 rows (nightly B29): the list shows the newest pets, search reaches the rest.
+const PET_LIST_LIMIT = 100
 
 function PetsPage() {
   const { profile } = useAuth()
@@ -30,6 +32,10 @@ function PetsPage() {
   const confirm = useConfirm()
   const toast = useToast()
   const [pets, setPets] = useState<Pet[]>([])
+  const [total, setTotal] = useState(0)
+  // A pet opened by link that isn't in the shown list.
+  const [linkedPet, setLinkedPet] = useState<Pet | null>(null)
+  const request = useRef(0)
   const [loading, setLoading] = useState(true)
   // The open pet file lives in the URL (/pets/<id>): Back closes it, links and reloads reopen it.
   const { id: expandedPetId = null } = useParams()
@@ -44,15 +50,19 @@ function PetsPage() {
   const [restoringPetId, setRestoringPetId] = useState<string | null>(null)
   const [purgingPetId, setPurgingPetId] = useState<string | null>(null)
 
+  // Newest pets, or the server's matches for the search box; an older answer never overwrites a newer one.
   async function loadPets() {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('pets')
-      .select('*')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
+    const mine = ++request.current
+    const pattern = searchPattern(search)
+    let query = supabase.from('pets').select('*', { count: 'exact' }).is('deleted_at', null)
+    if (pattern) query = query.ilike('search_text', pattern)
+    const { data, count, error } = await query.order('created_at', { ascending: false }).limit(PET_LIST_LIMIT)
+    if (mine !== request.current) return
     if (error) setError(error.message)
-    else setPets(data ?? [])
+    else {
+      setPets(data ?? [])
+      setTotal(count ?? 0)
+    }
     setLoading(false)
   }
 
@@ -61,30 +71,37 @@ function PetsPage() {
   // member made while this tab sat open.
   async function handleRefresh() {
     setRefreshing(true)
-    const { data, error } = await supabase
-      .from('pets')
-      .select('*')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-    if (error) setError(error.message)
-    else setPets(data ?? [])
+    await loadPets()
     setRefreshing(false)
   }
 
   useEffect(() => {
-    loadPets()
-  }, [])
+    const timer = window.setTimeout(loadPets, search.trim() ? 250 : 0)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
 
-  const openPet = pets.find((pet) => pet.id === expandedPetId) ?? null
+  const openPet = pets.find((pet) => pet.id === expandedPetId) ?? (linkedPet?.id === expandedPetId ? linkedPet : null)
 
   // Opened by URL (link, Back/Forward, reload): the file starts at the top; an unknown or deleted pet falls back to the list.
   useEffect(() => {
     if (loading || !expandedPetId) return
-    if (!openPet) {
-      navigate('/pets', { replace: true })
+    if (openPet) {
+      window.scrollTo({ top: 0 })
       return
     }
-    window.scrollTo({ top: 0 })
+    supabase
+      .from('pets')
+      .select('*')
+      .eq('id', expandedPetId)
+      .is('deleted_at', null)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setLinkedPet(data)
+          window.scrollTo({ top: 0 })
+        } else navigate('/pets', { replace: true })
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, expandedPetId])
 
@@ -163,6 +180,7 @@ function PetsPage() {
 
   function handlePetUpdated(updated: Pet) {
     setPets((current) => current.map((p) => (p.id === updated.id ? updated : p)))
+    setLinkedPet((current) => (current?.id === updated.id ? updated : current))
   }
 
   // Real navigation, so PetDetail's unsaved-changes guard (useBlocker) asks before leaving a dirty file.
@@ -171,12 +189,6 @@ function PetsPage() {
     navigate('/pets')
     requestAnimationFrame(() => document.getElementById(`pet-row-${petId}`)?.scrollIntoView({ block: 'center' }))
   }
-
-  const filteredPets = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    if (!query) return pets
-    return pets.filter((pet) => matchesPetSearch(pet, query))
-  }, [pets, search])
 
   if (loading) return <LoadingScreen />
 
@@ -215,14 +227,14 @@ function PetsPage() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
-      {search.trim() && (
+      {total > pets.length && (
         <p className="search-result-count">
-          {t('pets.resultCount', { count: String(filteredPets.length), total: String(pets.length) })}
+          {t(search.trim() ? 'pets.resultCount' : 'pets.newestShown', { count: String(pets.length), total: String(total) })}
         </p>
       )}
 
-      {filteredPets.length === 0 ? (
-        pets.length === 0 ? (
+      {pets.length === 0 ? (
+        !search.trim() ? (
           <div className="empty-state">
             <p>{t('pets.noneRegistered')}</p>
             {profile?.role === 'vet' && (
@@ -243,7 +255,7 @@ function PetsPage() {
             <span>{t('list.vaccination')}</span>
             <span />
           </li>
-          {filteredPets.map((pet) => (
+          {pets.map((pet) => (
             <li key={pet.id} id={`pet-row-${pet.id}`} className="pet-list-item">
               <div className="pet-row data-row">
                 <div className="pet-row-toggle-with-avatar data-cell-wide">

@@ -16,7 +16,6 @@ import ClinicLogoField from '../components/ClinicLogoField'
 import { toLatinDigits } from '../lib/arabicDigits'
 import { getReceiptSize, setReceiptSize } from '../lib/printSize'
 import type { ReceiptSize } from '../lib/printSize'
-import { isValidVatNumber } from '../lib/invoiceMath'
 import { formatMoney } from '../lib/format'
 import { DEFAULT_VAT_RATE, priceWithVat, priceWithoutVat, updateVatFields } from '../lib/vat'
 import type { VatFields } from '../lib/vat'
@@ -75,6 +74,9 @@ function SettingsPage() {
   const [savingClinic, setSavingClinic] = useState(false)
   const [clinicError, setClinicError] = useState<string | null>(null)
   const [vatNumber, setVatNumber] = useState('')
+  // 0100: set by the Touq admin; 'none' = not VAT-registered, so no VAT fields here.
+  const [taxPhase, setTaxPhase] = useState('none')
+  const vatOn = taxPhase !== 'none'
   const [maxDiscount, setMaxDiscount] = useState('10')
   const [savingBilling, setSavingBilling] = useState(false)
   const [billingError, setBillingError] = useState<string | null>(null)
@@ -121,7 +123,7 @@ function SettingsPage() {
     if (!profile?.clinic_id) return
     supabase
       .from('clinics')
-      .select('name, phone, vat_number, max_staff_discount_percent')
+      .select('name, phone, vat_number, tax_phase, max_staff_discount_percent')
       .eq('id', profile.clinic_id)
       .single()
       .then(({ data }) => {
@@ -129,6 +131,7 @@ function SettingsPage() {
           setClinicName(data.name)
           setClinicPhone(data.phone ?? '')
           setVatNumber(data.vat_number ?? '')
+          setTaxPhase(data.tax_phase)
           setMaxDiscount(String(data.max_staff_discount_percent))
         }
       })
@@ -230,6 +233,16 @@ function SettingsPage() {
         required
       />
     )
+    // Not registered: one price, what the owner pays. The rate stays stored, so the price
+    // doesn't change if the clinic registers later (user 10-29).
+    if (!vatOn) {
+      return (
+        <label>
+          {t('settings.price')}
+          {input('post')}
+        </label>
+      )
+    }
     return (
       <>
         <label>
@@ -313,12 +326,7 @@ function SettingsPage() {
     e.preventDefault()
     setBillingError(null)
     if (!profile?.clinic_id) return
-    const vat = vatNumber.trim()
     const max = parseFloat(maxDiscount)
-    if (vat && !isValidVatNumber(vat)) {
-      setBillingError(t('settings.vatNumberInvalid'))
-      return
-    }
     if (Number.isNaN(max) || max < 0 || max > 100) {
       setBillingError(t('payments.invalidAmount'))
       return
@@ -326,7 +334,7 @@ function SettingsPage() {
     setSavingBilling(true)
     const { error } = await supabase
       .from('clinics')
-      .update({ vat_number: vat || null, max_staff_discount_percent: max })
+      .update({ max_staff_discount_percent: max })
       .eq('id', profile.clinic_id)
     setSavingBilling(false)
     if (error) {
@@ -496,18 +504,17 @@ function SettingsPage() {
           <div className="settings-body">
             <form onSubmit={handleSaveBilling} className="pet-form">
               <FormError message={billingError} />
-              <label>
-                {t('settings.vatNumber')}
-                <input
-                  value={vatNumber}
-                  onChange={(e) => setVatNumber(e.target.value.replace(/\D/g, ''))}
-                  readOnly={!isClinicManager}
-                  dir="ltr"
-                  inputMode="numeric"
-                  maxLength={15}
-                  placeholder="3XXXXXXXXXXXXX3"
-                />
-              </label>
+              <p>
+                {t('admin.taxPhase')}: <strong>{t(taxPhase === 'phase1' ? 'admin.taxPhase1' : 'admin.taxPhaseNone')}</strong>
+                {vatNumber && (
+                  <>
+                    {' · '}
+                    {t('settings.vatNumber')}: <Ltr>{vatNumber}</Ltr>
+                  </>
+                )}
+                <br />
+                <span className="pet-owner">{t('settings.taxPhaseByAdmin')}</span>
+              </p>
               <label>
                 {t('settings.maxDiscount')}
                 <input
@@ -575,7 +582,7 @@ function SettingsPage() {
           <div className="settings-intro">
             <h2>{t('settings.services')}</h2>
             <p className="pet-owner">{t('settings.servicesHint')}</p>
-            <p className="pet-owner">{t('settings.vatHint')}</p>
+            {vatOn && <p className="pet-owner">{t('settings.vatHint')}</p>}
           </div>
           <div className="settings-body">
 
@@ -584,12 +591,12 @@ function SettingsPage() {
           ) : services.length === 0 ? (
             <p>{t('settings.noServices')}</p>
           ) : (
-            <ul className="pet-list data-table data-services">
+            <ul className={`pet-list data-table data-services${vatOn ? '' : ' data-services-novat'}`}>
               <li className="data-head" aria-hidden>
                 <span>{t('list.service')}</span>
-                <span className="data-num">{t('settings.priceAfterVat')}</span>
-                <span className="data-num">{t('settings.priceBeforeVat')}</span>
-                <span className="data-num">{t('settings.vatShort')}</span>
+                <span className="data-num">{t(vatOn ? 'settings.priceAfterVat' : 'settings.price')}</span>
+                {vatOn && <span className="data-num">{t('settings.priceBeforeVat')}</span>}
+                {vatOn && <span className="data-num">{t('settings.vatShort')}</span>}
                 <span />
               </li>
               {services.map((service) =>
@@ -623,14 +630,18 @@ function SettingsPage() {
                       <span className="data-num service-price">
                         <Ltr>{formatMoney(priceWithVat(service.price, service.vat_rate))}</Ltr> {t('common.currency')}
                       </span>
-                      <span className="data-num data-muted">
-                        <span className="data-label">{t('settings.priceBeforeVat')}: </span>
-                        <Ltr>{formatMoney(service.price)}</Ltr>
-                      </span>
-                      <span className="data-num data-muted">
-                        <span className="data-label">{t('settings.vatShort')}: </span>
-                        <Ltr>{`${service.vat_rate}%`}</Ltr>
-                      </span>
+                      {vatOn && (
+                        <span className="data-num data-muted">
+                          <span className="data-label">{t('settings.priceBeforeVat')}: </span>
+                          <Ltr>{formatMoney(service.price)}</Ltr>
+                        </span>
+                      )}
+                      {vatOn && (
+                        <span className="data-num data-muted">
+                          <span className="data-label">{t('settings.vatShort')}: </span>
+                          <Ltr>{`${service.vat_rate}%`}</Ltr>
+                        </span>
+                      )}
                       <div className="record-actions data-end">
                         <button type="button" className="secondary-button" onClick={() => startEditService(service)}>
                           {t('common.edit')}

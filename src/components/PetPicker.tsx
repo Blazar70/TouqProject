@@ -1,11 +1,13 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Database } from '../lib/database.types'
+import { supabase } from '../lib/supabase'
+import { searchPattern } from '../lib/search'
+import { rememberPets } from '../lib/usePet'
 import { speciesIcon, speciesLabel } from '../lib/species'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
 import Ltr from './Ltr'
-import { matchesPetSearch } from '../lib/appointmentSearch'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 
@@ -17,13 +19,17 @@ function petLabel(t: (key: TranslationKey) => string, pet: Pet, compact = false)
   return `${pet.name} · ${pet.pet_number} (${details}) — ${pet.owner_name}`
 }
 
+const SHOWN = 8
+
+// Searches the clinic's pets on the server as the user types (nightly B29/H39); the newest pets when the box is empty.
+// `pet` is the selected pet (the parent loads it with usePet, so ids from links work too).
 function PetPicker({
-  pets,
+  pet: selectedPet,
   value,
   onChange,
   compact = false,
 }: {
-  pets: Pet[]
+  pet: Pet | null | undefined
   value: string
   onChange: (petId: string) => void
   compact?: boolean
@@ -33,21 +39,34 @@ function PetPicker({
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const listId = useId()
-
-  const selectedPet = pets.find((p) => p.id === value)
+  const [found, setFound] = useState<{ query: string; pets: Pet[]; total: number } | null>(null)
 
   useEffect(() => {
     setQuery(selectedPet ? petLabel(t, selectedPet, compact) : '')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id])
 
-  const allMatches = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q || selectedPet) return []
-    return pets.filter((pet) => matchesPetSearch(pet, q))
-  }, [pets, query, selectedPet])
+  const searching = open && !value
+  useEffect(() => {
+    if (!searching) return
+    let live = true
+    const pattern = searchPattern(query)
+    // Wait for a pause in typing before asking the server.
+    const timer = window.setTimeout(async () => {
+      let request = supabase.from('pets').select('*', { count: 'exact' }).is('deleted_at', null)
+      request = pattern ? request.ilike('search_text', pattern).order('name') : request.order('created_at', { ascending: false })
+      const { data, count } = await request.limit(SHOWN)
+      if (!live) return
+      rememberPets(data ?? [])
+      setFound({ query, pets: data ?? [], total: count ?? 0 })
+    }, pattern ? 250 : 0)
+    return () => {
+      live = false
+      window.clearTimeout(timer)
+    }
+  }, [query, searching])
 
-  const matches = useMemo(() => allMatches.slice(0, 8), [allMatches])
+  const matches = searching && found ? found.pets : []
   const showList = open && matches.length > 0
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -97,8 +116,9 @@ function PetPicker({
       />
       {showList && (
         <ul className="pet-picker-results" role="listbox" id={listId}>
-          {allMatches.length > matches.length && (
-            <li className="pet-picker-count" role="presentation">{t('pets.resultCount', { count: String(matches.length), total: String(allMatches.length) })}</li>
+          {!query.trim() && <li className="pet-picker-count" role="presentation">{t('pets.recent')}</li>}
+          {found && found.total > matches.length && (
+            <li className="pet-picker-count" role="presentation">{t('pets.resultCount', { count: String(matches.length), total: String(found.total) })}</li>
           )}
           {matches.map((pet, i) => {
             const Icon = speciesIcon(pet.species)
@@ -139,7 +159,7 @@ function PetPicker({
           })}
         </ul>
       )}
-      {open && query.trim() && !selectedPet && matches.length === 0 && (
+      {searching && query.trim() && found?.query === query && matches.length === 0 && (
         <div className="pet-picker-empty">{t('appointments.noMatch', { query })}</div>
       )}
     </div>

@@ -1,7 +1,7 @@
 // Sweep script (10-29; see README.md). Staging only. Saves data on the demo clinic + "Clinic A" (reset after v2).
 // The 10-29 batch: doctor makes a visit template -> reception books + arrives -> doctor applies the template in the
 // session (diagnosis + prescription filled), saves, finishes -> pet file shows the prescription + weight chart ->
-// idle warning + idle sign-out -> admin CSV import (bad file refused, good file imported).
+// idle warning + idle lock (a sign-out until 10-30) -> admin CSV import (bad file refused, good file imported).
 const fs = require('fs')
 const { chromium } = require('./config.cjs').playwright
 const { SITE, OUT: out, PASS, SPSQL } = require('./config.cjs')
@@ -144,26 +144,26 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg) }
     expect((await r.getByRole('heading', { name: 'Visit templates' }).count()) === 0, 'receptionist sees templates')
   })
 
-  // ---- idle sign-out
-  await step(r, 'idle warning, stay, then sign-out after 10 min', async () => {
+  // ---- idle lock
+  await step(r, 'idle warning, stay, then lock after 10 min', async () => {
     await r.clock.install() // fake time from here, so 10 minutes pass in a second
     await r.reload(); await r.waitForTimeout(4000)
     await r.clock.fastForward('09:30')
-    const warn = r.getByRole('alertdialog').filter({ hasText: /signed out in/ })
+    const warn = r.getByRole('alertdialog').filter({ hasText: /locks in/ })
     await warn.waitFor({ timeout: 5000 })
-    await warn.getByRole('button', { name: 'Stay signed in' }).click()
+    await warn.getByRole('button', { name: "I'm still here" }).click()
     await r.clock.fastForward('00:05')
     expect((await warn.count()) === 0, 'warning stayed after Stay')
     await r.clock.fastForward('09:00')
     expect(await warn.count(), 'no second warning after 9 more idle minutes')
     await r.clock.fastForward('01:30')
-    await r.locator('input[autocomplete=username]').waitFor({ timeout: 8000 })
+    await r.getByRole('dialog', { name: 'Screen locked' }).waitFor({ timeout: 8000 })
   })
-  await step(r, 'browser reopened after 10+ idle minutes starts signed out', async () => {
+  await step(r, 'browser reopened after 10+ idle minutes starts locked', async () => {
     const r2 = await login(browser, 'amal.desk', PASS.demoStaff)
     await r2.evaluate(() => localStorage.setItem('touq.lastActive', String(Date.now() - 11 * 60_000)))
     await r2.reload()
-    await r2.locator('input[autocomplete=username]').waitFor({ timeout: 8000 })
+    await r2.getByRole('dialog', { name: 'Screen locked' }).waitFor({ timeout: 8000 })
   })
 
   // ---- admin import

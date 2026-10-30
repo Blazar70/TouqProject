@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { formatDate } from '../lib/format'
-import { weightPoints } from '../lib/weightPoints'
+import { weightChange, weightPoints } from '../lib/weightPoints'
 import type { WeightPoint } from '../lib/weightPoints'
 
 const W = 300
@@ -10,7 +10,7 @@ const H = 110
 const PAD = 12
 
 // Weight over time from visit records and hospital-stay updates (clinicians only: visit records are theirs, 0087).
-function WeightChart({ petId }: { petId: string }) {
+function WeightChart({ petId, dateOfBirth }: { petId: string; dateOfBirth: string | null }) {
   const { t } = useLanguage()
   const [points, setPoints] = useState<WeightPoint[]>([])
 
@@ -32,10 +32,9 @@ function WeightChart({ petId }: { petId: string }) {
   const [t0, t1] = [Math.min(...times), Math.max(...times)]
   const [k0, k1] = [Math.min(...kgs), Math.max(...kgs)]
   const x = (time: number) => (t1 === t0 ? W / 2 : PAD + ((time - t0) / (t1 - t0)) * (W - 2 * PAD))
-  // More than 10% since the weighing before: flagged in text and on the last point (nightly H36).
-  const prev = points.length > 1 ? points[points.length - 2].kg : null
-  const changePct = prev ? Math.round(((last.kg - prev) / prev) * 100) : 0
-  const bigChange = Math.abs(changePct) > 10
+  const change = weightChange(points, dateOfBirth)
+  const bigChange = change?.flag ?? false
+  const sign = (n: number) => (n > 0 ? '+' : n < 0 ? '−' : '')
   const y = (kg: number) => (k1 === k0 ? H / 2 : H - PAD - ((kg - k0) / (k1 - k0)) * (H - 2 * PAD))
 
   return (
@@ -44,11 +43,14 @@ function WeightChart({ petId }: { petId: string }) {
         <h3>{t('weight.title')}</h3>
         <span className="pet-file-meta">
           {t('weight.latest')}: {t('weight.kg', { value: String(last.kg) })}
-          {bigChange && (
-            <strong className="weight-chart-alert">
+          {change && (
+            // Flagged in red on big changes (nightly H36/H40); always shown in kg and %.
+            <span className={bigChange ? 'weight-chart-alert' : undefined}>
               {' '}
-              {t('weight.bigChange', { pct: `${changePct > 0 ? '+' : ''}${changePct}%` })}
-            </strong>
+              {t('weight.bigChange', {
+                change: `${t('weight.kg', { value: `${sign(change.kg)}${Math.abs(change.kg)}` })} (${sign(change.pct)}${Math.abs(change.pct)}%)`,
+              })}
+            </span>
           )}
         </span>
       </div>

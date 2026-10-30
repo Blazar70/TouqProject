@@ -11,8 +11,8 @@ import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
 import PrescriptionEditor from '../components/PrescriptionEditor'
 import TemplatePicker from '../components/TemplatePicker'
 import { idleGuards } from '../lib/idleLogout'
-import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit } from '../lib/clinicalFields'
-import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
+import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit, toPrescription } from '../lib/clinicalFields'
+import type { PrescriptionLine, RecordColumns, RecordEdit } from '../lib/clinicalFields'
 import { canWorkSession } from '../lib/appointmentStatus'
 import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
@@ -20,6 +20,7 @@ import { useDropImage } from '../lib/useDropImage'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import { notifyStatusChange } from '../lib/push'
 import { useToast } from '../lib/ToastContext'
+import { formatTime } from '../lib/format'
 import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
 import Ltr from '../components/Ltr'
@@ -72,6 +73,9 @@ function SessionPage() {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [lastPrescription, setLastPrescription] = useState<PrescriptionLine[]>([])
+  const [autosaving, setAutosaving] = useState(false)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
 
   const dirty = Boolean(photoFile) || JSON.stringify(form) !== JSON.stringify(recordToEdit(record))
   useUnsavedChangesWarning(dirty && !done)
@@ -85,6 +89,19 @@ function SessionPage() {
       idleGuards.savers.delete(save)
     }
   }, [dirty, done])
+
+  // H41: saved by itself 5 s after the last change, so a crash, a closed iPad app or a dead battery loses
+  // at most a few seconds; vitals that don't parse wait (the status line says which).
+  const vitals = parseVitals(form)
+  useEffect(() => {
+    if (!dirty || done || saving || autosaving || !vitals.ok || !appointment) return
+    const timer = window.setTimeout(async () => {
+      setAutosaving(true)
+      await saveRef.current()
+      setAutosaving(false)
+    }, 5000)
+    return () => window.clearTimeout(timer)
+  }, [form, photoFile, dirty, done, saving, autosaving, vitals.ok, appointment])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
@@ -130,6 +147,21 @@ function SessionPage() {
       })
   }, [id, isClinician])
 
+  // H35: this pet's newest prescription from another visit, for "Repeat last prescription".
+  const petId = appointment?.pet_id
+  useEffect(() => {
+    if (!petId) return
+    supabase
+      .from('medical_records')
+      .select('prescription')
+      .eq('pet_id', petId)
+      .or(`appointment_id.is.null,appointment_id.neq.${id}`)
+      .order('visit_date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(({ data }) => setLastPrescription(data?.map((r) => toPrescription(r.prescription)).find((lines) => lines.length > 0) ?? []))
+  }, [petId, id])
+
   const startedAt = appointment?.started_at ? new Date(appointment.started_at).getTime() : now
 
   useEffect(() => () => {
@@ -170,6 +202,7 @@ function SessionPage() {
       setError(t(vitalsResult.errorKey))
       return null
     }
+    const sent = form
     const before = record ?? {}
     const changes = Object.fromEntries(
       Object.entries(editToRecord(form, vitalsResult.vitals)).filter(
@@ -215,7 +248,9 @@ function SessionPage() {
       setPhotoPreviewUrl(null)
     }
     setRecord(result)
-    setForm(recordToEdit(result))
+    // Typing that arrived while this was saving stays (and is saved next time).
+    setForm((current) => (current === sent ? recordToEdit(result) : current))
+    setSavedAt(new Date())
     return result
   }
 
@@ -397,7 +432,7 @@ function SessionPage() {
               <RequiredMark />
               <input value={form.treatment} onChange={(e) => setField('treatment', e.target.value)} required />
             </label>
-            <PrescriptionEditor lines={form.prescription} onChange={(lines) => setForm((f) => ({ ...f, prescription: lines }))} />
+            <PrescriptionEditor lines={form.prescription} onChange={(lines) => setForm((f) => ({ ...f, prescription: lines }))} lastLines={lastPrescription} />
           </>
         )}
         <label>
@@ -416,6 +451,15 @@ function SessionPage() {
             <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
           </div>
         </div>
+        <p className="pet-owner autosave-status" role="status">
+          {dirty && !vitals.ok
+            ? t('session.autosaveBlocked', { problem: t(vitals.errorKey) })
+            : autosaving
+              ? t('session.autosaving')
+              : savedAt && !dirty
+                ? t('session.autosaved', { time: formatTime(savedAt) })
+                : ''}
+        </p>
         <div className="record-edit-actions">
           <button type="submit" className="primary-button" disabled={saving}>
             {saving ? t('common.saving') : t('session.finish')}

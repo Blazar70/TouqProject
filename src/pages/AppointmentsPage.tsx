@@ -20,11 +20,12 @@ import { matchesAppointmentSearch } from '../lib/appointmentSearch'
 import { CONFLICT_WINDOW_MS, findAppointmentConflicts } from '../lib/appointmentConflicts'
 import type { ConflictCandidate } from '../lib/appointmentConflicts'
 import { CANCELLATION_CATEGORIES, cancellationCategoryLabel } from '../lib/cancellation'
-import { visitRecordFields } from '../lib/clinicalFields'
+import { toPrescription, visitRecordFields } from '../lib/clinicalFields'
 import { notifyStatusChange } from '../lib/push'
 import { usePrintSummary } from '../lib/PrintContext'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import PetPicker from '../components/PetPicker'
+import { usePet } from '../lib/usePet'
 import MiniMonth from '../components/MiniMonth'
 import PhotoThumbnail from '../components/PhotoThumbnail'
 import Ltr from '../components/Ltr'
@@ -42,12 +43,11 @@ import Modal from '../components/Modal'
 import BookingPetInfo from '../components/BookingPetInfo'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
-  pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number } | null
+  pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number; microchip: string | null } | null
   doctor: { full_name: string } | null
   starter: { clinic_role: string | null } | null
   invoice: { id: string; invoice_number: string; payment_status: string } | null // receptionists and managers only (0074)
 }
-type Pet = Database['public']['Tables']['pets']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row'] & { staff_branches: { branch_id: string }[] }
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null; nurse: { full_name: string } | null }
 const RECORD_SELECT = '*, vet:profiles!medical_records_vet_id_fkey(full_name), nurse:profiles!medical_records_nurse_id_fkey(full_name)'
@@ -77,7 +77,7 @@ const localizer = dayjsLocalizer(dayjs)
 // first hour on a non-Riyadh device; rebuild the day + time in clinic time instead.
 localizer.merge = (date: Date, time: Date) =>
   dayjs.tz(`${dayjs.tz(date).format('YYYY-MM-DD')} ${dayjs.tz(time).format('HH:mm:ss')}`, CLINIC_TZ).toDate()
-const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
+const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number, microchip), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
 const UNASSIGNED = 'unassigned'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
@@ -139,7 +139,7 @@ function AppointmentsPage() {
   const { t, language } = useLanguage()
   const toast = useToast()
   const navigate = useNavigate()
-  const { printSummary } = usePrintSummary()
+  const { printSummary, printPrescription } = usePrintSummary()
   const isVet = profile?.role === 'vet'
   const confirm = useConfirm()
   const isClinician = profile?.clinic_role === 'doctor' || profile?.clinic_role === 'nurse'
@@ -154,7 +154,6 @@ function AppointmentsPage() {
   const canBook = isVet && canWriteAt(bookingBranchId)
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [pets, setPets] = useState<Pet[]>([])
   const [staff, setStaff] = useState<Profile[]>([])
   const [awayPeriods, setAwayPeriods] = useState<AwayPeriod[]>([])
   const [awayReasons, setAwayReasons] = useState<Map<string, string>>(new Map())
@@ -185,6 +184,7 @@ function AppointmentsPage() {
   const [panelError, setPanelError] = useState<string | null>(null)
 
   const [petId, setPetId] = useState('')
+  const bookingPet = usePet(petId)
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledHour, setScheduledHour] = useState('')
   const [scheduledMinute, setScheduledMinute] = useState('')
@@ -232,20 +232,15 @@ function AppointmentsPage() {
 
   useEffect(() => {
     if (!profile?.clinic_id) return
-    Promise.all([
-      supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
-      supabase
-        .from('profiles')
-        .select('*, staff_branches(branch_id)')
-        .eq('clinic_id', profile.clinic_id)
-        .eq('takes_appointments', true)
-        .eq('disabled', false)
-        .order('calendar_order', { ascending: true, nullsFirst: false })
-        .order('full_name', { ascending: true }),
-    ]).then(([petsRes, staffRes]) => {
-      setPets(petsRes.data ?? [])
-      setStaff(staffRes.data ?? [])
-    })
+    supabase
+      .from('profiles')
+      .select('*, staff_branches(branch_id)')
+      .eq('clinic_id', profile.clinic_id)
+      .eq('takes_appointments', true)
+      .eq('disabled', false)
+      .order('calendar_order', { ascending: true, nullsFirst: false })
+      .order('full_name', { ascending: true })
+      .then((staffRes) => setStaff(staffRes.data ?? []))
   }, [profile?.clinic_id])
 
   useEffect(() => {
@@ -924,11 +919,27 @@ function AppointmentsPage() {
                             owner: [appointment.pets?.owner_name, appointment.pets?.owner_phone && `⁦${appointment.pets.owner_phone}⁩`].filter(Boolean).join(' · '),
                             record,
                             photoUrl: includePhoto ? record.photo_url : null,
-                          }, appointment.pets?.pet_number)
+                          }, appointment.pets ?? undefined)
                         }
                       >
                         {t('common.print')}
                       </button>
+                      {toPrescription(record.prescription).length > 0 && (
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() =>
+                            printPrescription(appointment.pets?.name ?? t('dashboard.unknownPet'), {
+                              date: record.visit_date,
+                              doctor: record.vet?.full_name,
+                              owner: [appointment.pets?.owner_name, appointment.pets?.owner_phone && `⁦${appointment.pets.owner_phone}⁩`].filter(Boolean).join(' · '),
+                              record,
+                            }, appointment.pets ?? undefined)
+                          }
+                        >
+                          {t('prescription.print')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1232,9 +1243,9 @@ function AppointmentsPage() {
           <label>
             {t('appointments.pet')}
             <RequiredMark />
-            <PetPicker pets={pets} value={petId} onChange={setPetId} compact />
+            <PetPicker pet={bookingPet} value={petId} onChange={setPetId} compact />
           </label>
-          {pets.find((p) => p.id === petId) && <BookingPetInfo pet={pets.find((p) => p.id === petId)!} />}
+          {bookingPet && <BookingPetInfo pet={bookingPet} />}
           <label>
             {t('appointments.date')}
             <RequiredMark />

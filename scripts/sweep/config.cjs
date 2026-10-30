@@ -16,7 +16,7 @@ const need = (key) => {
 module.exports = {
   // playwright-core: installed with the playwright-cli tool, not in package.json (no new dependency for a dev check).
   playwright: require(process.env.SWEEP_PLAYWRIGHT ?? env.SWEEP_PLAYWRIGHT ?? 'playwright-core'),
-  SITE: env.SWEEP_SITE ?? 'https://touqproject.ahmadhfatani.workers.dev',
+  SITE: process.env.SWEEP_SITE ?? env.SWEEP_SITE ?? 'https://touqproject.ahmadhfatani.workers.dev',
   OUT: (() => { const d = path.join(__dirname, 'out') + path.sep; fs.mkdirSync(d, { recursive: true }); return d.replace(/\\/g, '/') })(),
   SPSQL: path.join(__dirname, 'spsql.cjs'),
   PASS: {

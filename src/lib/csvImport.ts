@@ -1,10 +1,11 @@
 import { toLatinDigits } from './arabicDigits'
 import { formatSaudiPhoneInput, isValidSaudiMobile } from './phone'
 import { POPULAR_SPECIES } from './species'
+import { cleanMicrochip, isValidMicrochip } from './microchip'
 import type { TranslationKey } from './i18n/translations'
 
 // Admin import of a clinic's owners and pets (0097). The template's columns, in order:
-export const IMPORT_COLUMNS = ['owner_name', 'owner_phone', 'owner_email', 'pet_name', 'species', 'breed', 'date_of_birth'] as const
+export const IMPORT_COLUMNS = ['owner_name', 'owner_phone', 'owner_email', 'pet_name', 'species', 'breed', 'date_of_birth', 'microchip'] as const
 type Column = (typeof IMPORT_COLUMNS)[number]
 export type ImportRow = Record<Column, string>
 export type ImportError = { line: number; key: TranslationKey }
@@ -88,10 +89,12 @@ export function buildImport(table: string[][]): { rows: ImportRow[]; errors: Imp
       species: known?.value ?? get('species'),
       breed: get('breed'),
       date_of_birth: dob ?? '',
+      microchip: cleanMicrochip(get('microchip')),
     }
     if (!row.owner_name || !row.pet_name || !row.species) errors.push({ line, key: 'import.missingRequired' })
     if (get('owner_phone') && !isValidSaudiMobile(digits)) errors.push({ line, key: 'import.badPhone' })
     if (dob === null) errors.push({ line, key: 'import.badDate' })
+    if (row.microchip && !isValidMicrochip(row.microchip)) errors.push({ line, key: 'import.badMicrochip' })
     rows.push(row)
   })
   return { rows, errors }

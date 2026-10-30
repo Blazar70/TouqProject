@@ -88,6 +88,8 @@ function AdminPage() {
   const [editClinicName, setEditClinicName] = useState('')
   const [editClinicBillingStatus, setEditClinicBillingStatus] = useState<string>('active')
   const [editClinicVat, setEditClinicVat] = useState('')
+  const [editClinicTaxPhase, setEditClinicTaxPhase] = useState('none')
+  const [editClinicPhase2Date, setEditClinicPhase2Date] = useState('')
   const [savingClinicEdit, setSavingClinicEdit] = useState(false)
 
   const [selectedClinicIds, setSelectedClinicIds] = useState<Set<string>>(new Set())
@@ -454,12 +456,15 @@ function AdminPage() {
     setEditClinicName(clinic.name)
     setEditClinicBillingStatus(clinic.billing_status)
     setEditClinicVat(clinic.vat_number ?? '')
+    setEditClinicTaxPhase(clinic.tax_phase)
+    setEditClinicPhase2Date(clinic.zatca_phase2_date ?? '')
   }
 
   async function handleSaveClinicEdit(e: FormEvent, clinic: Clinic) {
     e.preventDefault()
     if (!editClinicName.trim()) return
-    if (editClinicVat && !isValidVatNumber(editClinicVat)) {
+    // Phase 1 needs the number (the DB refuses it too, 0100).
+    if ((editClinicVat || editClinicTaxPhase !== 'none') && !isValidVatNumber(editClinicVat)) {
       toast.error(t('settings.vatNumberInvalid'))
       return
     }
@@ -467,7 +472,13 @@ function AdminPage() {
     setSavingClinicEdit(true)
     const { data, error } = await supabase
       .from('clinics')
-      .update({ name: editClinicName.trim(), billing_status: editClinicBillingStatus, vat_number: editClinicVat || null })
+      .update({
+        name: editClinicName.trim(),
+        billing_status: editClinicBillingStatus,
+        vat_number: editClinicVat || null,
+        tax_phase: editClinicTaxPhase,
+        zatca_phase2_date: editClinicPhase2Date || null,
+      })
       .eq('id', clinic.id)
       .select()
       .single()
@@ -1182,15 +1193,32 @@ function AdminPage() {
                           </select>
                         </label>
                         <label>
+                          {t('admin.taxPhase')}
+                          <select value={editClinicTaxPhase} onChange={(e) => setEditClinicTaxPhase(e.target.value)}>
+                            <option value="none">{t('admin.taxPhaseNone')}</option>
+                            <option value="phase1">{t('admin.taxPhase1')}</option>
+                            {/* shortcut: phase 2 (signing + sending to ZATCA) isn't built, v3 opens it with 0100's check. */}
+                            <option value="phase2" disabled>{t('admin.taxPhase2')}</option>
+                          </select>
+                          <span className="pet-owner">{t('admin.taxPhaseHint')}</span>
+                        </label>
+                        <label>
                           {t('settings.vatNumber')}
+                          {editClinicTaxPhase !== 'none' && <RequiredMark />}
                           <input
                             value={editClinicVat}
-                            onChange={(e) => setEditClinicVat(e.target.value.replace(/D/g, ''))}
+                            onChange={(e) => setEditClinicVat(e.target.value.replace(/\D/g, ''))}
                             dir="ltr"
                             inputMode="numeric"
                             maxLength={15}
                             placeholder="3XXXXXXXXXXXXX3"
+                            required={editClinicTaxPhase !== 'none'}
                           />
+                        </label>
+                        <label>
+                          {t('admin.phase2Date')}
+                          <input type="date" value={editClinicPhase2Date} onChange={(e) => setEditClinicPhase2Date(e.target.value)} />
+                          <span className="pet-owner">{t('admin.phase2DateHint')}</span>
                         </label>
                         <div className="record-edit-actions">
                           <button type="submit" disabled={savingClinicEdit}>
@@ -1205,6 +1233,8 @@ function AdminPage() {
                       <div className="panel-header">
                         <p className="pet-owner">
                           {t('admin.createdOn')}: <Ltr>{formatDate(clinic.created_at)}</Ltr>
+                          {' · '}
+                          {t(clinic.tax_phase === 'phase1' ? 'admin.taxPhase1' : 'admin.taxPhaseNone')}
                           {clinic.disabled && <span className="status-badge status-cancelled"> {t('admin.disabledBadge')}</span>}
                         </p>
                         <div className="page-header-actions">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { MICROCHIP_PATTERN, cleanMicrochip } from '../lib/microchip'
 import { supabase } from '../lib/supabase'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
 import { useAuth } from '../lib/AuthContext'
@@ -28,6 +29,7 @@ function RegisterPetPage() {
   const [name, setName] = useState('')
   const [species, setSpecies] = useState('')
   const [breed, setBreed] = useState('')
+  const [microchip, setMicrochip] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [ownerPhone, setOwnerPhone] = useState('')
@@ -121,6 +123,7 @@ function RegisterPetPage() {
         name,
         species,
         breed: breed || null,
+        microchip: microchip || null,
         date_of_birth: dateOfBirth || null,
         // With an owner file the database copies its contact onto the pet; without one it makes a file from these.
         ...(owner
@@ -187,6 +190,18 @@ function RegisterPetPage() {
         <label>
           {t('registerPet.breed')}
           <input value={breed} onChange={(e) => setBreed(e.target.value)} />
+        </label>
+        <label>
+          {t('pets.microchip')}
+          <input
+            dir="ltr"
+            value={microchip}
+            onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
+            pattern={MICROCHIP_PATTERN}
+            title={t('pets.microchipHint')}
+            autoComplete="off"
+          />
+          <span className="pet-owner">{t('pets.microchipHint')}</span>
         </label>
         <label>
           {t('registerPet.dateOfBirth')}

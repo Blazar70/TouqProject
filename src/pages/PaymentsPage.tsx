@@ -9,6 +9,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import PetPicker from '../components/PetPicker'
+import { usePet } from '../lib/usePet'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
@@ -35,7 +36,6 @@ import type { Discount, InvoiceFull, PaymentMethod } from '../lib/invoiceMath'
 import FormError from '../components/FormError'
 import PaidAtField from '../components/PaidAtField'
 
-type Pet = Database['public']['Tables']['pets']['Row']
 type Service = Database['public']['Tables']['services']['Row']
 type Appointment = Database['public']['Tables']['appointments']['Row']
 
@@ -77,18 +77,20 @@ function PaymentsPage() {
   const toast = useToast()
 
   const [loading, setLoading] = useState(true)
-  const [pets, setPets] = useState<Pet[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [priceQuery, setPriceQuery] = useState('')
   const [invoices, setInvoices] = useState<InvoiceFull[]>([])
   const [todayPayments, setTodayPayments] = useState<{ method: string; amount: number }[]>([])
-  const [clinic, setClinic] = useState<{ vat_number: string | null; max_staff_discount_percent: number } | null>(null)
+  const [clinic, setClinic] = useState<{ vat_number: string | null; tax_phase: string; max_staff_discount_percent: number } | null>(null)
+  // 0100: a clinic that isn't VAT-registered shows no VAT anywhere.
+  const vatOn = clinic?.tax_phase !== 'none'
   const [petAppointments, setPetAppointments] = useState<(Appointment & { invoice: { id: string } | null })[]>([])
   // The picked pet's owner's prepaid balance (0064); null = no pet picked.
   const [ownerBalance, setOwnerBalance] = useState<number | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
 
   const [petId, setPetId] = useState('')
+  const invoicePet = usePet(petId)
   const [appointmentId, setAppointmentId] = useState('')
   const [stay, setStay] = useState<{ id: string; admitted_at: string; discharged_at: string; noNightService: boolean } | null>(null)
   // Read by the visit auto-pick below, which runs in a promise after the pet changes.
@@ -117,16 +119,14 @@ function PaymentsPage() {
         invoicesQuery = invoicesQuery.eq('branch_id', viewBranch)
         todayQuery = todayQuery.eq('branch_id', viewBranch)
       }
-      const [petsRes, servicesRes, invoicesRes, todayRes, clinicRes] = await Promise.all([
-        supabase.from('pets').select('*').is('deleted_at', null).order('name', { ascending: true }),
+      const [servicesRes, invoicesRes, todayRes, clinicRes] = await Promise.all([
         supabase.from('services').select('*').eq('active', true).order('name', { ascending: true }),
         invoicesQuery.order('created_at', { ascending: false }).limit(INVOICE_HISTORY_LIMIT),
         todayQuery,
         profile?.clinic_id
-          ? supabase.from('clinics').select('vat_number, max_staff_discount_percent').eq('id', profile.clinic_id).single()
+          ? supabase.from('clinics').select('vat_number, tax_phase, max_staff_discount_percent').eq('id', profile.clinic_id).single()
           : Promise.resolve({ data: null }),
       ])
-      setPets(petsRes.data ?? [])
       setServices(servicesRes.data ?? [])
       setInvoices((invoicesRes.data ?? []) as unknown as InvoiceFull[])
       setTodayPayments(todayRes.data ?? [])
@@ -208,7 +208,7 @@ function PaymentsPage() {
   // to attach the invoice to — not every invoice has one, so this stays
   // optional and resets whenever the pet is picked (see PetPicker below).
   // shortcut: only the pet's 10 latest visits are offered; a billed visit older than that shows as "no appointment" in the select but stays linked.
-  const ownerFileId = pets.find((p) => p.id === petId)?.owner_file_id
+  const ownerFileId = invoicePet?.owner_file_id
   useEffect(() => {
     setOwnerBalance(null)
     if (!ownerFileId) return
@@ -272,12 +272,12 @@ function PaymentsPage() {
         items.map((item) => ({
           unitPrice: parseFloat(item.unitPrice) || 0,
           quantity: parseFloat(item.quantity) || 0,
-          vatRate: services.find((s) => s.id === item.serviceId)?.vat_rate ?? 15,
+          vatRate: vatOn ? (services.find((s) => s.id === item.serviceId)?.vat_rate ?? 15) : 0,
           discount: toDiscount(item.discount),
         })),
         toDiscount(billDiscount),
       ),
-    [items, billDiscount, services],
+    [items, billDiscount, services, vatOn],
   )
 
   // Blank amounts take what the filled-in rows leave of the total (the first blank row only).
@@ -512,7 +512,7 @@ function PaymentsPage() {
               {t('payments.pet')}
               <RequiredMark />
               <PetPicker
-                pets={pets}
+                pet={invoicePet}
                 value={petId}
                 onChange={(id) => {
                   setPetId(id)
@@ -654,10 +654,14 @@ function PaymentsPage() {
                   <dd>{money(-(totals.bill + totals.rows.reduce((s, r) => s + r.discount, 0)))}</dd>
                 </>
               )}
-              <dt>{t('payments.netTotal')}</dt>
-              <dd>{money(totals.net)}</dd>
-              <dt>{t('payments.vat')}</dt>
-              <dd>{money(totals.vat)}</dd>
+              {vatOn && (
+                <>
+                  <dt>{t('payments.netTotal')}</dt>
+                  <dd>{money(totals.net)}</dd>
+                  <dt>{t('payments.vat')}</dt>
+                  <dd>{money(totals.vat)}</dd>
+                </>
+              )}
               <dt className="invoice-sums-total">{t('payments.total')}</dt>
               <dd className="invoice-sums-total">{money(totals.total)}</dd>
             </dl>
@@ -761,7 +765,7 @@ function PaymentsPage() {
                 ))}
               </ul>
             ))}
-          <p className="price-lookup-note">{t('payments.pricesIncludeVat')}</p>
+          {vatOn && <p className="price-lookup-note">{t('payments.pricesIncludeVat')}</p>}
         </div>
       </div>
 

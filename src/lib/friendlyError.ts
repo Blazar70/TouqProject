@@ -42,6 +42,7 @@ const KNOWN: [string, TranslationKey][] = [
   ['Import between 1 and 5000 rows', 'import.tooMany'],
   ['is missing the owner name, pet name or species', 'import.missingRequired'],
   ['has a phone that is not a Saudi mobile', 'import.badPhone'],
+  ['has a microchip number that is not 9, 10 or 15 characters', 'import.badMicrochip'],
   ['record after the visit', 'errors.nurseFinishedRecord'],
   ['Only the doctor can finish a visit', 'errors.doctorFinishes'],
   ['delete visit records or pets', 'errors.noPermission'],
@@ -59,7 +60,8 @@ const KNOWN: [string, TranslationKey][] = [
   ['This dose is not due yet', 'errors.doseNotDue'],
   ['inpatient_task_doses_task_id_due_at_key', 'errors.doseAlreadyDone'],
   ['Only managers can change the clinic info', 'errors.clinicInfoRole'],
-  ['Only a whole-clinic manager can change the VAT number', 'errors.clinicBillingRole'],
+  // Matches 0076's VAT-number text and 0100's discount-limit text.
+  ['Only a whole-clinic manager can change the', 'errors.clinicBillingRole'],
   ['Only receptionists and managers can merge owners or move pets', 'errors.ownerMoveRole'],
   ['This waiver was already voided', 'errors.alreadyVoided'],
   ['A signed waiver can only be voided', 'errors.noPermission'],

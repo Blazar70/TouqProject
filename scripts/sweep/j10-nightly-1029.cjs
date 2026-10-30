@@ -1,5 +1,5 @@
 // Sweep script (10-29; see README.md). Staging only. Checks the fixes for the 10-29 nightly report:
-// B25 idle sign-out waits 60 min on unsaved typing and saves the visit record first · B24 idle sign-out leaves
+// B25 idle lock (sign-out until 10-30) waits 60 min on unsaved typing and saves the visit record first · B24 it leaves
 // push_subscriptions alone · B27 prescription lines keep their breaks · H36 weight range · B26/H37 import of an
 // Arabic-Windows (1256) CSV shows readable names, and a second run skips the pets already there.
 const fs = require('fs')
@@ -71,21 +71,21 @@ const expect = (cond, msg) => { if (!cond) throw new Error(msg) }
   const d = await login(browser, 'khalid.vet', PASS.demoStaff, { fakeClock: true })
   const pushCalls = []
   d.on('request', (req) => req.url().includes('/push_subscriptions') && req.method() === 'DELETE' && pushCalls.push(req.url()))
-  await step(d, 'unsaved visit: no sign-out at 10 min, saved + signed out at 60, push kept', async () => {
+  await step(d, 'unsaved visit: no lock at 10 min, saved + locked at 60, push kept', async () => {
     expect(APPT, 'no appointment')
     await d.goto(SITE + '/appointments?open=' + APPT); await d.waitForTimeout(3000)
     await d.getByRole('button', { name: /Start session/ }).first().click()
     await d.waitForURL(/\/session/, { timeout: 8000 }); await d.waitForTimeout(2500)
     await d.getByLabel(/Presenting complaint/i).fill('Sweep idle: typed, never saved')
     await d.clock.fastForward('15:00')
-    expect(await d.getByLabel(/Presenting complaint/i).count(), 'signed out at 15 min despite unsaved typing')
+    expect((await d.getByRole('dialog', { name: 'Screen locked' }).count()) === 0, 'locked at 15 min despite unsaved typing')
     await d.clock.fastForward('44:30')
-    expect(await d.getByRole('alertdialog').filter({ hasText: /signed out in/ }).count(), 'no warning before the 60-min sign-out')
+    expect(await d.getByRole('alertdialog').filter({ hasText: /locks in/ }).count(), 'no warning before the 60-min lock')
     await d.clock.fastForward('01:00')
-    await d.locator('input[autocomplete=username]').waitFor({ timeout: 10000 })
+    await d.getByRole('dialog', { name: 'Screen locked' }).waitFor({ timeout: 10000 })
     const saved = sql(`select presenting_complaint from medical_records where appointment_id = '${APPT}'`)
-    expect(saved === 'Sweep idle: typed, never saved', 'record not saved before sign-out: ' + saved)
-    expect(pushCalls.length === 0, 'idle sign-out deleted a push subscription')
+    expect(saved === 'Sweep idle: typed, never saved', 'record not saved before the lock: ' + saved)
+    expect(pushCalls.length === 0, 'idle lock deleted a push subscription')
   })
 
   // ---- doctor: prescription line breaks + weight range (normal clock)

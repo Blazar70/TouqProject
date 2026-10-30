@@ -2084,6 +2084,37 @@ input[type='checkbox']:focus-visible {
   box-shadow: var(--shadow);
 }
 
+/* Idle lock: the app keeps running behind it, blurred past reading. */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.lock-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 1.5rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.lock-card h2 {
+  margin: 0;
+}
+
+.lock-card button {
+  width: 100%;
+}
+
 .confirm-dialog p {
   margin: 0 0 1rem;
   color: var(--text-h);
@@ -4270,6 +4301,10 @@ button.cancel-button:disabled,
   --data-cols: minmax(0, 1fr) 9rem 8rem 4.5rem 13rem;
 }
 
+.data-services-novat {
+  --data-cols: minmax(0, 1fr) 9rem 13rem;
+}
+
 @media (min-width: 1024px) {
   .settings-page .settings-section {
     display: grid;
@@ -5037,14 +5072,34 @@ img.waiver-signature {
 }
 .prescription-line {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 0.5rem;
-  align-items: end;
+  /* two wide columns, so the quick-pick buttons under how often / how long have room (H35) */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  align-items: start;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border);
 }
 .prescription-note {
-  grid-column: 1 / -2;
+  grid-column: 1 / -1;
+}
+.prescription-line > .cancel-button {
+  justify-self: start;
+}
+.prescription-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.prescription-quick button {
+  padding-inline: 0.65rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.prescription-quick button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-h);
+  font-weight: 600;
 }
 @media (max-width: 640px) {
   .prescription-line {
@@ -5088,6 +5143,7 @@ img.waiver-signature {
 }
 .weight-chart-alert {
   color: var(--danger);
+  font-weight: 600;
 }
 .weight-chart-dot-alert {
   fill: var(--danger);

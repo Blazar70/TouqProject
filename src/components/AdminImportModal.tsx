@@ -18,6 +18,8 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
   const [parsed, setParsed] = useState<{ file: string; rows: ImportRow[]; errors: ImportError[] } | null>(null)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Rows the import left out as "already there" (nightly H43): the admin can download and check them.
+  const [skipped, setSkipped] = useState<ImportRow[] | null>(null)
 
   async function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -33,10 +35,12 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
     const { data, error: importError } = await supabase.rpc('admin_import_owners_pets', { p_clinic: clinicId, p_rows: parsed.rows })
     setImporting(false)
     if (importError) return setError(importError.message)
-    const result = data as unknown as { pets: number; new_owners: number; matched_owners: number; skipped: number }
+    const result = data as unknown as { pets: number; new_owners: number; matched_owners: number; skipped: number; skipped_rows: number[] }
     const counts = { pets: String(result.pets), newOwners: String(result.new_owners), matched: String(result.matched_owners), skipped: String(result.skipped) }
     toast.success(t(result.skipped ? 'import.doneSkipped' : 'import.done', counts))
-    onClose()
+    if (!result.skipped) return onClose()
+    setSkipped(result.skipped_rows.map((n) => parsed.rows[n - 1]))
+    setParsed(null)
   }
 
   // Same phone = same owner; a row without a phone is its own owner (as in 0097).
@@ -55,6 +59,18 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
         {t('import.file')}
         <input type="file" accept=".csv,text/csv" onChange={handleFile} />
       </label>
+      {skipped && (
+        <div className="import-skipped">
+          <p>{t('import.skippedExplain', { count: String(skipped.length) })}</p>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => downloadCsv('touq-import-already-there.csv', [...IMPORT_COLUMNS], skipped.map((r) => IMPORT_COLUMNS.map((c) => r[c])))}
+          >
+            {t('import.downloadSkipped')}
+          </button>
+        </div>
+      )}
       {parsed && parsed.errors.length > 0 && (
         <div role="alert">
           <p className="form-error">{t('import.fixFirst', { count: String(parsed.errors.length) })}</p>
@@ -98,11 +114,13 @@ function AdminImportModal({ clinicId, clinicName, onClose }: { clinicId: string;
       )}
       <FormError message={error} />
       <div className="record-edit-actions">
-        <button type="button" className="primary-button" onClick={handleImport} disabled={!parsed || parsed.errors.length > 0 || importing}>
-          {importing ? t('common.saving') : t('import.run')}
-        </button>
+        {!skipped && (
+          <button type="button" className="primary-button" onClick={handleImport} disabled={!parsed || parsed.errors.length > 0 || importing}>
+            {importing ? t('common.saving') : t('import.run')}
+          </button>
+        )}
         <button type="button" className="cancel-button" onClick={onClose}>
-          {t('common.cancel')}
+          {skipped ? t('common.close') : t('common.cancel')}
         </button>
       </div>
     </Modal>

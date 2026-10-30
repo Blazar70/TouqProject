@@ -2,13 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { MICROCHIP_PATTERN, cleanMicrochip } from '../lib/microchip'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
-import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit, visitRecordFields } from '../lib/clinicalFields'
+import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit, toPrescription, visitRecordFields } from '../lib/clinicalFields'
 import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
 import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
@@ -59,7 +60,7 @@ function PetDetail({
   const { t } = useLanguage()
   const confirm = useConfirm()
   const toast = useToast()
-  const { printSummary, printHistory } = usePrintSummary()
+  const { printSummary, printHistory, printPrescription } = usePrintSummary()
   const isVet = profile?.role === 'vet'
   const isNurse = profile?.clinic_role === 'nurse'
   // Visit records are written by clinicians only (0087); reception reads them.
@@ -68,6 +69,7 @@ function PetDetail({
   const [name, setName] = useState(pet.name)
   const [species, setSpecies] = useState(pet.species)
   const [breed, setBreed] = useState(pet.breed ?? '')
+  const [microchip, setMicrochip] = useState(pet.microchip ?? '')
   const [dateOfBirth, setDateOfBirth] = useState(pet.date_of_birth ?? '')
   const [savingPet, setSavingPet] = useState(false)
   const [petError, setPetError] = useState<string | null>(null)
@@ -93,7 +95,7 @@ function PetDetail({
   const [includeHistoryPhotos, setIncludeHistoryPhotos] = useState(true)
 
   const petFormDirty =
-    name !== pet.name || species !== pet.species || breed !== (pet.breed ?? '') || dateOfBirth !== (pet.date_of_birth ?? '')
+    name !== pet.name || species !== pet.species || breed !== (pet.breed ?? '') || microchip !== (pet.microchip ?? '') || dateOfBirth !== (pet.date_of_birth ?? '')
   const isDirty = petFormDirty || editingRecordId !== null
   useUnsavedChangesWarning(isDirty)
 
@@ -145,6 +147,7 @@ function PetDetail({
         name,
         species,
         breed: breed || null,
+        microchip: microchip || null,
         date_of_birth: dateOfBirth || null,
       })
       .eq('id', pet.id)
@@ -305,6 +308,7 @@ function PetDetail({
     setName(pet.name)
     setSpecies(pet.species)
     setBreed(pet.breed ?? '')
+    setMicrochip(pet.microchip ?? '')
     setDateOfBirth(pet.date_of_birth ?? '')
     setPetError(null)
     setEditingDetails(false)
@@ -385,7 +389,7 @@ function PetDetail({
                         record,
                         photoUrl: includeHistoryPhotos ? record.photo_url : null,
                       })),
-                      pet.pet_number,
+                      pet,
                     )
                   }
                 >
@@ -561,11 +565,27 @@ function PetDetail({
                                 owner: [pet.owner_name, pet.owner_phone && `⁦${pet.owner_phone}⁩`].filter(Boolean).join(' · '),
                                 record,
                                 photoUrl: (includePhotoByRecord[record.id] ?? true) ? record.photo_url : null,
-                              }, pet.pet_number)
+                              }, pet)
                             }
                           >
                             {t('common.print')}
                           </button>
+                          {toPrescription(record.prescription).length > 0 && (
+                            <button
+                              type="button"
+                              className="secondary-button"
+                              onClick={() =>
+                                printPrescription(pet.name, {
+                                  date: record.visit_date,
+                                  doctor: record.vet?.full_name,
+                                  owner: [pet.owner_name, pet.owner_phone && `⁦${pet.owner_phone}⁩`].filter(Boolean).join(' · '),
+                                  record,
+                                }, pet)
+                              }
+                            >
+                              {t('prescription.print')}
+                            </button>
+                          )}
                           {/* A nurse edits her own or nurse-only records, never deletes (0075); records seen at a branch you don't work at are read-only (0076). */}
                           {isClinician && canWriteAt(record.branch_id) && (!isNurse || !record.vet_id || record.vet_id === profile?.id) && (
                             <button type="button" className="secondary-button" onClick={() => startEditingRecord(record)}>
@@ -592,7 +612,7 @@ function PetDetail({
 
       <aside className="pet-file-side">
         <VaccinationPanel pet={pet} onUpdated={onUpdated} />
-        {isClinician && <WeightChart petId={pet.id} />}
+        {isClinician && <WeightChart petId={pet.id} dateOfBirth={pet.date_of_birth} />}
         <WaiversPanel pet={pet} />
         <TrustedContactsPanel petId={pet.id} />
 
@@ -629,6 +649,18 @@ function PetDetail({
                 <input value={breed} onChange={(e) => setBreed(e.target.value)} />
               </label>
               <label>
+                {t('pets.microchip')}
+                <input
+                  dir="ltr"
+                  value={microchip}
+                  onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
+                  pattern={MICROCHIP_PATTERN}
+                  title={t('pets.microchipHint')}
+                  autoComplete="off"
+                />
+                <span className="pet-owner">{t('pets.microchipHint')}</span>
+              </label>
+              <label>
                 {t('registerPet.dateOfBirth')}
                 <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
               </label>
@@ -655,6 +687,8 @@ function PetDetail({
                 <dd>{speciesLabel(t, pet.species)}</dd>
                 <dt>{t('registerPet.breed')}</dt>
                 <dd>{pet.breed || '—'}</dd>
+                <dt>{t('pets.microchip')}</dt>
+                <dd>{pet.microchip ? <Ltr>{pet.microchip}</Ltr> : '—'}</dd>
                 <dt>{t('registerPet.dateOfBirth')}</dt>
                 <dd>{pet.date_of_birth ? <Ltr>{formatDate(pet.date_of_birth)}</Ltr> : '—'}</dd>
                 <dt>{t('pets.owner')}</dt>

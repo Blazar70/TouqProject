@@ -5,7 +5,7 @@ import { translations } from './i18n/translations'
 import type { TranslationKey } from './i18n/translations'
 import { useAuth } from './AuthContext'
 import { useToast } from './ToastContext'
-import { visitRecordFields } from './clinicalFields'
+import { toPrescription, visitRecordFields } from './clinicalFields'
 import { signPhotoUrl } from './photoUrl'
 import type { VisitRecordFields } from './clinicalFields'
 import { formatDate, formatDateTime, formatMoney } from './format'
@@ -39,6 +39,15 @@ export type InvoiceDoc = {
   /** Deposit: whose balance, and what it is after. */
   owner?: string
   balanceAfter?: number
+}
+
+/** The pet's numbers printed under its name: Pet ID and microchip (H42). */
+export type PrintPet = { pet_number: number; microchip?: string | null }
+
+function petIdsHtml(t: (key: TranslationKey) => string, pet: PrintPet | undefined) {
+  if (!pet) return ''
+  const chip = pet.microchip ? ` · ${escapeHtml(t('pets.microchip'))} <span dir="ltr">${escapeHtml(pet.microchip)}</span>` : ''
+  return `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${pet.pet_number}</span>${chip}</div>`
 }
 
 export type VisitSummary = {
@@ -80,8 +89,9 @@ type PrintContextValue = {
   printWaiver: (doc: WaiverDoc) => void
   printInvoice: (doc: InvoiceDoc) => void
   printReport: (doc: ReportDoc) => void
-  printSummary: (petName: string, visit: VisitSummary, petNumber?: number) => void
-  printHistory: (petName: string, visits: VisitSummary[], petNumber?: number) => void
+  printSummary: (petName: string, visit: VisitSummary, pet?: PrintPet) => void
+  printHistory: (petName: string, visits: VisitSummary[], pet?: PrintPet) => void
+  printPrescription: (petName: string, visit: VisitSummary, pet?: PrintPet) => void
 }
 
 const PrintContext = createContext<PrintContextValue | null>(null)
@@ -163,7 +173,7 @@ function buildDocument(
   clinicPhone: string | null,
   petName: string,
   visits: VisitSummary[],
-  petNumber?: number,
+  pet?: PrintPet,
 ) {
   const isHistory = visits.length > 1
   const title = isHistory ? t('printSummary.historyTitle') : t('printSummary.title')
@@ -210,7 +220,7 @@ function buildDocument(
     <div class="print-hero">
       <div>
         <div class="print-hero-name">${escapeHtml(petName)}</div>
-        ${petNumber ? `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${petNumber}</span></div>` : ''}
+        ${petIdsHtml(t, pet)}
         ${!isHistory && visits[0].owner ? `<div class="print-hero-id">${escapeHtml(t('pets.owner'))}: ${escapeHtml(visits[0].owner)}</div>` : ''}
         ${!isHistory && visits[0].doctor ? `<div class="print-hero-id">${escapeHtml(t('printSummary.doctor'))}: ${escapeHtml(visits[0].doctor)}</div>` : ''}
         ${!isHistory && visits[0].nurse ? `<div class="print-hero-id">${escapeHtml(t('printSummary.nurse'))}: ${escapeHtml(visits[0].nurse)}</div>` : ''}
@@ -218,6 +228,56 @@ function buildDocument(
       ${heroDate}
     </div>
     ${body}
+    <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>
+  </body>
+</html>`
+}
+
+// H34: the prescription alone, one page for the owner to take home: who, when, by whom, the medicines, a signature line.
+function buildPrescriptionDocument(
+  t: (key: TranslationKey) => string,
+  clinicLabel: string,
+  clinicPhone: string | null,
+  petName: string,
+  visit: VisitSummary,
+  pet: PrintPet | undefined,
+  rtl: boolean,
+) {
+  const cell = (value: string) => `<td>${escapeHtml(value)}</td>`
+  const rows = toPrescription(visit.record.prescription)
+    .map((l) => `<tr>${cell(l.medicine)}${cell(l.dose)}${cell(l.frequency)}${cell(l.duration)}${cell(l.note)}</tr>`)
+    .join('')
+  const head = (['prescription.medicine', 'prescription.dose', 'prescription.frequency', 'prescription.duration', 'common.notes'] as const)
+    .map((key) => `<th>${escapeHtml(t(key))}</th>`)
+    .join('')
+  const line = (key: TranslationKey, value: string | null | undefined) =>
+    value ? `<div class="print-hero-id">${escapeHtml(t(key))}: ${escapeHtml(value)}</div>` : ''
+  return `<!doctype html>
+<html dir="${rtl ? 'rtl' : 'ltr'}">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(petName)} — ${escapeHtml(t('prescription.title'))}</title>
+    <style>${PRINT_STYLES}${INVOICE_STYLES} .rx-sign { margin-top: 3rem; width: 16rem; border-top: 1px solid #000; padding-top: 0.4rem; }</style>
+  </head>
+  <body>
+    <header class="print-header">
+      <div>
+        <h1>${escapeHtml(clinicLabel)}</h1>
+        ${clinicPhone ? `<p class="print-clinic-phone"><span dir="ltr">${escapeHtml(clinicPhone)}</span></p>` : ''}
+        <p>${escapeHtml(t('prescription.title'))}</p>
+      </div>
+      <div class="print-hero-date">${escapeHtml(formatDate(visit.date))}</div>
+    </header>
+    <div class="print-hero">
+      <div>
+        <div class="print-hero-name">${escapeHtml(petName)}</div>
+        ${petIdsHtml(t, pet)}
+        ${line('pets.owner', visit.owner)}
+        ${line('clinical.weightKg', visit.record.weight_kg?.toString())}
+      </div>
+    </div>
+    <table><tr>${head}</tr>${rows}</table>
+    <div class="rx-sign">${escapeHtml(t('printSummary.doctor'))}: ${escapeHtml(visit.doctor ?? '')}</div>
     <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>
   </body>
 </html>`
@@ -266,8 +326,9 @@ const RECEIPT_80MM_STYLES = `
 `
 
 function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone: string | null, logo: string | null, rtl: boolean) {
-  const title = bi(doc.kind === 'invoice' ? 'print.taxInvoice' : doc.kind === 'credit_note' ? 'payments.creditNote' : 'owners.depositReceipt')
-  const deposit = doc.kind === 'deposit'
+  // No VAT number = the clinic wasn't VAT-registered (0100): plain invoice, no VAT shown, no QR.
+  const noVat = doc.kind === 'deposit' || !doc.vatNumber
+  const title = bi(doc.kind === 'invoice' ? (noVat ? 'print.invoice' : 'print.taxInvoice') : doc.kind === 'credit_note' ? 'payments.creditNote' : 'owners.depositReceipt')
   // ZATCA phase 1: seller, VAT number, time, total and VAT as Base64 TLV in a QR code.
   let qr = ''
   if (doc.vatNumber) {
@@ -307,8 +368,8 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
   const totals = [
     doc.billDiscount ? row(bi('payments.subtotal'), money(doc.total + doc.billDiscount.amount)) : '',
     doc.billDiscount ? row(escapeHtml(doc.billDiscount.label), `${money(-doc.billDiscount.amount)}`, 'inv-discount') : '',
-    deposit ? '' : row(bi('payments.netTotal'), money(doc.total - doc.vat)),
-    deposit ? '' : row(`${bi('payments.vat')}${doc.vatRate !== null ? ` ${ltr(`${doc.vatRate}%`)}` : ''}`, money(doc.vat)),
+    noVat ? '' : row(bi('payments.netTotal'), money(doc.total - doc.vat)),
+    noVat ? '' : row(`${bi('payments.vat')}${doc.vatRate !== null ? ` ${ltr(`${doc.vatRate}%`)}` : ''}`, money(doc.vat)),
     row(bi('payments.total'), money(doc.total), 'inv-grand'),
     doc.credited ? row(bi('payments.creditedAmount'), `${money(-doc.credited)}`) : '',
     doc.paid !== undefined ? row(bi('payments.paid'), money(doc.paid)) : '',
@@ -349,7 +410,7 @@ function buildInvoiceDocument(doc: InvoiceDoc, clinicLabel: string, clinicPhone:
     <table class="inv-totals">${totals}</table>
     ${payments}
     <div class="inv-foot">
-      <p class="print-printed-at">${deposit ? '' : bi('payments.pricesIncludeVat')}</p>
+      <p class="print-printed-at">${noVat ? '' : bi('payments.pricesIncludeVat')}</p>
       ${qr}
     </div>
     <footer class="print-footer">${escapeHtml(clinicPhone ? `${clinicLabel} · ${clinicPhone}` : clinicLabel)}</footer>
@@ -444,7 +505,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
   const toast = useToast()
 
   const runPrint = useCallback(
-    async (petName: string, visits: VisitSummary[], petNumber?: number) => {
+    async (petName: string, visits: VisitSummary[], pet?: PrintPet) => {
       const clinicLabel = clinicName ?? t('auth.brand')
 
       // A separate print window, not an in-page portal — it's a fully
@@ -461,7 +522,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
       const signedVisits = await Promise.all(
         visits.map(async (visit) => (visit.photoUrl ? { ...visit, photoUrl: await signPhotoUrl(visit.photoUrl) } : visit)),
       )
-      const html = buildDocument(t, clinicLabel, clinicPhone, petName, signedVisits, petNumber)
+      const html = buildDocument(t, clinicLabel, clinicPhone, petName, signedVisits, pet)
       printWindow.document.open()
       printWindow.document.write(html)
       printWindow.document.close()
@@ -473,8 +534,26 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     [clinicName, clinicPhone, t, toast],
   )
 
-  const printSummary = useCallback((petName: string, visit: VisitSummary, petNumber?: number) => runPrint(petName, [visit], petNumber), [runPrint])
-  const printHistory = useCallback((petName: string, visits: VisitSummary[], petNumber?: number) => runPrint(petName, visits, petNumber), [runPrint])
+  const printSummary = useCallback((petName: string, visit: VisitSummary, pet?: PrintPet) => runPrint(petName, [visit], pet), [runPrint])
+  const printHistory = useCallback((petName: string, visits: VisitSummary[], pet?: PrintPet) => runPrint(petName, visits, pet), [runPrint])
+
+  const printPrescription = useCallback(
+    (petName: string, visit: VisitSummary, pet?: PrintPet) => {
+      const printWindow = window.open('', '_blank', 'width=800,height=1000')
+      if (!printWindow) {
+        toast.error(t('printSummary.popupBlocked'))
+        return
+      }
+      printWindow.document.open()
+      printWindow.document.write(buildPrescriptionDocument(t, clinicName ?? t('auth.brand'), clinicPhone, petName, visit, pet, language === 'ar'))
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.focus()
+        printWindow.print()
+      }
+    },
+    [clinicName, clinicPhone, language, t, toast],
+  )
 
   const printInvoice = useCallback(
     (doc: InvoiceDoc) => {
@@ -530,7 +609,7 @@ export function PrintProvider({ children }: { children: ReactNode }) {
     [clinicName, clinicPhone, logo, t, toast],
   )
 
-  return <PrintContext.Provider value={{ printWaiver, printInvoice, printSummary, printHistory, printReport }}>{children}</PrintContext.Provider>
+  return <PrintContext.Provider value={{ printWaiver, printInvoice, printSummary, printHistory, printReport, printPrescription }}>{children}</PrintContext.Provider>
 }
 
 export function usePrintSummary() {

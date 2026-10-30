@@ -94,6 +94,9 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const credited = new Set(invoice.credit_notes.flatMap((c) => c.item_ids))
   const rates = new Set(items.map((i) => i.vat_rate))
   const vatRate = rates.size === 1 ? [...rates][0] : null
+  // 0100: made while the clinic wasn't VAT-registered = a plain invoice, now and later.
+  const taxInvoice = invoice.tax_phase !== 'none'
+  const docVatNumber = taxInvoice ? vatNumber : null
   const discountLabel = (type: string | null, value: number | null, why: string | null) =>
     t('payments.discountLabel', { value: type === 'percent' ? `${value}%` : `${formatMoney(value ?? 0)} ${t('common.currency')}`, reason: why ?? '' })
 
@@ -196,7 +199,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       number: invoice.invoice_number,
       date: invoice.created_at,
       branch: branchName,
-      vatNumber,
+      vatNumber: docVatNumber,
       pet,
       lines: items.map((i) => ({
         description: i.description,
@@ -226,7 +229,7 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       invoiceNumber: invoice.invoice_number,
       date: note.created_at,
       branch: branchName,
-      vatNumber,
+      vatNumber: docVatNumber,
       pet,
       lines: items
         .filter((i) => note.item_ids.includes(i.id))
@@ -295,12 +298,16 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
         </ul>
 
         <dl className="invoice-sums">
-          <dt>{t('payments.netTotal')}</dt>
-          <dd><Money amount={invoice.amount_total - invoice.vat_total} /></dd>
-          <dt>
-            {t('payments.vat')} {vatRate !== null && <Ltr>{`${vatRate}%`}</Ltr>}
-          </dt>
-          <dd><Money amount={invoice.vat_total} /></dd>
+          {taxInvoice && (
+            <>
+              <dt>{t('payments.netTotal')}</dt>
+              <dd><Money amount={invoice.amount_total - invoice.vat_total} /></dd>
+              <dt>
+                {t('payments.vat')} {vatRate !== null && <Ltr>{`${vatRate}%`}</Ltr>}
+              </dt>
+              <dd><Money amount={invoice.vat_total} /></dd>
+            </>
+          )}
           <dt className="invoice-sums-total">{t('payments.total')}</dt>
           <dd className="invoice-sums-total"><Money amount={invoice.amount_total} /></dd>
           {invoice.amount_credited > 0 && (
@@ -360,8 +367,6 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
             </ul>
           </>
         )}
-
-        {!vatNumber && isManager && <p className="pet-owner">{t('payments.noVatNumberHint')}</p>}
 
         {mode === 'pay' && (
           <form ref={actionFormRef} className="pet-form invoice-action-form" onSubmit={handlePay}>

@@ -292,7 +292,9 @@ export type Database = {
           name: string
           phone: string | null
           timezone: string
+          tax_phase: string
           vat_number: string | null
+          zatca_phase2_date: string | null
         }
         Insert: {
           billing_status?: string
@@ -305,7 +307,9 @@ export type Database = {
           name: string
           phone?: string | null
           timezone?: string
+          tax_phase?: string
           vat_number?: string | null
+          zatca_phase2_date?: string | null
         }
         Update: {
           billing_status?: string
@@ -318,7 +322,9 @@ export type Database = {
           name?: string
           phone?: string | null
           timezone?: string
+          tax_phase?: string
           vat_number?: string | null
+          zatca_phase2_date?: string | null
         }
         Relationships: []
       }
@@ -762,6 +768,7 @@ export type Database = {
           pet_id: string | null
           pet_name: string | null
           pet_number: number | null
+          tax_phase: string
           zatca_icv: number | null
           zatca_previous_hash: string | null
           zatca_uuid: string | null
@@ -975,6 +982,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          search_text: string
         }
         Insert: {
           clinic_id: string
@@ -1148,6 +1156,7 @@ export type Database = {
           deleted_at: string | null
           home_branch_id: string | null
           id: string
+          microchip: string | null
           name: string
           next_vaccination_date: string | null
           owner_email: string | null
@@ -1158,6 +1167,7 @@ export type Database = {
           owner_since: string
           pet_number: number
           photo_url: string | null
+          search_text: string
           species: string
         }
         Insert: {
@@ -1168,6 +1178,7 @@ export type Database = {
           deleted_at?: string | null
           home_branch_id?: string | null
           id?: string
+          microchip?: string | null
           name: string
           next_vaccination_date?: string | null
           owner_email?: string | null
@@ -1188,6 +1199,7 @@ export type Database = {
           deleted_at?: string | null
           home_branch_id?: string | null
           id?: string
+          microchip?: string | null
           name?: string
           next_vaccination_date?: string | null
           owner_email?: string | null
