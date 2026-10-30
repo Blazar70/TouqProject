@@ -1688,19 +1688,20 @@ export type Database = {
           p_payments: Json
           p_paid_at?: string
           p_stay?: string | null
+          p_request?: string
         }
         Returns: string
       }
       add_invoice_payment: {
-        Args: { p_invoice: string; p_method: string; p_amount: number; p_branch?: string | null; p_paid_at?: string | null }
+        Args: { p_invoice: string; p_method: string; p_amount: number; p_branch?: string | null; p_paid_at?: string | null; p_request?: string }
         Returns: undefined
       }
       create_credit_note: {
-        Args: { p_invoice: string; p_item_ids: string[] | null; p_amount: number | null; p_reason: string; p_refund_method: string }
+        Args: { p_invoice: string; p_item_ids: string[] | null; p_amount: number | null; p_reason: string; p_refund_method: string; p_request?: string }
         Returns: string
       }
       add_owner_balance: {
-        Args: { p_owner: string; p_amount: number; p_method: string | null; p_reason?: string | null; p_branch?: string | null }
+        Args: { p_owner: string; p_amount: number; p_method: string | null; p_reason?: string | null; p_branch?: string | null; p_request?: string }
         Returns: string
       }
       merge_owner_files: {

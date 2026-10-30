@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
 import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -8,7 +9,6 @@ import type { Database } from '../lib/database.types'
 import { formatDateTime } from '../lib/format'
 import { stayDay } from '../lib/inpatient'
 import Ltr from '../components/Ltr'
-import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import BranchFilter from '../components/BranchFilter'
 import FormError from '../components/FormError'
@@ -63,7 +63,7 @@ function InpatientsPage() {
     setRefreshing(false)
   }
 
-  if (stays === null) return <LoadingScreen />
+  if (stays === null) return <PageSkeleton title={t('inpatient.pageTitle')} />
 
   return (
     <div>

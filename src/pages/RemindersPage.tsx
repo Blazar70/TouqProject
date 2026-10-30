@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -11,7 +12,6 @@ import { addDays } from '../lib/vaccination'
 import { appointmentMessage, pickupMessage, vaccineMessage, whatsAppLink } from '../lib/ownerReminders'
 import type { DueVaccine } from '../lib/ownerReminders'
 import Ltr from '../components/Ltr'
-import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import FormError from '../components/FormError'
 
@@ -166,7 +166,7 @@ function RemindersPage() {
     load()
   }
 
-  if (items === null) return <LoadingScreen />
+  if (items === null) return <PageSkeleton title={t('ownerReminders.title')} />
 
   const toSend = items.filter((i) => !isSent(i)).length
 

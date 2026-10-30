@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
 import { formatMoney } from '../lib/format'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
 import { searchPattern } from '../lib/search'
-import LoadingScreen from '../components/LoadingScreen'
+import { lastSeen, remember } from '../lib/lastSeen'
 import OwnerDetail from '../components/OwnerDetail'
 import Ltr from '../components/Ltr'
 import FormError from '../components/FormError'
@@ -19,14 +20,15 @@ type OwnerRow = { id: string; name: string; phone: string | null; balance: numbe
 // Owner files (0063): the list, or one owner when ?id= is set.
 function OwnersPage() {
   const { t } = useLanguage()
-  const { handlesMoney } = useAuth()
+  const { handlesMoney, profile } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const openId = searchParams.get('id')
-  const [owners, setOwners] = useState<OwnerRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const listKey = `owners:${profile?.id}`
+  const [owners, setOwners] = useState<OwnerRow[]>(() => lastSeen<{ owners: OwnerRow[]; total: number }>(listKey)?.owners ?? [])
+  const [loading, setLoading] = useState(() => !lastSeen(listKey))
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [total, setTotal] = useState(0)
+  const [total, setTotal] = useState(() => lastSeen<{ owners: OwnerRow[]; total: number }>(listKey)?.total ?? 0)
   const request = useRef(0)
 
   // An older answer never overwrites a newer one.
@@ -42,8 +44,10 @@ function OwnersPage() {
     if (mine !== request.current) return
     if (loadError) setError(loadError.message)
     else {
-      setOwners(((data ?? []) as unknown as (Omit<OwnerRow, 'balance'> & { balance: { balance: number } | null })[]).map(flatBalance))
+      const rows = ((data ?? []) as unknown as (Omit<OwnerRow, 'balance'> & { balance: { balance: number } | null })[]).map(flatBalance)
+      setOwners(rows)
       setTotal(count ?? 0)
+      if (!pattern) remember(listKey, { owners: rows, total: count ?? 0 })
     }
     setLoading(false)
   }
@@ -57,7 +61,7 @@ function OwnersPage() {
   }, [openId, search])
 
   if (openId) return <OwnerDetail ownerId={openId} onClose={() => setSearchParams({})} />
-  if (loading) return <LoadingScreen />
+  if (loading) return <PageSkeleton title={t('owners.title')} />
 
   return (
     <div>

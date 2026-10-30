@@ -16,6 +16,7 @@ import VaccinationBadge from '../components/VaccinationBadge'
 import RefreshButton from '../components/RefreshButton'
 import BranchFilter from '../components/BranchFilter'
 import { clinicDay, clinicMidnight, formatDate, formatMoney, formatTime } from '../lib/format'
+import { lastSeen, remember } from '../lib/lastSeen'
 
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & {
   pets: { name: string } | null
@@ -34,6 +35,13 @@ type TodayAppointment = {
 const MINE_KEY = 'touq-dashboard-mine'
 
 type DueVaccine = { id: string; next_due_date: string; vaccine: { name: string } | null; pet: { id: string; name: string; owner_name: string } }
+type DashboardData = {
+  today: TodayAppointment[]
+  paymentsToday: number[]
+  recentRecords: MedicalRecord[]
+  vaccinationsDue: DueVaccine[]
+  cancellationCounts: { category: string; count: number }[]
+}
 
 function DashboardPage() {
   const { profile, handlesMoney } = useAuth()
@@ -69,6 +77,8 @@ function DashboardPage() {
       // Blocked storage: the choice still holds for this page load.
     }
   }
+
+  const cacheKey = `dashboard:${profile?.id}:${viewBranch}:${mine}`
 
   async function load() {
     // Clinic days, not the device clock (nightly B4): matches the cash-up report.
@@ -116,17 +126,34 @@ function DashboardPage() {
     ])
     // A failed (e.g. offline) background reload keeps the last good lists instead of emptying them.
     if ([todayRes, paymentsRes, recordsRes, petsRes, cancellationsRes].some((r) => r.error)) return
-    setToday(todayRes.data ?? [])
-    setPaymentsToday((paymentsRes.data ?? []).map((p) => p.amount))
-    setRecentRecords(recordsRes.data ?? [])
-    setVaccinationsDue((petsRes.data as DueVaccine[] | null) ?? [])
-    setCancellationCounts(groupCancellationCounts((cancellationsRes.data ?? []).map((c) => c.cancellation_category)))
+    const data: DashboardData = {
+      today: todayRes.data ?? [],
+      paymentsToday: (paymentsRes.data ?? []).map((p) => p.amount),
+      recentRecords: recordsRes.data ?? [],
+      vaccinationsDue: (petsRes.data as DueVaccine[] | null) ?? [],
+      cancellationCounts: groupCancellationCounts((cancellationsRes.data ?? []).map((c) => c.cancellation_category)),
+    }
+    show(data)
+    remember(cacheKey, data)
+  }
+
+  function show(data: DashboardData) {
+    setToday(data.today)
+    setPaymentsToday(data.paymentsToday)
+    setRecentRecords(data.recentRecords)
+    setVaccinationsDue(data.vaccinationsDue)
+    setCancellationCounts(data.cancellationCounts)
   }
 
   useEffect(() => {
     if (!profile?.clinic_id) {
       setLoading(false)
       return
+    }
+    const cached = lastSeen<DashboardData>(cacheKey)
+    if (cached) {
+      show(cached)
+      setLoading(false)
     }
     load().then(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps

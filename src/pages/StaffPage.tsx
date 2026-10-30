@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useConfirm } from '../lib/ConfirmContext'
@@ -11,7 +12,6 @@ import { formatDateTime } from '../lib/format'
 import { MIN_PASSWORD_LENGTH, parseStaffLogin, staffChangeError } from '../../supabase/functions/_shared/staffRules'
 import type { ClinicRole, StaffChange } from '../../supabase/functions/_shared/staffRules'
 import Ltr from '../components/Ltr'
-import LoadingScreen from '../components/LoadingScreen'
 import StaffAppointments from '../components/StaffAppointments'
 import TimeOffPanel from '../components/TimeOffPanel'
 import PhoneInput from '../components/PhoneInput'
@@ -409,7 +409,7 @@ function StaffPage() {
     )
   }
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <PageSkeleton title={t('staff.title')} />
 
   const active = staff.filter((m) => !m.disabled)
   const removed = staff.filter((m) => m.disabled)

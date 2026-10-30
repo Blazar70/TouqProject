@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useConfirm } from '../lib/ConfirmContext'
@@ -12,10 +13,10 @@ import PetDetail from '../components/PetDetail'
 import PetAvatar from '../components/PetAvatar'
 import VaccinationBadge from '../components/VaccinationBadge'
 import Ltr from '../components/Ltr'
-import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
 import { formatDate } from '../lib/format'
 import { searchPattern } from '../lib/search'
+import { lastSeen, remember } from '../lib/lastSeen'
 import { INPATIENT_MEDIA_BUCKET } from '../lib/inpatient'
 import FormError from '../components/FormError'
 import Modal from '../components/Modal'
@@ -31,12 +32,13 @@ function PetsPage() {
   const { t } = useLanguage()
   const confirm = useConfirm()
   const toast = useToast()
-  const [pets, setPets] = useState<Pet[]>([])
-  const [total, setTotal] = useState(0)
+  const listKey = `pets:${profile?.id}`
+  const [pets, setPets] = useState<Pet[]>(() => lastSeen<{ pets: Pet[]; total: number }>(listKey)?.pets ?? [])
+  const [total, setTotal] = useState(() => lastSeen<{ pets: Pet[]; total: number }>(listKey)?.total ?? 0)
   // A pet opened by link that isn't in the shown list.
   const [linkedPet, setLinkedPet] = useState<Pet | null>(null)
   const request = useRef(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => !lastSeen(listKey))
   // The open pet file lives in the URL (/pets/<id>): Back closes it, links and reloads reopen it.
   const { id: expandedPetId = null } = useParams()
   const navigate = useNavigate()
@@ -62,6 +64,7 @@ function PetsPage() {
     else {
       setPets(data ?? [])
       setTotal(count ?? 0)
+      if (!pattern) remember(listKey, { pets: data ?? [], total: count ?? 0 })
     }
     setLoading(false)
   }
@@ -190,7 +193,7 @@ function PetsPage() {
     requestAnimationFrame(() => document.getElementById(`pet-row-${petId}`)?.scrollIntoView({ block: 'center' }))
   }
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <PageSkeleton title={t('pets.title')} />
 
   if (openPet) {
     return (
@@ -260,7 +263,7 @@ function PetsPage() {
               <div className="pet-row data-row">
                 <div className="pet-row-toggle-with-avatar data-cell-wide">
                   <PetAvatar pet={pet} size={40} />
-                  <button type="button" className="pet-row-toggle" onClick={() => navigate(`/pets/${pet.id}`)}>
+                  <button type="button" className="pet-row-toggle" onClick={() => navigate(`/pets/${pet.id}`, { viewTransition: true })}>
                     <strong>{pet.name}</strong>
                     <div className="pet-owner">
                       {speciesLabel(t, pet.species)}

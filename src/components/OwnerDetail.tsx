@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { useRequestKey } from '../lib/requestKey'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -76,6 +77,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
   const [reason, setReason] = useState('')
   const [modalError, setModalError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const balanceKey = useRequestKey()
   const [doneEntryId, setDoneEntryId] = useState<string | null>(null)
   const [exportData, setExportData] = useState<OwnerData | null>(null)
   // Nightly H23: deleting personal data asks the manager to type the owner's phone (or name) first.
@@ -200,6 +202,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
       p_method: adjusting ? null : method,
       p_reason: adjusting ? reason.trim() : null,
       p_branch: branchId,
+      p_request: balanceKey.current(),
     })
     setSaving(false)
     if (rpcError) {
@@ -207,6 +210,7 @@ function OwnerDetail({ ownerId, onClose }: { ownerId: string; onClose: () => voi
       setModalError(available ? t('owners.notEnoughBalance', { amount: `${formatMoney(Number(available))} ${t('common.currency')}` }) : rpcError.message)
       return
     }
+    balanceKey.renew()
     await load()
     if (adjusting) {
       setModal(null)

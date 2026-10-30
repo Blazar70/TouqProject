@@ -1058,7 +1058,6 @@
   font-weight: 600;
   line-height: 1.2;
   color: var(--text-h);
-  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
@@ -2675,7 +2674,6 @@ input[type='checkbox']:focus-visible {
 .invoice-sums dd {
   margin: 0;
   text-align: end;
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -2798,7 +2796,6 @@ input[type='checkbox']:focus-visible {
 
 .visit-services-price {
   text-align: end;
-  font-variant-numeric: tabular-nums;
 }
 
 /* "Unpaid" on a completed calendar block and in the colour key: words, not just colour. */
@@ -3240,7 +3237,6 @@ button.cancel-button:disabled,
   background: none;
   color: var(--text);
   font-size: 0.85rem;
-  font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 
@@ -3370,7 +3366,6 @@ button.cancel-button:disabled,
 .appointments-calendar .rbc-label {
   font-size: 0.78rem;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .appointments-calendar .rbc-today {
@@ -3457,7 +3452,6 @@ button.cancel-button:disabled,
   align-items: baseline;
   justify-content: center;
   gap: 0.25rem;
-  font-variant-numeric: tabular-nums;
 }
 
 .calendar-hour-count-content strong {
@@ -3633,7 +3627,6 @@ button.cancel-button:disabled,
   color: var(--accent);
   font-size: 2rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .session-form {
@@ -3867,7 +3860,6 @@ button.cancel-button:disabled,
   flex-direction: column;
   color: var(--text-h);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .today-doctor {
@@ -3890,7 +3882,6 @@ button.cancel-button:disabled,
 
 /* Nightly H12/H19: a pet waiting 20+ minutes stands out. */
 .dash-waiting {
-  font-variant-numeric: tabular-nums;
 }
 
 .dash-waiting.is-long {
@@ -3995,7 +3986,6 @@ button.cancel-button:disabled,
 .service-price {
   color: var(--text-h);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -4044,7 +4034,6 @@ button.cancel-button:disabled,
 }
 
 .data-num {
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -4907,7 +4896,6 @@ img.waiver-signature {
   font-size: 1.75rem;
   font-weight: 600;
   line-height: 1.15;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Requests waiting for confirmation are the one number that asks for action. */
@@ -4961,7 +4949,6 @@ img.waiver-signature {
   color: var(--text-h);
   font-size: 1.75rem;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
 .dash-next-main {
@@ -5147,4 +5134,79 @@ img.waiver-signature {
 }
 .weight-chart-dot-alert {
   fill: var(--danger);
+}
+
+/* Quick search (Ctrl+K / ⌘K, UI tips 3 + 4): a nav-item-looking button and a keyboard-first pop-up. */
+.nav-search {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  background: none;
+  border: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: start;
+}
+.nav-kbd,
+.quick-search-keys kbd {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--bg);
+}
+.nav-kbd {
+  margin-inline-start: auto;
+}
+.quick-search {
+  width: min(560px, 100%);
+}
+.quick-search-results {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+.quick-search-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-h);
+}
+.quick-search-option-active {
+  background: var(--bg-tint);
+}
+.quick-search-group {
+  margin: 0.4rem 0 0.15rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.quick-search-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1.75rem;
+}
+.quick-search-keys {
+  margin-top: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.quick-search-keys kbd + kbd {
+  margin-inline-start: 0.2rem;
+}
+@media (hover: none) {
+  /* No keyboard shortcuts to hint on touch screens. */
+  .nav-kbd,
+  .quick-search-keys {
+    display: none;
+  }
 }

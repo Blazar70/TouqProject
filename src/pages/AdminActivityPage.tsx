@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
-import LoadingScreen from '../components/LoadingScreen'
 import ActivityList from '../components/ActivityList'
 
 type AuditLogEntry = Database['public']['Tables']['admin_audit_log']['Row']
@@ -27,7 +27,7 @@ function AdminActivityPage() {
     load()
   }, [])
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <PageSkeleton title={t('admin.activityLog')} />
 
   return (
     <div>

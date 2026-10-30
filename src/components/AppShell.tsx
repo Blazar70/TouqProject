@@ -17,6 +17,7 @@ import {
   MessageCircle,
   PawPrint,
   Receipt,
+  Search,
   Settings,
   Users,
   X,
@@ -30,6 +31,7 @@ import type { TranslationKey } from '../lib/i18n/translations'
 import LanguageToggle from './LanguageToggle'
 import BranchMenu from './BranchMenu'
 import ThemeToggle from './ThemeToggle'
+import QuickSearch from './QuickSearch'
 
 // money / desk: receptionists and managers only (handlesMoney); desk is for non-money front-desk work.
 type NavItem = { to: string; label: TranslationKey; icon: LucideIcon; end?: boolean; money?: boolean; desk?: boolean; manager?: boolean }
@@ -77,6 +79,8 @@ const CLINIC_SECTIONS: NavSection[] = [
 // hover, so an "open" menu left over from a touch layout must not make the page inert.
 const DESKTOP_QUERY = '(min-width: 1024px) and (hover: hover)'
 const RAIL_QUERY = '(min-width: 768px)'
+// Apple keyboards (Mac, iPad) use ⌘; everyone else Ctrl.
+const SEARCH_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K'
 
 function subscribeDesktop(onChange: () => void) {
   const mql = window.matchMedia(DESKTOP_QUERY)
@@ -120,6 +124,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
   const { profile, clinicLogoUrl: logo, handlesMoney } = useAuth()
   const { branchId, branchName, pickable, branches } = useBranch()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
   const isDesktop = useSyncExternalStore(subscribeDesktop, getIsDesktop)
   const overlayOpen = menuOpen && !isDesktop
   const closeButtonRef = useRef<HTMLButtonElement>(null)
@@ -148,7 +153,23 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [overlayOpen])
 
+  // Ctrl+K / ⌘K anywhere opens the quick search (clinic staff; the admin has no pets or owners).
+  useEffect(() => {
+    if (isAdmin) return
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setMenuOpen(false)
+        setSearchOpen((open) => !open)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isAdmin])
+
   const sections = isAdmin ? ADMIN_SECTIONS : CLINIC_SECTIONS
+  const visibleItems = (items: NavItem[]) =>
+    items.filter((item) => (!(item.money || item.desk) || handlesMoney) && (!item.manager || profile?.clinic_role === 'manager'))
   const roleLabel = isAdmin
     ? t('role.admin')
     : profile?.clinic_role && t(`staff.role.${profile.clinic_role}` as TranslationKey)
@@ -235,15 +256,34 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
         )}
 
         <nav className="app-sidebar-nav" aria-label={t('nav.main')}>
+          {!isAdmin && (
+            <button
+              type="button"
+              className="nav-item nav-search"
+              title={`${t('search.open')} (${SEARCH_KEY})`}
+              aria-keyshortcuts="Control+K Meta+K"
+              onClick={() => {
+                setMenuOpen(false)
+                setSearchOpen(true)
+              }}
+            >
+              <Search className="nav-item-icon" size={24} aria-hidden />
+              <span className="nav-item-label">{t('search.open')}</span>
+              <kbd className="nav-item-label nav-kbd" aria-hidden>
+                {SEARCH_KEY}
+              </kbd>
+            </button>
+          )}
           {sections.map((section, i) => (
             <div className="nav-section" key={section.title ?? i}>
               {section.title && <h2 className="nav-section-title">{t(section.title)}</h2>}
               <ul>
-                {section.items.filter((item) => (!(item.money || item.desk) || handlesMoney) && (!item.manager || profile?.clinic_role === 'manager')).map((item) => (
+                {visibleItems(section.items).map((item) => (
                   <li key={item.to}>
                     <NavLink
                       to={item.to}
                       end={item.end}
+                      viewTransition
                       className="nav-item"
                       title={t(item.label)}
                       onClick={() => setMenuOpen(false)}
@@ -283,6 +323,7 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
       <div className="app-content" id="main-content" tabIndex={-1} inert={overlayOpen}>
         {children}
       </div>
+      {searchOpen && <QuickSearch pages={sections.flatMap((s) => visibleItems(s.items))} onClose={() => setSearchOpen(false)} />}
     </div>
   )
 }

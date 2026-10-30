@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { PageSkeleton } from '../components/Skeleton'
+import { useRequestKey } from '../lib/requestKey'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES } from '../lib/branchChoice'
@@ -11,7 +13,6 @@ import type { Database } from '../lib/database.types'
 import PetPicker from '../components/PetPicker'
 import { usePet } from '../lib/usePet'
 import Ltr from '../components/Ltr'
-import LoadingScreen from '../components/LoadingScreen'
 import RequiredMark from '../components/RequiredMark'
 import BranchFilter from '../components/BranchFilter'
 import PaymentStatusBadge from '../components/PaymentStatusBadge'
@@ -90,6 +91,7 @@ function PaymentsPage() {
   const [openId, setOpenId] = useState<string | null>(null)
 
   const [petId, setPetId] = useState('')
+  const invoiceKey = useRequestKey()
   const invoicePet = usePet(petId)
   const [appointmentId, setAppointmentId] = useState('')
   const [stay, setStay] = useState<{ id: string; admitted_at: string; discharged_at: string; noNightService: boolean } | null>(null)
@@ -361,6 +363,7 @@ function PaymentsPage() {
       p_discount: toDiscount(billDiscount),
       p_payments: paid.map((p) => ({ method: p.method, amount: p.amount })),
       ...(isManager && paidAt ? { p_paid_at: clinicTimeToIso(...(paidAt.split('T') as [string, string])) } : {}),
+      p_request: invoiceKey.current(),
     })
 
     if (error || !id) {
@@ -379,6 +382,7 @@ function PaymentsPage() {
       return
     }
 
+    invoiceKey.renew()
     const { data: invoice } = await supabase.from('invoices').select(INVOICE_SELECT).eq('id', id).single()
     const created = invoice as unknown as InvoiceFull | null
     if (created) {
@@ -430,7 +434,7 @@ function PaymentsPage() {
     return { total, cash, nonCash: total - cash, awaiting }
   }, [todayPayments, invoices])
 
-  if (loading) return <LoadingScreen />
+  if (loading) return <PageSkeleton title={t('payments.title')} />
 
   const priceMatches = services.filter((s) => s.name.toLowerCase().includes(priceQuery.trim().toLowerCase()))
   const openInvoice = invoices.find((inv) => inv.id === openId) ?? null

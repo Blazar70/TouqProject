@@ -20,4 +20,17 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   )
 }
 
+// A list page while its data loads (UI tip 1): the real title and grey rows in place of the list, instead of a
+// blank screen with a spinner, so the page shows where things will be.
+export function PageSkeleton({ title }: { title: string }) {
+  return (
+    <div aria-busy="true">
+      <div className="page-header">
+        <h1>{title}</h1>
+      </div>
+      <ListSkeleton rows={6} />
+    </div>
+  )
+}
+
 export default Skeleton

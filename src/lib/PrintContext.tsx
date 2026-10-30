@@ -114,6 +114,7 @@ const PRINT_STYLES = `
     font-size: 14px;
     line-height: 1.5;
     font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+    font-variant-numeric: tabular-nums;
   }
   .print-header {
     display: flex;

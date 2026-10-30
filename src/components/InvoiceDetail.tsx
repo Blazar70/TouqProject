@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
+import { useRequestKey } from '../lib/requestKey'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { useConfirm } from '../lib/ConfirmContext'
@@ -80,6 +81,8 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const [creditItems, setCreditItems] = useState<string[]>([])
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
+  const paymentKey = useRequestKey()
+  const creditKey = useRequestKey()
   const [error, setError] = useState<string | null>(null)
   // The pet's owner's prepaid balance (0064), loaded when paying or crediting.
   const [ownerBalance, setOwnerBalance] = useState<number | null>(null)
@@ -135,12 +138,13 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       return
     }
     setSaving(true)
-    const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId, ...(isManager && paidAt ? { p_paid_at: clinicTimeToIso(...(paidAt.split('T') as [string, string])) } : {}) })
+    const { error: rpcError } = await supabase.rpc('add_invoice_payment', { p_invoice: invoice.id, p_method: method, p_amount: value, p_branch: branchId, p_request: paymentKey.current(), ...(isManager && paidAt ? { p_paid_at: clinicTimeToIso(...(paidAt.split('T') as [string, string])) } : {}) })
     setSaving(false)
     if (rpcError) {
       setError(rpcError.message.startsWith('Not enough balance') ? t('owners.notEnoughBalance', { amount: balanceText }) : rpcError.message)
       return
     }
+    paymentKey.renew()
     toast.success(t('payments.paymentAdded'))
     setMode('view')
     reload()
@@ -176,12 +180,14 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
       p_amount: value ?? (creditItems.length ? null : creditable),
       p_reason: reason.trim(),
       p_refund_method: method,
+      p_request: creditKey.current(),
     })
     setSaving(false)
     if (rpcError) {
       setError(rpcError.message.includes('more than what is left') ? t('payments.creditTooMuch') : rpcError.message)
       return
     }
+    creditKey.renew()
     const { data: note } = await supabase.from('credit_notes').select('credit_number').eq('id', data).single()
     toast.success(t('payments.creditIssued', { number: note?.credit_number ?? '' }))
     setMode('view')
