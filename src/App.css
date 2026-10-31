@@ -781,6 +781,10 @@
   text-overflow: ellipsis;
 }
 
+.app-topbar-search {
+  margin-inline-start: auto;
+}
+
 .app-loading-screen {
   display: flex;
   flex-direction: column;
@@ -3246,7 +3250,6 @@ button.cancel-button:disabled,
 
 .mini-month-day.is-other-month {
   color: var(--text-muted);
-  opacity: 0.6;
 }
 
 .mini-month-day.is-today {

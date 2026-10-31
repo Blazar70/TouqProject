@@ -551,6 +551,13 @@ function AppointmentsPage() {
   // rbc only selects a slot after a long press on touch screens; a plain tap books too.
   // Slots carry their time + doctor (timeSlotWrapper below); find the one under the finger.
   const lastPointer = useRef('mouse')
+  const calendarRef = useRef<HTMLDivElement>(null)
+  // The calendar's own scroll area can't take focus, so keyboard users couldn't scroll the hours (axe, 11-01).
+  useEffect(() => {
+    const area = calendarRef.current?.querySelector('.rbc-time-content')
+    area?.setAttribute('tabindex', '0')
+    area?.setAttribute('aria-label', t('calendar.hours'))
+  })
   function handleCalendarTap(e: MouseEvent) {
     if (lastPointer.current !== 'touch' || (e.target as Element).closest('.rbc-event, .rbc-time-gutter, .rbc-time-header')) return
     const slot = document
@@ -1125,6 +1132,7 @@ function AppointmentsPage() {
       </div>
       {/* --now-cols centres the "Now" pill across all doctor columns (see App.css). */}
       <div
+        ref={calendarRef}
         className="appointments-calendar"
         onPointerDown={(e) => (lastPointer.current = e.pointerType)}
         onClick={canBook && viewBranch !== ALL_BRANCHES ? handleCalendarTap : undefined}

@@ -93,6 +93,13 @@ function SessionPage() {
   // H41: saved by itself 5 s after the last change, so a crash, a closed iPad app or a dead battery loses
   // at most a few seconds; vitals that don't parse wait (the status line says which).
   const vitals = parseVitals(form)
+  // A save that failed offline only retried on the next edit: the connection coming back retries it too.
+  const [backOnline, setBackOnline] = useState(0)
+  useEffect(() => {
+    const handleOnline = () => setBackOnline((n) => n + 1)
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [])
   useEffect(() => {
     if (!dirty || done || saving || autosaving || !vitals.ok || !appointment) return
     const timer = window.setTimeout(async () => {
@@ -101,7 +108,7 @@ function SessionPage() {
       setAutosaving(false)
     }, 5000)
     return () => window.clearTimeout(timer)
-  }, [form, photoFile, dirty, done, saving, autosaving, vitals.ok, appointment])
+  }, [form, photoFile, dirty, done, saving, autosaving, vitals.ok, appointment, backOnline])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)

@@ -15,7 +15,7 @@ import VaccinationBadge from '../components/VaccinationBadge'
 import Ltr from '../components/Ltr'
 import RefreshButton from '../components/RefreshButton'
 import { formatDate } from '../lib/format'
-import { searchPattern } from '../lib/search'
+import { searchPatterns } from '../lib/search'
 import { lastSeen, remember } from '../lib/lastSeen'
 import { INPATIENT_MEDIA_BUCKET } from '../lib/inpatient'
 import FormError from '../components/FormError'
@@ -55,16 +55,16 @@ function PetsPage() {
   // Newest pets, or the server's matches for the search box; an older answer never overwrites a newer one.
   async function loadPets() {
     const mine = ++request.current
-    const pattern = searchPattern(search)
+    const patterns = searchPatterns(search)
     let query = supabase.from('pets').select('*', { count: 'exact' }).is('deleted_at', null)
-    if (pattern) query = query.ilike('search_text', pattern)
+    for (const p of patterns) query = query.ilike('search_text', p)
     const { data, count, error } = await query.order('created_at', { ascending: false }).limit(PET_LIST_LIMIT)
     if (mine !== request.current) return
     if (error) setError(error.message)
     else {
       setPets(data ?? [])
       setTotal(count ?? 0)
-      if (!pattern) remember(listKey, { pets: data ?? [], total: count ?? 0 })
+      if (!patterns.length) remember(listKey, { pets: data ?? [], total: count ?? 0 })
     }
     setLoading(false)
   }

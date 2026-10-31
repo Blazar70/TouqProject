@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { MICROCHIP_PATTERN, cleanMicrochip } from '../lib/microchip'
 import { supabase } from '../lib/supabase'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
 import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
-import { isValidSaudiMobile } from '../lib/phone'
+import { formatSaudiPhoneInput, isValidSaudiMobile } from '../lib/phone'
 import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
@@ -17,6 +17,7 @@ import RequiredMark from '../components/RequiredMark'
 import OwnerPickerModal from '../components/OwnerPickerModal'
 import type { PickedOwner } from '../components/OwnerPickerModal'
 import Ltr from '../components/Ltr'
+import MicrochipTaken from '../components/MicrochipTaken'
 import { handleEnterAdvance } from '../lib/formEnterNav'
 import FormError from '../components/FormError'
 
@@ -25,14 +26,16 @@ function RegisterPetPage() {
   const { t } = useLanguage()
   const toast = useToast()
   const navigate = useNavigate()
+  // Filled from a pet search that found nothing (H44).
+  const [prefill] = useSearchParams()
 
-  const [name, setName] = useState('')
+  const [name, setName] = useState(() => prefill.get('name') ?? '')
   const [species, setSpecies] = useState('')
   const [breed, setBreed] = useState('')
-  const [microchip, setMicrochip] = useState('')
+  const [microchip, setMicrochip] = useState(() => prefill.get('microchip') ?? '')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ownerName, setOwnerName] = useState('')
-  const [ownerPhone, setOwnerPhone] = useState('')
+  const [ownerPhone, setOwnerPhone] = useState(() => formatSaudiPhoneInput(prefill.get('phone') ?? ''))
   const [ownerEmail, setOwnerEmail] = useState('')
   // An existing owner file (0063), or null = a new owner from the fields below.
   const [owner, setOwner] = useState<PickedOwner | null>(null)
@@ -202,6 +205,7 @@ function RegisterPetPage() {
             autoComplete="off"
           />
           <span className="pet-owner">{t('pets.microchipHint')}</span>
+          <MicrochipTaken microchip={microchip} />
         </label>
         <label>
           {t('registerPet.dateOfBirth')}

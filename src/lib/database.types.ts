@@ -769,6 +769,7 @@ export type Database = {
           pet_name: string | null
           pet_number: number | null
           tax_phase: string
+          vat_number: string | null
           zatca_icv: number | null
           zatca_previous_hash: string | null
           zatca_uuid: string | null

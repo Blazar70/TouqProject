@@ -1,8 +1,9 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Database } from '../lib/database.types'
 import { supabase } from '../lib/supabase'
-import { searchPattern } from '../lib/search'
+import { Link } from 'react-router-dom'
+import { registerPrefill, searchPatterns } from '../lib/search'
 import { rememberPets } from '../lib/usePet'
 import { speciesIcon, speciesLabel } from '../lib/species'
 import { useLanguage } from '../lib/i18n/LanguageContext'
@@ -39,7 +40,9 @@ function PetPicker({
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const listId = useId()
-  const [found, setFound] = useState<{ query: string; pets: Pet[]; total: number } | null>(null)
+  const [found, setFound] = useState<{ query: string; pets: Pet[]; total: number; failed: boolean } | null>(null)
+  // Enter pressed before the results for the typed text arrived (a microchip scanner always does): picks the pet once they do.
+  const enterPending = useRef(false)
 
   useEffect(() => {
     setQuery(selectedPet ? petLabel(t, selectedPet, compact) : '')
@@ -50,24 +53,35 @@ function PetPicker({
   useEffect(() => {
     if (!searching) return
     let live = true
-    const pattern = searchPattern(query)
+    const patterns = searchPatterns(query)
     // Wait for a pause in typing before asking the server.
     const timer = window.setTimeout(async () => {
       let request = supabase.from('pets').select('*', { count: 'exact' }).is('deleted_at', null)
-      request = pattern ? request.ilike('search_text', pattern).order('name') : request.order('created_at', { ascending: false })
-      const { data, count } = await request.limit(SHOWN)
+      for (const p of patterns) request = request.ilike('search_text', p)
+      request = patterns.length ? request.order('name') : request.order('created_at', { ascending: false })
+      const { data, count, error } = await request.limit(SHOWN)
       if (!live) return
       rememberPets(data ?? [])
-      setFound({ query, pets: data ?? [], total: count ?? 0 })
-    }, pattern ? 250 : 0)
+      setFound({ query, pets: data ?? [], total: count ?? 0, failed: Boolean(error) })
+    }, patterns.length ? 250 : 0)
     return () => {
       live = false
       window.clearTimeout(timer)
     }
   }, [query, searching])
 
-  const matches = searching && found ? found.pets : []
+  // Only results for the text in the box (nightly B31: the older list made a quick Enter pick the wrong pet).
+  const current = searching && found?.query === query ? found : null
+  const matches = current?.pets ?? []
   const showList = open && matches.length > 0
+
+  useEffect(() => {
+    if (!current || !enterPending.current) return
+    enterPending.current = false
+    // Only a single match is picked by itself; several wait for the user to choose.
+    if (current.pets.length === 1) handleSelect(current.pets[0])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current])
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape' && open) {
@@ -81,6 +95,9 @@ function PetPicker({
       // Pick the highlighted pet instead of submitting the form.
       e.preventDefault()
       handleSelect(matches[active] ?? matches[0])
+    } else if (e.key === 'Enter' && searching && query.trim() && !current) {
+      e.preventDefault()
+      enterPending.current = true
     }
   }
 
@@ -92,6 +109,7 @@ function PetPicker({
 
   function handleChange(next: string) {
     setQuery(next)
+    enterPending.current = false
     if (value) onChange('')
     setOpen(true)
     setActive(0)
@@ -159,8 +177,22 @@ function PetPicker({
           })}
         </ul>
       )}
-      {searching && query.trim() && found?.query === query && matches.length === 0 && (
-        <div className="pet-picker-empty">{t('appointments.noMatch', { query })}</div>
+      {searching && query.trim() && (!current || current.failed || matches.length === 0) && (
+        // H44 / nightly B32: "still searching", "failed" and "no such pet" look different, so nobody registers a duplicate.
+        <div className="pet-picker-empty" role="status">
+          {!current ? (
+            t('pets.searching')
+          ) : current.failed ? (
+            t('pets.searchFailed')
+          ) : (
+            <>
+              {t('appointments.noMatch', { query })}{' '}
+              <Link to={`/pets/new${registerPrefill(query)}`} onMouseDown={(e) => e.preventDefault()}>
+                {t('pets.registerNew')}
+              </Link>
+            </>
+          )}
+        </div>
       )}
     </div>
   )

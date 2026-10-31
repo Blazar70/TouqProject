@@ -6,7 +6,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useAuth } from '../lib/AuthContext'
 import { formatMoney } from '../lib/format'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
-import { searchPattern } from '../lib/search'
+import { searchPatterns } from '../lib/search'
 import { lastSeen, remember } from '../lib/lastSeen'
 import OwnerDetail from '../components/OwnerDetail'
 import Ltr from '../components/Ltr'
@@ -34,12 +34,12 @@ function OwnersPage() {
   // An older answer never overwrites a newer one.
   async function load() {
     const mine = ++request.current
-    const pattern = searchPattern(search)
+    const patterns = searchPatterns(search)
     let query = supabase
       .from('owner_files')
       .select(`id, name, phone, ${BALANCE_EMBED}, pets(count)`, { count: 'exact' })
       .is('pets.deleted_at', null)
-    if (pattern) query = query.ilike('search_text', pattern)
+    for (const p of patterns) query = query.ilike('search_text', p)
     const { data, count, error: loadError } = await query.order('name').limit(OWNER_LIST_LIMIT)
     if (mine !== request.current) return
     if (loadError) setError(loadError.message)
@@ -47,7 +47,7 @@ function OwnersPage() {
       const rows = ((data ?? []) as unknown as (Omit<OwnerRow, 'balance'> & { balance: { balance: number } | null })[]).map(flatBalance)
       setOwners(rows)
       setTotal(count ?? 0)
-      if (!pattern) remember(listKey, { owners: rows, total: count ?? 0 })
+      if (!patterns.length) remember(listKey, { owners: rows, total: count ?? 0 })
     }
     setLoading(false)
   }

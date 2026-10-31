@@ -38,6 +38,7 @@ import OwnerPickerModal from './OwnerPickerModal'
 import type { PickedOwner } from './OwnerPickerModal'
 import { formatDate } from '../lib/format'
 import FormError from './FormError'
+import MicrochipTaken from './MicrochipTaken'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row'] & { vet: { full_name: string } | null; nurse: { full_name: string } | null }
@@ -659,6 +660,7 @@ function PetDetail({
                   autoComplete="off"
                 />
                 <span className="pet-owner">{t('pets.microchipHint')}</span>
+                <MicrochipTaken microchip={microchip} petId={pet.id} />
               </label>
               <label>
                 {t('registerPet.dateOfBirth')}

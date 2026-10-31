@@ -1,7 +1,7 @@
 :root {
   --text: #57534e;
   --text-h: #1c1917;
-  --text-muted: #78716c;
+  --text-muted: #716a65; /* 4.5:1 on the tinted table heads too (axe, 11-01) */
   --bg: #fdfcfb;
   --bg-raised: #ffffff;
   --bg-tint: rgba(184, 134, 11, 0.07);
@@ -82,7 +82,7 @@
 :root[data-theme='light'] {
   --text: #57534e;
   --text-h: #1c1917;
-  --text-muted: #78716c;
+  --text-muted: #716a65; /* 4.5:1 on the tinted table heads too (axe, 11-01) */
   --bg: #fdfcfb;
   --bg-raised: #ffffff;
   --bg-tint: rgba(184, 134, 11, 0.07);

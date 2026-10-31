@@ -5,7 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { isValidSaudiMobile } from '../lib/phone'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
-import { searchPattern } from '../lib/search'
+import { searchPatterns } from '../lib/search'
 import { formatMoney } from '../lib/format'
 import PhoneInput from './PhoneInput'
 import RequiredMark from './RequiredMark'
@@ -41,16 +41,16 @@ function OwnerPickerModal({ title, excludeId, allowNew, onPick, onClose }: Props
   // Server search (nightly B29: the API returns at most 1,000 rows), after a pause in typing.
   useEffect(() => {
     let live = true
-    const pattern = searchPattern(query)
+    const patterns = searchPatterns(query)
     const timer = window.setTimeout(async () => {
       let request = supabase.from('owner_files').select(`id, name, phone, email, ${BALANCE_EMBED}`)
-      if (pattern) request = request.ilike('search_text', pattern)
+      for (const p of patterns) request = request.ilike('search_text', p)
       if (excludeId) request = request.neq('id', excludeId)
       const { data, error: loadError } = await request.order('name').limit(20)
       if (!live) return
       if (loadError) setError(loadError.message)
       setOwners((data ?? []).map(flatBalance))
-    }, pattern ? 250 : 0)
+    }, patterns.length ? 250 : 0)
     return () => {
       live = false
       window.clearTimeout(timer)

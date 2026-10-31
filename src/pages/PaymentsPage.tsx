@@ -82,7 +82,7 @@ function PaymentsPage() {
   const [priceQuery, setPriceQuery] = useState('')
   const [invoices, setInvoices] = useState<InvoiceFull[]>([])
   const [todayPayments, setTodayPayments] = useState<{ method: string; amount: number }[]>([])
-  const [clinic, setClinic] = useState<{ vat_number: string | null; tax_phase: string; max_staff_discount_percent: number } | null>(null)
+  const [clinic, setClinic] = useState<{ tax_phase: string; max_staff_discount_percent: number } | null>(null)
   // 0100: a clinic that isn't VAT-registered shows no VAT anywhere.
   const vatOn = clinic?.tax_phase !== 'none'
   const [petAppointments, setPetAppointments] = useState<(Appointment & { invoice: { id: string } | null })[]>([])
@@ -126,7 +126,7 @@ function PaymentsPage() {
         invoicesQuery.order('created_at', { ascending: false }).limit(INVOICE_HISTORY_LIMIT),
         todayQuery,
         profile?.clinic_id
-          ? supabase.from('clinics').select('vat_number, tax_phase, max_staff_discount_percent').eq('id', profile.clinic_id).single()
+          ? supabase.from('clinics').select('tax_phase, max_staff_discount_percent').eq('id', profile.clinic_id).single()
           : Promise.resolve({ data: null }),
       ])
       setServices(servicesRes.data ?? [])
@@ -863,7 +863,6 @@ function PaymentsPage() {
         <InvoiceDetail
           invoice={openInvoice}
           branchName={branchName(openInvoice.branch_id)}
-          vatNumber={clinic?.vat_number ?? null}
           isManager={isManager}
           branchId={branchId}
           onChanged={(updated) => setInvoices((current) => current.map((inv) => (inv.id === updated.id ? updated : inv)))}

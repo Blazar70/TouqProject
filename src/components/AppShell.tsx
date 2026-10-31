@@ -198,6 +198,12 @@ function AppShell({ isAdmin, clinicName, userName, children }: Props) {
         </button>
         <span className="app-brand">{t('auth.brand')}</span>
         {clinicName && <span className="app-clinic-name">{clinicName}</span>}
+        {/* H47: on phones the search is one tap away, not inside the menu. */}
+        {!isAdmin && (
+          <button type="button" className="app-menu-button app-topbar-search" aria-label={t('search.open')} onClick={() => setSearchOpen(true)}>
+            <Search size={22} aria-hidden />
+          </button>
+        )}
       </header>
 
       {overlayOpen && <div className="app-backdrop" onClick={closeMenu} aria-hidden />}

@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { searchNorm, searchPattern } from '../lib/search'
+import { searchNorm, searchPatterns } from '../lib/search'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { TranslationKey } from '../lib/i18n/translations'
 import Modal from './Modal'
@@ -26,14 +26,17 @@ function QuickSearch({ pages, onClose }: { pages: { to: string; label: Translati
     .map((p) => ({ key: `page-${p.to}`, group: 'search.pages', label: t(p.label), to: p.to }))
 
   useEffect(() => {
-    const pattern = searchPattern(query)
-    if (!pattern) return
+    const patterns = searchPatterns(query)
+    if (!patterns.length) return
     let live = true
     const timer = window.setTimeout(async () => {
-      const [pets, owners] = await Promise.all([
-        supabase.from('pets').select('id, name, pet_number, owner_name').is('deleted_at', null).ilike('search_text', pattern).order('name').limit(5),
-        supabase.from('owner_files').select('id, name, phone').ilike('search_text', pattern).order('name').limit(5),
-      ])
+      let petQuery = supabase.from('pets').select('id, name, pet_number, owner_name').is('deleted_at', null)
+      let ownerQuery = supabase.from('owner_files').select('id, name, phone')
+      for (const p of patterns) {
+        petQuery = petQuery.ilike('search_text', p)
+        ownerQuery = ownerQuery.ilike('search_text', p)
+      }
+      const [pets, owners] = await Promise.all([petQuery.order('name').limit(5), ownerQuery.order('name').limit(5)])
       if (!live) return
       setFound({
         query,

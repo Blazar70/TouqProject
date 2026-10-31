@@ -6,6 +6,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { supabase } from '../lib/supabase'
 import { IDLE_LIMIT_DIRTY_MS, IDLE_LIMIT_MS, LAST_ACTIVE_KEY, LOCKED_KEY, idleGuards, idleState } from '../lib/idleLogout'
 import FormError from './FormError'
+import { formatTime } from '../lib/format'
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
 
@@ -36,6 +37,8 @@ function IdleLogout() {
   const { t } = useLanguage()
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const [locked, setLocked] = useState(false)
+  // H48: when the desk was last used, so the next person sees how long it has stood locked.
+  const [lastUsed, setLastUsed] = useState(0)
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [unlocking, setUnlocking] = useState(false)
@@ -52,6 +55,7 @@ function IdleLogout() {
     let isLocked = false
     function lock() {
       isLocked = true
+      setLastUsed(Math.max(last, readLast() ?? last))
       write(LOCKED_KEY, '1')
       setLocked(true)
       setSecondsLeft(null)
@@ -125,6 +129,7 @@ function IdleLogout() {
         <form className="lock-card pet-form" onSubmit={handleUnlock}>
           <h2 id="lock-title">{t('idle.lockedTitle')}</h2>
           <p className="pet-owner">{t('idle.lockedHint', { name: profile?.full_name ?? '' })}</p>
+          <p className="pet-owner">{t('idle.lastUsed', { time: formatTime(new Date(lastUsed)) })}</p>
           <FormError message={error} />
           <label>
             {t('auth.password')}

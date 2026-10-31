@@ -25,7 +25,6 @@ const LATE_ENTRY_MS = 10 * 60 * 1000
 type Props = {
   invoice: InvoiceFull
   branchName: string
-  vatNumber: string | null
   isManager: boolean
   /** The picked branch, where an added payment is received. */
   branchId: string | null
@@ -63,7 +62,7 @@ function MethodToggle({ value, onChange, methods }: { value: PaymentMethod; onCh
 
 // One invoice: lines, discounts, totals, payments, credit notes; add a payment,
 // issue a credit note, print. Every write is a DB function (0061).
-function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, onChanged, onClose }: Props) {
+function InvoiceDetail({ invoice, branchName, isManager, branchId, onChanged, onClose }: Props) {
   const { t } = useLanguage()
   const toast = useToast()
   const confirm = useConfirm()
@@ -99,7 +98,8 @@ function InvoiceDetail({ invoice, branchName, vatNumber, isManager, branchId, on
   const vatRate = rates.size === 1 ? [...rates][0] : null
   // 0100: made while the clinic wasn't VAT-registered = a plain invoice, now and later.
   const taxInvoice = invoice.tax_phase !== 'none'
-  const docVatNumber = taxInvoice ? vatNumber : null
+  // 0103: the number it was issued with, so a reprint never takes the clinic's newer one (nightly B30).
+  const docVatNumber = taxInvoice ? invoice.vat_number : null
   const discountLabel = (type: string | null, value: number | null, why: string | null) =>
     t('payments.discountLabel', { value: type === 'percent' ? `${value}%` : `${formatMoney(value ?? 0)} ${t('common.currency')}`, reason: why ?? '' })
 
