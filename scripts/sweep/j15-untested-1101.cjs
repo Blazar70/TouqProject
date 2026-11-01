@@ -240,7 +240,6 @@ async function bookArrived(r, reason, hour, minute) {
     const header = item.locator('.record-accordion-header, button').first()
     await header.click().catch(() => {}); await noura.waitForTimeout(800)
     const edits = await item.getByRole('button', { name: /^Edit$/ }).count()
-    const olaya = noura.locator('li, .record-accordion-item').filter({ hasNotText: 'Seen at' }).filter({ has: noura.getByRole('button', { name: /^Edit$/ }) })
     await noura.context().close()
     expect(edits === 0, 'Edit shown on the other branch\'s record ' + rec)
   })

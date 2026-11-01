@@ -17,8 +17,11 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npm run lint
+      # Placeholder values: lib/supabase.ts throws without them, so tests importing it and the build would break (HANDOFF §8).
       - run: npx vitest run
-      # Placeholder values: lib/supabase.ts throws without them and the build would come out broken (HANDOFF §8).
+        env:
+          VITE_SUPABASE_URL: https://placeholder.supabase.co
+          VITE_SUPABASE_ANON_KEY: placeholder
       - run: npm run build
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
