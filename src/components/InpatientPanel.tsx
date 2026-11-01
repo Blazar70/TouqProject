@@ -10,7 +10,7 @@ import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { formatDate, formatDateTime, formatTime } from '../lib/format'
-import { validateImageFile } from '../lib/imageUpload'
+import { shrinkImage, validateImageFile } from '../lib/imageUpload'
 import { toLatinDigits } from '../lib/arabicDigits'
 import { INPATIENT_MEDIA_BUCKET, MAX_VIDEO_BYTES, inpatientMessage, isVideo, stayDay, stayNights } from '../lib/inpatient'
 import Ltr from './Ltr'
@@ -160,7 +160,8 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     setBusy(true)
     setError(null)
     const uploaded: string[] = []
-    for (const file of files) {
+    for (const picked of files) {
+      const file = picked.type.startsWith('video/') ? picked : await shrinkImage(picked)
       const path = `${profile.clinic_id}/${pet.id}/${open.id}/${crypto.randomUUID()}.${file.name.split('.').pop() || 'jpg'}`
       const { error: upError } = await supabase.storage.from(INPATIENT_MEDIA_BUCKET).upload(path, file, { contentType: file.type })
       if (upError) {

@@ -2087,6 +2087,30 @@ input[type='checkbox']:focus-visible {
   box-shadow: var(--shadow);
 }
 
+/* H49: free-time chips under the booking form's doctor field, full width of the form grid. */
+.free-times {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.free-times-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.free-times-list button {
+  min-height: 2.75rem;
+}
+
+.free-times-list .free-time-picked {
+  border-color: var(--accent);
+  background: var(--bg-tint-hover);
+  color: var(--text-h);
+}
+
 .confirm-type {
   display: flex;
   flex-direction: column;

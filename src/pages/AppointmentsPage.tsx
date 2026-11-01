@@ -25,6 +25,7 @@ import { notifyStatusChange } from '../lib/push'
 import { usePrintSummary } from '../lib/PrintContext'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
 import PetPicker from '../components/PetPicker'
+import FreeTimes from '../components/FreeTimes'
 import { usePet } from '../lib/usePet'
 import MiniMonth from '../components/MiniMonth'
 import PhotoThumbnail from '../components/PhotoThumbnail'
@@ -1317,6 +1318,20 @@ function AppointmentsPage() {
             </select>
             {bookingAwayHint && !doctorId && <span className="pet-owner">{t('appointments.doctorAwayCleared')}</span>}
           </label>
+          {scheduledDate && doctorId && (
+            <FreeTimes
+              day={scheduledDate}
+              doctorId={doctorId}
+              away={awayPeriods}
+              selected={scheduledHour && scheduledMinute ? toScheduledAt(scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod) : null}
+              onPick={(iso) => {
+                const fields = toPickerFields(new Date(iso))
+                setScheduledHour(fields.hour)
+                setScheduledMinute(fields.minute)
+                setScheduledPeriod(fields.period)
+              }}
+            />
+          )}
           {conflicts.length > 0 && (
             <div className="form-warning">
               <p>{t('appointments.conflictWarning', { count: String(conflicts.length) })}</p>

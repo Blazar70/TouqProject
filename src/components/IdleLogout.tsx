@@ -6,6 +6,7 @@ import { useLanguage } from '../lib/i18n/LanguageContext'
 import { supabase } from '../lib/supabase'
 import { IDLE_LIMIT_DIRTY_MS, IDLE_LIMIT_MS, LAST_ACTIVE_KEY, LOCKED_KEY, idleGuards, idleState } from '../lib/idleLogout'
 import FormError from './FormError'
+import { friendlyErrorKey } from '../lib/friendlyError'
 import { formatTime } from '../lib/format'
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
@@ -119,7 +120,8 @@ function IdleLogout() {
     const { error: signInError } = await supabase.auth.signInWithPassword({ email: session.user.email, password })
     setUnlocking(false)
     if (signInError) {
-      setError(signInError.message)
+      // Only the password is typed here: the sign-in page's "username, email or password" would confuse.
+      setError(friendlyErrorKey(signInError.message) === 'errors.invalidLogin' ? t('idle.wrongPassword') : signInError.message)
       return
     }
     write(LAST_ACTIVE_KEY, String(Date.now()))

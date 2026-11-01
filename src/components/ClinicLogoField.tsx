@@ -33,7 +33,7 @@ function ClinicLogoField({ clinic, onSaved }: { clinic: Pick<Clinic, 'id' | 'nam
   }
 
   async function handleFile(file: File) {
-    const invalid = validateImageFile(file)
+    const invalid = validateImageFile(file, false)
     if (invalid) {
       toast.error(t(invalid === 'notImage' ? 'petDetail.imageOnly' : 'petDetail.imageTooLarge'))
       return

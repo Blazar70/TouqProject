@@ -195,7 +195,7 @@ function PetDetail({
       const upload = await uploadPhoto(`${profile.clinic_id}/${pet.id}`, file)
 
       if (upload.error !== null) {
-        setPetError(upload.error)
+        setPetError(upload.error === 'tooLarge' ? t('petDetail.imageTooLarge') : upload.error)
         setUploadingPhoto(false)
         return
       }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clinicTimeToIso, isAway, isoToClinicFields } from './timeOff'
+import { clinicTimeToIso, freeSlots, isAway, isoToClinicFields } from './timeOff'
 
 describe('timeOff', () => {
   it('reads inputs as Riyadh time', () => {
@@ -19,5 +19,18 @@ describe('timeOff', () => {
     expect(isAway(periods, 'a', clinicTimeToIso('2026-10-23', '12:00'))).toBe(false)
     expect(isAway(periods, 'a', clinicTimeToIso('2026-10-22', '23:45'))).toBe(false)
     expect(isAway(periods, 'b', clinicTimeToIso('2026-10-23', '09:00'))).toBe(false)
+  })
+})
+
+describe('freeSlots (H49)', () => {
+  const at = (time: string) => clinicTimeToIso('2026-11-03', time)
+  const early = new Date(at('00:00')).getTime()
+  it('skips booked blocks, overlaps and time off, from 8 AM in clinic time', () => {
+    const away = [{ doctor_id: 'd1', starts_at: at('10:00'), ends_at: at('11:00') }]
+    expect(freeSlots('2026-11-03', 'd1', [at('08:30'), at('09:15')], away, early, 4)).toEqual([at('08:00'), at('11:00'), at('11:30'), at('12:00')])
+  })
+  it('starts after now on the same day, and away periods of other doctors do not count', () => {
+    const away = [{ doctor_id: 'd2', starts_at: at('00:00'), ends_at: at('23:59') }]
+    expect(freeSlots('2026-11-03', 'd1', [], away, new Date(at('20:40')).getTime())).toEqual([at('21:00'), at('21:30')])
   })
 })
