@@ -63,7 +63,11 @@ function IdleLogout() {
     }
     // Reopened after 10+ idle minutes, or another tab is locked.
     if (isLockedStored() || idleState(last, Date.now()) === 'out') lock()
-    else write(LAST_ACTIVE_KEY, String(last))
+    else {
+      write(LAST_ACTIVE_KEY, String(last))
+      // Another tab's unlock refreshes the session, which restarts this effect here: drop a lock screen still showing.
+      setLocked(false)
+    }
 
     function onActivity() {
       const now = Date.now()

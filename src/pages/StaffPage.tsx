@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { PageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../lib/AuthContext'
+import { useBranch } from '../lib/BranchContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
@@ -54,6 +55,7 @@ const EMPTY_DRAFT: Draft = {
 
 function StaffPage() {
   const { profile } = useAuth()
+  const { isClinicManager } = useBranch()
   const { t, language } = useLanguage()
   const confirm = useConfirm()
   const toast = useToast()
@@ -536,7 +538,8 @@ function StaffPage() {
         </ul>
       )}
 
-      {isManager && calendarDoctors.length > 1 && (
+      {/* The order is clinic-wide: a branch manager can't renumber doctors of other branches (sweep 11-01). */}
+      {isClinicManager && calendarDoctors.length > 1 && (
         <section className="staff-calendar-order">
           <h2>{t('staff.calendarOrder')}</h2>
           <p className="pet-owner">{t('staff.calendarOrderHint')}</p>
