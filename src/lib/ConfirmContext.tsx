@@ -7,6 +7,8 @@ type ConfirmOptions = {
   confirmLabel?: string
   cancelLabel?: string
   danger?: boolean
+  // Irreversible actions (H51): the confirm button stays off until this exact text is typed, e.g. a clinic's name.
+  typeToConfirm?: string
 }
 
 type ConfirmState = ConfirmOptions | null
@@ -25,11 +27,15 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ConfirmState>(null)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const resolver = useRef<(value: boolean) => void>(() => {})
+  const [typed, setTyped] = useState('')
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  const typeInputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
 
   const confirm = useCallback((message: string, options?: Partial<ConfirmOptions>) => {
     setState({ message, ...options })
+    setTyped('')
     return new Promise<boolean>((resolve) => {
       resolver.current = resolve
     })
@@ -52,12 +58,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     resolver.current(result)
   }
 
-  const confirmDisabled = Boolean(state?.danger) && secondsLeft > 0
+  const confirmDisabled =
+    (Boolean(state?.danger) && secondsLeft > 0) || (state?.typeToConfirm !== undefined && typed.trim() !== state.typeToConfirm)
 
   // Destructive dialogs open (and stay) on Cancel so a stray Enter never deletes.
   useEffect(() => {
     if (!state) return
-    if (state.danger) cancelButtonRef.current?.focus()
+    if (state.typeToConfirm !== undefined) typeInputRef.current?.focus()
+    else if (state.danger) cancelButtonRef.current?.focus()
     else confirmButtonRef.current?.focus()
   }, [state])
 
@@ -68,14 +76,12 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       handle(false)
       return
     }
-    // Minimal focus trap: only two focusable elements in this dialog, so
-    // cycling Tab between them is enough to keep focus from leaking to
-    // whatever's behind the backdrop.
+    // Focus trap: Tab and Shift+Tab cycle through the dialog's own controls (a disabled button is skipped).
     if (e.key === 'Tab') {
       e.preventDefault()
-      const focusConfirm = document.activeElement === cancelButtonRef.current
-      const target = focusConfirm && !confirmDisabled ? confirmButtonRef.current : cancelButtonRef.current
-      target?.focus()
+      const items = [...(dialogRef.current?.querySelectorAll<HTMLElement>('input, button:not(:disabled)') ?? [])]
+      const next = items.indexOf(document.activeElement as HTMLElement) + (e.shiftKey ? -1 : 1)
+      items[(next + items.length) % items.length]?.focus()
     }
   }
 
@@ -84,8 +90,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       {state && (
         <div className="confirm-backdrop" onClick={() => handle(false)}>
-          <div className="confirm-dialog" role="alertdialog" aria-modal="true" aria-describedby="confirm-message" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
+          <div ref={dialogRef} className="confirm-dialog" role="alertdialog" aria-modal="true" aria-describedby="confirm-message" onClick={(e) => e.stopPropagation()} onKeyDown={handleKeyDown}>
             <p id="confirm-message">{state.message}</p>
+            {state.typeToConfirm !== undefined && (
+              <label className="confirm-type">
+                {t('confirm.typeToConfirm', { text: state.typeToConfirm })}
+                <input ref={typeInputRef} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} dir="auto" />
+              </label>
+            )}
             <div className="record-edit-actions">
               <button
                 ref={confirmButtonRef}

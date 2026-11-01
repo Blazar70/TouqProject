@@ -2087,6 +2087,14 @@ input[type='checkbox']:focus-visible {
   box-shadow: var(--shadow);
 }
 
+.confirm-type {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
 /* Idle lock: the app keeps running behind it, blurred past reading. */
 .lock-screen {
   position: fixed;
@@ -4833,6 +4841,19 @@ img.waiver-signature {
 
 .reminder-sent .record-row > div:first-child {
   opacity: 0.7;
+}
+
+/* The one to send next (H52). */
+.record-list li.reminder-next {
+  /* Padding pulled back by the margin: text clears the bar, the row doesn't move. */
+  padding-inline: 0.6rem;
+  margin-inline: -0.6rem;
+  background: var(--bg-tint);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+[dir='rtl'] .record-list li.reminder-next {
+  box-shadow: inset -3px 0 0 var(--accent);
 }
 
 .reminders-section a.secondary-button {

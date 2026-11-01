@@ -23,3 +23,36 @@ jobs:
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder
+
+  # Every migration, in order, on an empty Supabase in Docker, then the check files that need no staging data
+  # (nightly research U). Nothing here touches a real project.
+  migrations:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      # Outside the repo: started inside it, the CLI would apply supabase/migrations its own way (it skips 0004b/0005b).
+      - name: Start an empty Supabase
+        run: |
+          mkdir "$RUNNER_TEMP/sb" && cd "$RUNNER_TEMP/sb"
+          supabase init
+          supabase start -x realtime,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Apply every migration
+        run: node scripts/rebuild-db.mjs --apply
+      - name: Run the check files (skips listed in supabase/tests/ci-skip.txt)
+        run: |
+          failed=0
+          for f in supabase/tests/*_check.sql; do
+            name=$(basename "$f")
+            if grep -q "^$name " supabase/tests/ci-skip.txt; then echo "skip $name"; continue; fi
+            if psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -f "$f" > /tmp/out.txt 2>&1; then echo "ok   $name"
+            else echo "FAIL $name"; grep -m3 -E 'ERROR|FATAL' /tmp/out.txt; failed=1; fi
+          done
+          exit $failed

@@ -44,6 +44,8 @@ function RemindersPage() {
   const [sent, setSent] = useState<Record<string, Sent>>({})
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  // H52: after a send or skip, the next unsent reminder is highlighted, scrolled to and focused.
+  const [nextKey, setNextKey] = useState<string | null>(null)
 
   async function load() {
     const today = clinicDay()
@@ -157,6 +159,12 @@ function RemindersPage() {
       { onConflict: 'clinic_id,kind,item_key', ignoreDuplicates: true },
     )
     if (sendError) toast.error(sendError.message)
+    else {
+      // The next one below in the page order, else the first one left above it.
+      const order = SECTIONS.flatMap((section) => items!.filter((i) => i.kind === section.kind && !isSent(i)))
+      const at = order.findIndex((i) => i.key === item.key)
+      setNextKey((order.slice(at + 1)[0] ?? order.find((i) => i.key !== item.key))?.key ?? null)
+    }
     load()
   }
 
@@ -165,6 +173,14 @@ function RemindersPage() {
     if (undoError) return toast.error(undoError.message)
     load()
   }
+
+  useEffect(() => {
+    if (!nextKey || !items) return
+    const row = document.getElementById(`reminder-${nextKey}`)
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    row?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })
+    row?.querySelector<HTMLElement>('.record-actions a, .record-actions button')?.focus({ preventScroll: true })
+  }, [nextKey, items])
 
   if (items === null) return <PageSkeleton title={t('ownerReminders.title')} />
 
@@ -175,7 +191,10 @@ function RemindersPage() {
       <div className="page-header">
         <div>
           <h1>{t('ownerReminders.title')}</h1>
-          <p className="page-subtitle">{t('ownerReminders.toSendCount', { count: String(toSend) })}</p>
+          <p className="page-subtitle">
+            {t('ownerReminders.toSendCount', { count: String(toSend) })}
+            {items.length > 0 && ` · ${t('ownerReminders.progress', { done: String(items.length - toSend), total: String(items.length) })}`}
+          </p>
         </div>
         <div className="page-header-actions">
           <RefreshButton onRefresh={handleRefresh} refreshing={refreshing} />
@@ -199,7 +218,11 @@ function RemindersPage() {
                   const done = sentOf(item)
                   const link = whatsAppLink(item.owner.phone, item.text)
                   return (
-                    <li key={item.key} className={isSent(item) ? 'reminder-sent' : undefined}>
+                    <li
+                      key={item.key}
+                      id={`reminder-${item.key}`}
+                      className={isSent(item) ? 'reminder-sent' : item.key === nextKey ? 'reminder-next' : undefined}
+                    >
                       <div className="record-row">
                         <div>
                           <strong>{item.owner.name}</strong>

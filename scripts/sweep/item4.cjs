@@ -27,6 +27,8 @@ async function acceptNaming(p, expected) {
   if (!(await c.count())) return
   const t = await c.innerText()
   if (!t.includes(expected)) { await c.getByRole('button', { name: /^Cancel$/ }).click(); throw new Error(`confirm did not name "${expected}": ${t.slice(0, 90)}`) }
+  const box = c.locator('input') // permanent deletes ask for the name to be typed (H51)
+  if (await box.count()) await box.fill(expected)
   await c.getByRole('button').filter({ hasNotText: /^Cancel$/ }).last().click()
 }
 const results = []

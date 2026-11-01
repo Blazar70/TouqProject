@@ -391,6 +391,7 @@ function AdminPage() {
     const ok = await confirm(t('admin.purgeClinicConfirm', { name: clinic.name }), {
       danger: true,
       confirmLabel: t('admin.purgeNow'),
+      typeToConfirm: clinic.name,
     })
     if (!ok) return
 

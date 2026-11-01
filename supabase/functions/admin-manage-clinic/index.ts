@@ -8,6 +8,8 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const cronPurgeSecret = Deno.env.get('CRON_PURGE_SECRET')!
 
 const TRASH_RETENTION_DAYS = 7
+// Trashed pets purged per request batch: 100 uuids keep the `in.(...)` URL well under the gateway limit.
+const PET_BATCH = 100
 
 // Clinic/vet onboarding is admin-only now that the public signup form is
 // gone — this is the one place a brand new auth user (the clinic's first
@@ -90,15 +92,23 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Every row of a query, a page at a time: PostgREST returns at most 1,000 per request (nightly B34).
+  async function readAll<T>(
+    page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  ): Promise<{ rows: T[]; error: string | null }> {
+    const rows: T[] = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await page(from, from + 999)
+      if (error) return { rows, error: error.message }
+      rows.push(...(data ?? []))
+      if ((data?.length ?? 0) < 1000) return { rows, error: null }
+    }
+  }
+
   async function purgeClinic(clinicId: string, clinicName: string) {
-    const { data: pets } = await admin.from('pets').select('id').eq('clinic_id', clinicId)
-    const petIds = (pets ?? []).map((p) => p.id)
     const { data: staffProfiles } = await admin.from('profiles').select('id').eq('clinic_id', clinicId)
 
-    if (petIds.length > 0) {
-      await admin.from('ownership_transfers').delete().in('pet_id', petIds)
-      await admin.from('pet_trusted_contacts').delete().in('pet_id', petIds)
-    }
+    // ownership_transfers, pet_trusted_contacts and every other pet child cascade from pets (checked 11-01).
     await admin.from('medical_records').delete().eq('clinic_id', clinicId)
     await admin.from('appointments').delete().eq('clinic_id', clinicId)
     await admin.from('payments').delete().eq('clinic_id', clinicId)
@@ -252,8 +262,11 @@ Deno.serve(async (req) => {
     const clinicId = String(body.clinicId ?? '')
     if (!clinicId) return jsonError('Missing clinicId')
 
-    const { data: clinicRow } = await admin.from('clinics').select('name').eq('id', clinicId).maybeSingle()
-    const { error, storageFailures } = await purgeClinic(clinicId, clinicRow?.name ?? clinicId)
+    // Two steps on purpose: trash (undoable for 7 days) first, then purge (nightly B33).
+    const { data: clinicRow } = await admin.from('clinics').select('name, deleted_at').eq('id', clinicId).maybeSingle()
+    if (!clinicRow) return jsonError('Clinic not found', 404)
+    if (!clinicRow.deleted_at) return jsonError('Move the clinic to the trash first', 409)
+    const { error, storageFailures } = await purgeClinic(clinicId, clinicRow.name)
     if (error) return jsonError(error)
     return jsonOk({ ok: true, storageFailures })
   }
@@ -265,27 +278,49 @@ Deno.serve(async (req) => {
     const { data: expired } = await admin.from('clinics').select('id, name').not('deleted_at', 'is', null).lt('deleted_at', cutoff)
 
     // Trashed pets too (moved here from the 0047 SQL cron in 0077): SQL can't delete Storage files (nightly S9).
-    // Paths are read before the delete; medical_records cascade from pets.
-    const { data: expiredPets } = await admin.from('pets').select('id, photo_url').not('deleted_at', 'is', null).lt('deleted_at', cutoff)
-    const petIds = (expiredPets ?? []).map((p) => p.id)
+    // In batches (a long id list doesn't fit in a URL), every read paged past the 1,000-row cap, and a failing
+    // batch is reported without stopping the rest or the clinics below (nightly B34). Paths are read before the
+    // delete; medical_records and inpatient stays cascade from pets.
+    const expiredPetIds = await readAll<{ id: string }>((from, to) =>
+      admin.from('pets').select('id').not('deleted_at', 'is', null).lt('deleted_at', cutoff).order('id').range(from, to),
+    )
+    let petsPurged = 0
     let petStorageFailures = 0
-    if (petIds.length) {
-      const { data: records } = await admin.from('medical_records').select('photo_url').in('pet_id', petIds).not('photo_url', 'is', null)
-      const paths = [...(expiredPets ?? []).map((p) => p.photo_url), ...(records ?? []).map((r) => r.photo_url)]
+    const petErrors: string[] = []
+    if (expiredPetIds.error) petErrors.push(expiredPetIds.error)
+    for (let i = 0; i < expiredPetIds.rows.length; i += PET_BATCH) {
+      const ids = expiredPetIds.rows.slice(i, i + PET_BATCH).map((p) => p.id)
+      const [pets, records, updates] = await Promise.all([
+        readAll<{ photo_url: string | null }>((from, to) => admin.from('pets').select('photo_url').in('id', ids).order('id').range(from, to)),
+        readAll<{ photo_url: string | null }>((from, to) =>
+          admin.from('medical_records').select('photo_url').in('pet_id', ids).not('photo_url', 'is', null).order('id').range(from, to),
+        ),
+        // Inpatient photos/videos (0081) live in their own bucket.
+        readAll<{ media: string[] }>((from, to) =>
+          admin.from('inpatient_updates').select('media, stay:inpatient_stays!inner(pet_id)').in('stay.pet_id', ids).order('id').range(from, to),
+        ),
+      ])
+      const readError = pets.error ?? records.error ?? updates.error
+      if (readError) {
+        petErrors.push(readError) // keep the rows: deleting now would orphan files we couldn't list
+        continue
+      }
+      const { error: petError } = await admin.from('pets').delete().in('id', ids)
+      if (petError) {
+        petErrors.push(petError.message)
+        continue
+      }
+      petsPurged += ids.length
+      const paths = [...pets.rows, ...records.rows]
+        .map((row) => row.photo_url)
         .filter((path): path is string => !!path)
         .map((path) => path.split('?')[0])
-      // Inpatient photos/videos (0081) live in their own bucket.
-      const { data: stayUpdates } = await admin.from('inpatient_updates').select('media, stay:inpatient_stays!inner(pet_id)').in('stay.pet_id', petIds)
-      const stayMedia = (stayUpdates ?? []).flatMap((u) => u.media as string[])
-      const { error: petError } = await admin.from('pets').delete().in('id', petIds)
-      if (petError) return jsonError(petError.message, 500)
-      if (paths.length) {
-        const { error: removeError } = await admin.storage.from('pet-photos').remove(paths)
-        if (removeError) petStorageFailures = 1
-      }
-      if (stayMedia.length) {
-        const { error: removeError } = await admin.storage.from('inpatient-media').remove(stayMedia)
-        if (removeError) petStorageFailures += 1
+      const stayMedia = updates.rows.flatMap((u) => u.media)
+      for (const [bucket, files] of [['pet-photos', paths], ['inpatient-media', stayMedia]] as const) {
+        for (let j = 0; j < files.length; j += 1000) {
+          const { error: removeError } = await admin.storage.from(bucket).remove(files.slice(j, j + 1000))
+          if (removeError) petStorageFailures += 1
+        }
       }
     }
 
@@ -294,7 +329,7 @@ Deno.serve(async (req) => {
       const { error, storageFailures } = await purgeClinic(clinic.id, clinic.name)
       results.push({ id: clinic.id, name: clinic.name, ok: !error && !storageFailures, error, storageFailures })
     }
-    return jsonOk({ purged: results.length, results, petsPurged: petIds.length, petStorageFailures })
+    return jsonOk({ purged: results.length, results, petsPurged, petStorageFailures, petErrors })
   }
 
   return jsonError('Unknown action')
