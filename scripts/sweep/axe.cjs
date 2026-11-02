@@ -12,7 +12,8 @@ const CLINIC = ['/', '/appointments', '/pets', '/pets/30359b93-8e11-481b-988c-e8
 const ADMIN = ['/', '/clinics', '/billing', '/activity']
 ;(async () => {
   const browser = await chromium.launch({ channel: 'chrome' })
-  const ctx = await browser.newContext({ timezoneId: 'Asia/Riyadh', viewport: { width: +w, height: +h }, hasTouch: +w < 1000 })
+  // bypassCSP: the site's policy (rightly) refuses axe from cdnjs.
+  const ctx = await browser.newContext({ bypassCSP: true, timezoneId: 'Asia/Riyadh', viewport: { width: +w, height: +h }, hasTouch: +w < 1000 })
   await ctx.addInitScript(([l, th]) => { localStorage.setItem('touq-language', l); localStorage.setItem('touq-theme', th) }, [lang, theme])
   const page = await ctx.newPage()
   await page.goto(SITE)
