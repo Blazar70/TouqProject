@@ -19,6 +19,16 @@ export function speciesIcon(species: string): LucideIcon {
 // Species values are stored in English regardless of UI language; this maps
 // a known value to its translated display label. Custom ("Other…") species
 // entered by a vet are returned as-is, since there's nothing to translate.
+// "Female · Neutered"; only what was recorded (H67).
+export function petSexText(t: (key: TranslationKey) => string, pet: { sex?: string | null; neutered?: boolean | null }): string {
+  return [
+    pet.sex === 'male' ? t('pets.sexMale') : pet.sex === 'female' ? t('pets.sexFemale') : null,
+    pet.neutered === true ? t('pets.neuteredYes') : pet.neutered === false ? t('pets.neuteredNo') : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 export function speciesLabel(t: (key: TranslationKey) => string, species: string): string {
   const known = POPULAR_SPECIES.some((s) => s.value === species)
   return known ? t(`species.${species}` as TranslationKey) : species

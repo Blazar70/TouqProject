@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { MICROCHIP_PATTERN, cleanMicrochip } from '../lib/microchip'
+import PetSexFields from '../components/PetSexFields'
 import { supabase } from '../lib/supabase'
 import { BALANCE_EMBED, flatBalance } from '../lib/owners'
 import { useAuth } from '../lib/AuthContext'
@@ -36,6 +37,9 @@ function RegisterPetPage() {
   const [species, setSpecies] = useState('')
   const [breed, setBreed] = useState('')
   const [microchip, setMicrochip] = useState(() => prefill.get('microchip') ?? '')
+  const [sex, setSex] = useState<string | null>(null)
+  const [neutered, setNeutered] = useState<boolean | null>(null)
+  const [alerts, setAlerts] = useState('')
   const [dateOfBirth, setDateOfBirth] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [ownerPhone, setOwnerPhone] = useState(() => formatSaudiPhoneInput(prefill.get('phone') ?? ''))
@@ -134,6 +138,9 @@ function RegisterPetPage() {
         breed: breed || null,
         microchip: microchip || null,
         date_of_birth: dateOfBirth || null,
+        sex,
+        neutered,
+        alerts: alerts.trim() || null,
         // With an owner file the database copies its contact onto the pet; without one it makes a file from these.
         ...(owner
           ? { owner_file_id: owner.id, owner_name: owner.name }
@@ -216,6 +223,12 @@ function RegisterPetPage() {
           <MicrochipTaken microchip={microchip} />
         </label>
         <DateOfBirthField value={dateOfBirth} onChange={setDateOfBirth} />
+        <PetSexFields sex={sex} neutered={neutered} onSexChange={setSex} onNeuteredChange={setNeutered} />
+        <label>
+          {t('alerts.title')}
+          <textarea dir="auto" value={alerts} maxLength={500} rows={2} onChange={(e) => setAlerts(e.target.value)} />
+          <span className="pet-owner">{t('alerts.hint')}</span>
+        </label>
         {owner ? (
           <div className="owner-chosen">
             <span>

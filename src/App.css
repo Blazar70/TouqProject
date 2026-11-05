@@ -3718,10 +3718,53 @@ button.cancel-button:disabled,
     grid-template-columns: minmax(0, 760px) minmax(16rem, 24rem);
   }
 
+  .session-main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .session-history {
+    grid-column: 2;
+    grid-row: 1;
     position: sticky;
     top: 10rem;
   }
+
+  .session-history-toggle {
+    display: none;
+  }
+}
+
+/* Tablet and phone: a closed bar above the form (H68). */
+@media (max-width: 1199.98px) {
+  .session-history-heading {
+    display: none;
+  }
+
+  .session-history-closed {
+    display: none;
+  }
+}
+
+.session-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-h);
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.session-history-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
 }
 
 .session-history {
@@ -5290,4 +5333,95 @@ img.waiver-signature {
   .quick-search-keys {
     display: none;
   }
+}
+
+/* Pet alerts (H66): red with an icon, never colour alone. */
+.pet-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--danger-deep);
+  border-radius: 6px;
+  background: var(--danger-deep-bg);
+  color: var(--danger-deep);
+  white-space: pre-line;
+}
+
+.pet-alert svg {
+  flex: none;
+  margin-block-start: 0.125rem;
+}
+
+.pet-alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-block-end: 1rem;
+}
+
+.pet-alert-row .pet-alert {
+  flex: 1;
+}
+
+.pet-alert-add {
+  margin-block-end: 1rem;
+}
+
+.pet-alert-edit {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 760px;
+  margin-block-end: 1rem;
+}
+
+.pet-alert-edit label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.pet-alert-chip {
+  display: inline-flex;
+  margin-inline-start: 0.25rem;
+  color: var(--danger-deep);
+  vertical-align: middle;
+}
+
+.booking-pet-info .pet-alert,
+.admin-modal-card .pet-alert {
+  margin-block-end: 0.5rem;
+}
+
+.pet-choice {
+  display: grid;
+  gap: 0.25rem;
+}
+
+/* Admin activity log (H69). */
+.activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block-end: 1rem;
+}
+
+.activity-filters label {
+  display: grid;
+  gap: 0.25rem;
+  flex: 1 1 14rem;
+  max-width: 24rem;
+}
+
+.activity-older {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-block-start: 1rem;
+}
+
+.data-r-diagnoses {
+  --data-cols: minmax(0, 1fr) 6rem;
 }

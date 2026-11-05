@@ -1,3 +1,4 @@
+import { petSexText } from './species'
 import { createContext, useCallback, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { useLanguage } from './i18n/LanguageContext'
@@ -42,12 +43,13 @@ export type InvoiceDoc = {
 }
 
 /** The pet's numbers printed under its name: Pet ID and microchip (H42). */
-export type PrintPet = { pet_number: number; microchip?: string | null }
+export type PrintPet = { pet_number: number; microchip?: string | null; sex?: string | null; neutered?: boolean | null }
 
 function petIdsHtml(t: (key: TranslationKey) => string, pet: PrintPet | undefined) {
   if (!pet) return ''
   const chip = pet.microchip ? ` · ${escapeHtml(t('pets.microchip'))} <span dir="ltr">${escapeHtml(pet.microchip)}</span>` : ''
-  return `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${pet.pet_number}</span>${chip}</div>`
+  const sex = petSexText(t, pet)
+  return `<div class="print-hero-id">${escapeHtml(t('pets.petId'))} <span dir="ltr">${pet.pet_number}</span>${chip}${sex ? ` · ${escapeHtml(sex)}` : ''}</div>`
 }
 
 export type VisitSummary = {
@@ -82,6 +84,7 @@ export type WaiverDoc = {
   collectedBy: string
   branch: string
   signature: string
+  fingerprint?: string | null
   voided?: { at: string; by: string; reason: string }
 }
 
@@ -429,6 +432,8 @@ function buildWaiverDocument(doc: WaiverDoc, clinicLabel: string, clinicPhone: s
     [l('waivers.signedAt'), ltr(formatDateTime(doc.signedAt))],
     [l('waivers.collectedBy'), escapeHtml(doc.collectedBy)],
     [l('print.branch'), escapeHtml(doc.branch)],
+    // The first 16 of the SHA-256: enough to compare a paper copy with the record (0105).
+    ...(doc.fingerprint ? [[l('waivers.recordCode'), ltr(doc.fingerprint.slice(0, 16).toUpperCase().replace(/(.{4})(?=.)/g, '$1-'))]] : []),
   ]
     .map(([k, v]) => `<div><span>${k}</span><span>${v}</span></div>`)
     .join('')

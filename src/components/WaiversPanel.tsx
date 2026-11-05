@@ -50,7 +50,7 @@ function WaiversPanel({ pet }: { pet: Pet }) {
     const [w, tpl, stay, appts] = await Promise.all([
       supabase
         .from('pet_waivers')
-        .select('*, collector:profiles!pet_waivers_collected_by_fkey(full_name), voider:profiles!pet_waivers_voided_by_fkey(full_name)')
+        .select('*, fingerprint_ok, collector:profiles!pet_waivers_collected_by_fkey(full_name), voider:profiles!pet_waivers_voided_by_fkey(full_name)')
         .eq('pet_id', pet.id)
         .order('signed_at', { ascending: false }),
       supabase.from('waiver_templates').select('*').eq('active', true).order('created_at'),
@@ -163,6 +163,7 @@ function WaiversPanel({ pet }: { pet: Pet }) {
               collectedBy: viewing.collector?.full_name ?? '—',
               branch: branchName(viewing.branch_id),
               signature: viewing.signature,
+              fingerprint: viewing.fingerprint,
               voided: viewing.voided_at ? { at: viewing.voided_at, by: viewing.voider?.full_name ?? '—', reason: viewing.void_reason ?? '' } : undefined,
             })
           }
@@ -366,6 +367,11 @@ function ViewWaiverModal({
           {t('waivers.voidedBy', { name: waiver.voider?.full_name ?? '—' })} · <Ltr>{formatDateTime(waiver.voided_at)}</Ltr>
           <br />
           {waiver.void_reason}
+        </p>
+      )}
+      {waiver.fingerprint_ok === false && (
+        <p className="form-error" role="alert">
+          {t('waivers.changedWarning')}
         </p>
       )}
       <p className="pet-owner">

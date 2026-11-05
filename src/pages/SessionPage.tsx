@@ -27,11 +27,14 @@ import Ltr from '../components/Ltr'
 import VisitServices from '../components/VisitServices'
 import FormError from '../components/FormError'
 import SessionHistory from '../components/SessionHistory'
+import DiagnosisPicker from '../components/DiagnosisPicker'
+import PetAlerts from '../components/PetAlerts'
+import { petSexText } from '../lib/species'
 
-const SESSION_SELECT = '*, pets(name, species, breed, owner_name, owner_phone), starter:profiles!appointments_started_by_fkey(full_name, clinic_role), billed'
+const SESSION_SELECT = '*, pets(name, species, breed, sex, neutered, alerts, owner_name, owner_phone), starter:profiles!appointments_started_by_fkey(full_name, clinic_role), billed'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
-  pets: { name: string; species: string; breed: string | null; owner_name: string; owner_phone: string | null } | null
+  pets: { name: string; species: string; breed: string | null; sex: string | null; neutered: boolean | null; alerts: string | null; owner_name: string; owner_phone: string | null } | null
   starter: { full_name: string; clinic_role: string | null } | null
 }
 type MedicalRecord = Database['public']['Tables']['medical_records']['Row']
@@ -362,7 +365,8 @@ function SessionPage() {
           <h1>{appointment.pets?.name ?? t('dashboard.unknownPet')}</h1>
           <p className="pet-owner">
             {appointment.pets?.species}
-            {appointment.pets?.breed ? ` (${appointment.pets.breed})` : ''} · {t('pets.owner')}: {appointment.pets?.owner_name}
+            {appointment.pets?.breed ? ` (${appointment.pets.breed})` : ''}
+            {appointment.pets && petSexText(t, appointment.pets) ? ` · ${petSexText(t, appointment.pets)}` : ''} · {t('pets.owner')}: {appointment.pets?.owner_name}
             {appointment.pets?.owner_phone && (
               <>
                 {' · '}
@@ -382,9 +386,18 @@ function SessionPage() {
         </div>
       </div>
 
+      {appointment.pets && (
+        <PetAlerts
+          petId={appointment.pet_id}
+          alerts={appointment.pets.alerts}
+          onSaved={(pet) => setAppointment((a) => (a?.pets ? { ...a, pets: { ...a.pets, alerts: pet.alerts } } : a))}
+        />
+      )}
+
       <FormError message={error} />
 
       <div className="session-body">
+      <SessionHistory petId={appointment.pet_id} appointmentId={appointment.id} />
       <div className="session-main">
       {/* Outside the form: Enter in a quantity box must not finish the session. Saved as they're added. */}
       <VisitServices appointmentId={appointment.id} locked={Boolean(appointment.billed)} />
@@ -438,6 +451,7 @@ function SessionPage() {
         {/* The doctor's part of the shared record; nurses don't see or write it (0075). */}
         {!isNurse && (
           <>
+            <DiagnosisPicker onPick={(name) => setField('diagnosis', name)} />
             <label>
               {t('petDetail.diagnosis')}
               <RequiredMark />
@@ -496,7 +510,6 @@ function SessionPage() {
         </div>
       </form>
       </div>
-      <SessionHistory petId={appointment.pet_id} />
       </div>
     </div>
   )

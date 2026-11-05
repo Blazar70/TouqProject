@@ -50,3 +50,5 @@ Owner contact is plain text on the pet (0007), because owner logins never took o
 ## See
 
 - Source: `src/lib/database.types.ts:565`; rules in `src/lib/vaccination.ts`, `src/lib/species.ts`, `src/lib/phone.ts`
+
+- `alerts` (red line on the pet file, session, booking, appointment panel, dashboard; any clinic role edits, `components/PetAlerts.tsx`), `sex`, `neutered` (optional, `components/PetSexFields.tsx`, printed via `petSexText`). `0104_pet_alerts_sex.sql`

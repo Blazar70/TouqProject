@@ -30,6 +30,7 @@ import { usePet } from '../lib/usePet'
 import MiniMonth from '../components/MiniMonth'
 import PhotoThumbnail from '../components/PhotoThumbnail'
 import Ltr from '../components/Ltr'
+import { PetAlertLine } from '../components/PetAlerts'
 import { useToast } from '../lib/ToastContext'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
@@ -44,7 +45,7 @@ import Modal from '../components/Modal'
 import BookingPetInfo from '../components/BookingPetInfo'
 
 type Appointment = Database['public']['Tables']['appointments']['Row'] & {
-  pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number; microchip: string | null } | null
+  pets: { name: string; owner_name: string; owner_phone: string | null; pet_number: number; microchip: string | null; alerts: string | null } | null
   doctor: { full_name: string } | null
   starter: { clinic_role: string | null } | null
   invoice: { id: string; invoice_number: string; payment_status: string } | null // receptionists and managers only (0074)
@@ -78,7 +79,7 @@ const localizer = dayjsLocalizer(dayjs)
 // first hour on a non-Riyadh device; rebuild the day + time in clinic time instead.
 localizer.merge = (date: Date, time: Date) =>
   dayjs.tz(`${dayjs.tz(date).format('YYYY-MM-DD')} ${dayjs.tz(time).format('HH:mm:ss')}`, CLINIC_TZ).toDate()
-const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number, microchip), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
+const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number, microchip, alerts, sex, neutered), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
 const UNASSIGNED = 'unassigned'
 const BOOKING_DRAFT_KEY = 'touq.bookingDraft'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
@@ -736,6 +737,7 @@ function AppointmentsPage() {
           <div className="appointment-panel-header">
             <div>
               <h2 id="appointment-panel-title">{appointment.pets?.name ?? t('dashboard.unknownPet')}</h2>
+              <PetAlertLine alerts={appointment.pets?.alerts} />
               {appointment.pets && (
                 <p className="pet-owner">
                   {t('pets.petId')}: <Ltr>{appointment.pets.pet_number}</Ltr> · {t('pets.owner')}: {appointment.pets.owner_name}

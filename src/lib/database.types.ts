@@ -456,6 +456,8 @@ export type Database = {
       }
       pet_waivers: {
         Row: {
+          fingerprint: string | null
+          fingerprint_ok?: boolean | null // computed field (0105), not a column: select('*, fingerprint_ok')
           appointment_id: string | null
           body: string
           branch_id: string
@@ -817,6 +819,7 @@ export type Database = {
       }
       medical_records: {
         Row: {
+          diagnosis_term_id: string | null
           appointment_id: string | null
           branch_id: string | null
           clinic_id: string
@@ -1150,6 +1153,9 @@ export type Database = {
       }
       pets: {
         Row: {
+          alerts: string | null
+          sex: string | null
+          neutered: boolean | null
           breed: string | null
           clinic_id: string
           created_at: string
@@ -1179,6 +1185,9 @@ export type Database = {
           deleted_at?: string | null
           home_branch_id?: string | null
           id?: string
+          alerts?: string | null
+          sex?: string | null
+          neutered?: boolean | null
           microchip?: string | null
           name: string
           next_vaccination_date?: string | null
@@ -1200,6 +1209,9 @@ export type Database = {
           deleted_at?: string | null
           home_branch_id?: string | null
           id?: string
+          alerts?: string | null
+          sex?: string | null
+          neutered?: boolean | null
           microchip?: string | null
           name?: string
           next_vaccination_date?: string | null
@@ -1425,6 +1437,12 @@ export type Database = {
           },
         ]
       }
+      diagnosis_terms: {
+        Row: { id: string; clinic_id: string; name_en: string; name_ar: string; active: boolean; created_at: string }
+        Insert: { id?: string; clinic_id: string; name_en: string; name_ar: string; active?: boolean; created_at?: string }
+        Update: { id?: string; clinic_id?: string; name_en?: string; name_ar?: string; active?: boolean; created_at?: string }
+        Relationships: []
+      }
       visit_templates: {
         Row: {
           clinic_id: string
@@ -1648,6 +1666,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      // Computed field on pet_waivers (0105): select('*, fingerprint_ok').
+      fingerprint_ok: { Args: { "": Database["public"]["Tables"]["pet_waivers"]["Row"] }; Returns: boolean }
       // Computed field on appointments (0074): select('*, billed').
       billed: { Args: { "": Database["public"]["Tables"]["appointments"]["Row"] }; Returns: boolean }
       mark_vaccine_given: {
@@ -1750,6 +1770,10 @@ export type Database = {
       report_income_branches: {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
         Returns: { branch_id: string; invoiced: number; credited: number; net: number; collected: number }[]
+      }
+      report_top_diagnoses: {
+        Args: { p_from: string; p_to: string; p_branch?: string | null }
+        Returns: { term_id: string | null; name_en: string | null; name_ar: string | null; visits: number }[]
       }
       report_vat_summary: {
         Args: { p_from: string; p_to: string; p_branch?: string | null }

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { MICROCHIP_PATTERN, cleanMicrochip } from '../lib/microchip'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
@@ -23,7 +23,10 @@ import PrescriptionEditor from './PrescriptionEditor'
 import InpatientPanel from './InpatientPanel'
 import type { OpenStay } from './InpatientPanel'
 import VaccinationBadge from './VaccinationBadge'
-import { speciesLabel } from '../lib/species'
+import { petSexText, speciesLabel } from '../lib/species'
+import PetAlerts from './PetAlerts'
+import PetSexFields from './PetSexFields'
+import DiagnosisPicker from './DiagnosisPicker'
 import { stayDay } from '../lib/inpatient'
 import WaiversPanel from './WaiversPanel'
 import PetAvatar from './PetAvatar'
@@ -73,6 +76,8 @@ function PetDetail({
   const [breed, setBreed] = useState(pet.breed ?? '')
   const [microchip, setMicrochip] = useState(pet.microchip ?? '')
   const [dateOfBirth, setDateOfBirth] = useState(pet.date_of_birth ?? '')
+  const [sex, setSex] = useState(pet.sex)
+  const [neutered, setNeutered] = useState(pet.neutered)
   const [savingPet, setSavingPet] = useState(false)
   const [petError, setPetError] = useState<string | null>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
@@ -84,7 +89,9 @@ function PetDetail({
   const [loadingRecords, setLoadingRecords] = useState(true)
   const [recordError, setRecordError] = useState<string | null>(null)
 
-  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null)
+  // ?record=<id> comes from "View" in the session's earlier visits (H68).
+  const [searchParams] = useSearchParams()
+  const [expandedRecordId, setExpandedRecordId] = useState<string | null>(() => searchParams.get('record'))
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null)
   const [edit, setEdit] = useState<RecordEdit | null>(null)
   const setEditField = (field: keyof RecordEdit, value: string) => setEdit((e) => (e ? { ...e, [field]: value } : e))
@@ -97,7 +104,7 @@ function PetDetail({
   const [includeHistoryPhotos, setIncludeHistoryPhotos] = useState(true)
 
   const petFormDirty =
-    name !== pet.name || species !== pet.species || breed !== (pet.breed ?? '') || microchip !== (pet.microchip ?? '') || dateOfBirth !== (pet.date_of_birth ?? '')
+    name !== pet.name || species !== pet.species || breed !== (pet.breed ?? '') || microchip !== (pet.microchip ?? '') || dateOfBirth !== (pet.date_of_birth ?? '') || sex !== pet.sex || neutered !== pet.neutered
   const isDirty = petFormDirty || editingRecordId !== null
   useUnsavedChangesWarning(isDirty)
 
@@ -151,6 +158,8 @@ function PetDetail({
         breed: breed || null,
         microchip: microchip || null,
         date_of_birth: dateOfBirth || null,
+        sex,
+        neutered,
       })
       .eq('id', pet.id)
       .select()
@@ -313,6 +322,8 @@ function PetDetail({
     setBreed(pet.breed ?? '')
     setMicrochip(pet.microchip ?? '')
     setDateOfBirth(pet.date_of_birth ?? '')
+    setSex(pet.sex)
+    setNeutered(pet.neutered)
     setPetError(null)
     setEditingDetails(false)
   }
@@ -325,7 +336,7 @@ function PetDetail({
         <div className="pet-file-identity">
           <h1>{pet.name}</h1>
           <p className="pet-file-meta">
-            {[speciesLabel(t, pet.species), pet.breed].filter(Boolean).join(' · ')} · {t('pets.petId')} <Ltr>{pet.pet_number}</Ltr>
+            {[speciesLabel(t, pet.species), pet.breed, petSexText(t, pet)].filter(Boolean).join(' · ')} · {t('pets.petId')} <Ltr>{pet.pet_number}</Ltr>
           </p>
           <p className="pet-file-owner">
             {isVet ? <Link to={`/owners?id=${pet.owner_file_id}`}>{pet.owner_name}</Link> : pet.owner_name}
@@ -360,6 +371,8 @@ function PetDetail({
           </div>
         )}
       </header>
+
+      {isVet && <PetAlerts petId={pet.id} alerts={pet.alerts} onSaved={onUpdated} />}
 
       <div className="pet-file-body">
       <div className="pet-file-main">
@@ -468,6 +481,7 @@ function PetDetail({
                       {/* Diagnosis, plan and treatment are the doctor's (0075). */}
                       {!isNurse && (
                         <>
+                          <DiagnosisPicker onPick={(name) => setEditField('diagnosis', name)} />
                           <label>
                             {t('petDetail.diagnosis')}
                             <input value={edit.diagnosis} onChange={(e) => setEditField('diagnosis', e.target.value)} />
@@ -667,6 +681,7 @@ function PetDetail({
                 <MicrochipTaken microchip={microchip} petId={pet.id} />
               </label>
               <DateOfBirthField value={dateOfBirth} onChange={setDateOfBirth} />
+              <PetSexFields sex={sex} neutered={neutered} onSexChange={setSex} onNeuteredChange={setNeutered} />
               <div className="record-edit-actions">
                 <button type="submit" disabled={savingPet}>
                   {savingPet ? t('common.saving') : t('common.saveChanges')}
@@ -694,6 +709,8 @@ function PetDetail({
                 <dd>{pet.microchip ? <Ltr>{pet.microchip}</Ltr> : '—'}</dd>
                 <dt>{t('registerPet.dateOfBirth')}</dt>
                 <dd>{pet.date_of_birth ? <Ltr>{formatDate(pet.date_of_birth)}</Ltr> : '—'}</dd>
+                <dt>{t('pets.sex')}</dt>
+                <dd>{petSexText(t, pet) || '—'}</dd>
                 <dt>{t('pets.owner')}</dt>
                 <dd>
                   {pet.owner_name}

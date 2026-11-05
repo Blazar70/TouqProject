@@ -15,12 +15,13 @@ import FormError from '../components/FormError'
 import CashCountPanel from '../components/CashCountPanel'
 
 type Fn = Database['public']['Functions']
-type ReportKey = 'cashUp' | 'unpaid' | 'income' | 'vat'
+type ReportKey = 'cashUp' | 'unpaid' | 'income' | 'vat' | 'diagnoses'
 type Data =
   | { key: 'cashUp'; rows: Fn['report_cash_up']['Returns'] }
   | { key: 'unpaid'; rows: Fn['report_unpaid']['Returns'] }
   | { key: 'income'; services: Fn['report_income_services']['Returns']; branches: Fn['report_income_branches']['Returns'] }
   | { key: 'vat'; rows: Fn['report_vat_summary']['Returns'] }
+  | { key: 'diagnoses'; rows: Fn['report_top_diagnoses']['Returns'] }
 
 // money: right-aligned amount · count: right-aligned integer · ltr: left-to-right text (numbers, phones)
 type Kind = 'text' | 'ltr' | 'money' | 'count'
@@ -33,6 +34,7 @@ const REPORTS: { key: ReportKey; label: TranslationKey; manager?: boolean }[] = 
   // Income and VAT: managers only (0074).
   { key: 'income', label: 'reports.income', manager: true },
   { key: 'vat', label: 'reports.vat', manager: true },
+  { key: 'diagnoses', label: 'reports.diagnoses', manager: true },
 ]
 const DRAWER_METHODS = ['cash', 'card', 'apple_pay'] as const
 const METHOD_LABEL: Record<string, TranslationKey> = {
@@ -46,7 +48,7 @@ const sum = (values: number[]) => Math.round(values.reduce((a, b) => a + b, 0) *
 
 // Money reports for the clinic. Every figure comes from a 0065 SQL function, by clinic-time days.
 function ReportsPage() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const { profile } = useAuth()
   const { branchName, branches, canWriteAt } = useBranch()
   const { printReport } = usePrintSummary()
@@ -82,6 +84,11 @@ function ReportsPage() {
         if (s.error) throw s.error
         if (b.error) throw b.error
         return { key: report, services: s.data ?? [], branches: b.data ?? [] }
+      }
+      if (report === 'diagnoses') {
+        const { data: rows, error: e } = await supabase.rpc('report_top_diagnoses', range)
+        if (e) throw e
+        return { key: report, rows: rows ?? [] }
       }
       const { data: rows, error: e } = await supabase.rpc('report_vat_summary', range)
       if (e) throw e
@@ -195,6 +202,20 @@ function ReportsPage() {
         note: t('reports.incomeNote'),
       }
     }
+    if (d.key === 'diagnoses') {
+      return {
+        sections: [
+          {
+            cls: 'data-r-diagnoses',
+            head: [t('petDetail.diagnosis'), t('reports.visits')],
+            kinds: ['text', 'count'],
+            rows: d.rows.map((r) => [r.term_id ? ((language === 'ar' ? r.name_ar : r.name_en) ?? '—') : t('reports.typedByHand'), r.visits]),
+            foot: d.rows.length ? [t('reports.total'), d.rows.reduce((a, r) => a + r.visits, 0)] : undefined,
+          },
+        ],
+        note: t('reports.diagnosesNote'),
+      }
+    }
     const rate = (r: { vat_rate: number }) => ({ rate: String(r.vat_rate) })
     const rows: Cell[][] = [
       ...d.rows.map((r) => [r.vat_rate > 0 ? t('reports.standardSales', rate(r)) : t('reports.zeroSales'), r.sales_net, r.sales_vat]),
@@ -293,7 +314,7 @@ function ReportsPage() {
         <div className="dash-panel-body">
           <div className="payments-filters report-filters">
             {report === 'cashUp' && dateInput('reports.day', day, setDay)}
-            {(report === 'income' || report === 'vat') && (
+            {(report === 'income' || report === 'vat' || report === 'diagnoses') && (
               <>
                 {dateInput('payments.filterFrom', from, setFrom)}
                 {dateInput('payments.filterTo', to, setTo)}

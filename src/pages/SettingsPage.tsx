@@ -22,6 +22,7 @@ import type { VatFields } from '../lib/vat'
 import TwoStepSettings from '../components/TwoStepSettings'
 import { MFA_ENABLED } from '../lib/mfa'
 import VisitTemplatesSettings from '../components/VisitTemplatesSettings'
+import DiagnosisTermsSettings from '../components/DiagnosisTermsSettings'
 import FormError from '../components/FormError'
 import VaccinesSettings from '../components/VaccinesSettings'
 import WaiverTemplatesSettings from '../components/WaiverTemplatesSettings'
@@ -719,6 +720,18 @@ function SettingsPage() {
           </div>
           <div className="settings-body">
             <VisitTemplatesSettings clinicId={profile.clinic_id} />
+          </div>
+        </div>
+      )}
+
+      {(isManager || profile?.clinic_role === 'doctor') && profile?.clinic_id && (
+        <div className="settings-section">
+          <div className="settings-intro">
+            <h2>{t('diagnosisTerms.title')}</h2>
+            <p className="pet-owner">{t('diagnosisTerms.hint')}</p>
+          </div>
+          <div className="settings-body">
+            <DiagnosisTermsSettings clinicId={profile.clinic_id} />
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ import { visitTypeLabel } from '../lib/visitTypes'
 import { addDays, DUE_SOON_WINDOW_DAYS, vaccinationStatus } from '../lib/vaccination'
 import { clinicDay, formatDate, formatDateTime } from '../lib/format'
 import Ltr from './Ltr'
+import { PetAlertLine } from './PetAlerts'
 
 type Pet = Database['public']['Tables']['pets']['Row']
 type Info = {
@@ -60,6 +61,7 @@ function BookingPetInfo({ pet }: { pet: Pet }) {
 
   return (
     <div className="booking-pet-info" role="status">
+      <PetAlertLine alerts={pet.alerts} />
       <div>
         {t('pets.owner')}: {pet.owner_name}
         {pet.owner_phone && (

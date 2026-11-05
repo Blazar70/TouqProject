@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { PetAlertChip } from '../components/PetAlerts'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
 import { useBranch, useBranchView } from '../lib/BranchContext'
@@ -28,7 +29,7 @@ type TodayAppointment = {
   arrived_at: string | null
   reason: string | null
   doctor_id: string | null
-  pets: { name: string; owner_name: string } | null
+  pets: { name: string; owner_name: string; alerts: string | null } | null
   doctor: { full_name: string } | null
 }
 
@@ -95,7 +96,7 @@ function DashboardPage() {
       byBranch(
         supabase
           .from('appointments')
-          .select('id, scheduled_at, status, arrived_at, reason, doctor_id, pets(name, owner_name), doctor:profiles!appointments_doctor_fkey(full_name)')
+          .select('id, scheduled_at, status, arrived_at, reason, doctor_id, pets(name, owner_name, alerts), doctor:profiles!appointments_doctor_fkey(full_name)')
           .gte('scheduled_at', dayStart.toISOString())
           .lt('scheduled_at', dayEnd.toISOString()),
       ).order('scheduled_at', { ascending: true }),
@@ -316,6 +317,7 @@ function DashboardPage() {
               </span>
               <span className="dash-next-main">
                 <strong>{nextAppt.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                <PetAlertChip alerts={nextAppt.pets?.alerts} />
                 <span className="dash-row-sub">
                   {waitingNote(nextAppt)}
                   {[nextAppt.pets?.owner_name, nextAppt.reason].filter(Boolean).join(' · ')}
@@ -347,6 +349,7 @@ function DashboardPage() {
                     </span>
                     <span className="dash-row-main">
                       <strong>{appt.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                      <PetAlertChip alerts={appt.pets?.alerts} />
                       <span className="dash-row-sub">
                         {waitingNote(appt)}
                         {[appt.pets?.owner_name, appt.reason].filter(Boolean).join(' · ')}

@@ -24,6 +24,14 @@ describe('translations', () => {
     expect(wrong).toEqual([])
   })
 
+  // H28: a string with a 3-10 form must also have the 1 and 2 forms, which name no number in Arabic grammar.
+  it('gives every Arabic plural its full set of forms', () => {
+    const few = Object.keys(ar).filter((key) => key.endsWith('_few'))
+    expect(few.length).toBeGreaterThan(25)
+    expect(few.filter((key) => !(key.replace(/_few$/, '_two') in ar))).toEqual([])
+    expect(few.filter((key) => !(placeholders(ar[key]) as string[]).includes('{count}'))).toEqual([])
+  })
+
   it('picks the Arabic forms the plural texts are written for', () => {
     const form = (n: number) => new Intl.PluralRules('ar').select(n)
     expect([1, 2, 3, 10, 11, 100].map(form)).toEqual(['one', 'two', 'few', 'few', 'many', 'other'])
