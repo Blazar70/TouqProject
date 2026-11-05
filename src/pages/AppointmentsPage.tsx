@@ -1298,17 +1298,54 @@ function AppointmentsPage() {
           {bookingElsewhere && (
             <p className="pet-owner appointment-schedule-hint">{t('branch.bookingAt', { name: branchName(bookingBranchId) })}</p>
           )}
-          <label>
+          <label className="booking-pet">
             {t('appointments.pet')}
             <RequiredMark />
             <PetPicker pet={bookingPet} value={petId} onChange={setPetId} compact registerBack="appointments" onRegisterNew={leaveToRegister} />
           </label>
           {bookingPet && <BookingPetInfo pet={bookingPet} />}
           <label>
+            {t('appointments.staffHandling')}
+            <RequiredMark />
+            <select
+              value={doctorId}
+              onChange={(e) => {
+                setDoctorId(e.target.value)
+                setBookingAwayHint(false)
+              }}
+              required
+            >
+              <option value="" disabled>
+                {t('appointments.selectStaffMember')}
+              </option>
+              {bookingStaff.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.full_name}
+                  {member.title ? ` — ${member.title}` : ''}
+                </option>
+              ))}
+            </select>
+            {bookingAwayHint && !doctorId && <span className="pet-owner">{t('appointments.doctorAwayCleared')}</span>}
+          </label>
+          <label>
             {t('appointments.date')}
             <RequiredMark />
             <input type="date" dir="ltr" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} required />
           </label>
+          {scheduledDate && doctorId && (
+            <FreeTimes
+              day={scheduledDate}
+              doctorId={doctorId}
+              away={awayPeriods}
+              selected={scheduledHour && scheduledMinute ? toScheduledAt(scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod) : null}
+              onPick={(iso) => {
+                const fields = toPickerFields(new Date(iso))
+                setScheduledHour(fields.hour)
+                setScheduledMinute(fields.minute)
+                setScheduledPeriod(fields.period)
+              }}
+            />
+          )}
           <label>
             {t('appointments.time')}
             <RequiredMark />
@@ -1344,45 +1381,8 @@ function AppointmentsPage() {
             {t('appointments.reason')}
             <input value={reason} onChange={(e) => setReason(e.target.value)} />
           </label>
-          <label>
-            {t('appointments.staffHandling')}
-            <RequiredMark />
-            <select
-              value={doctorId}
-              onChange={(e) => {
-                setDoctorId(e.target.value)
-                setBookingAwayHint(false)
-              }}
-              required
-            >
-              <option value="" disabled>
-                {t('appointments.selectStaffMember')}
-              </option>
-              {bookingStaff.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.full_name}
-                  {member.title ? ` — ${member.title}` : ''}
-                </option>
-              ))}
-            </select>
-            {bookingAwayHint && !doctorId && <span className="pet-owner">{t('appointments.doctorAwayCleared')}</span>}
-          </label>
-          {scheduledDate && doctorId && (
-            <FreeTimes
-              day={scheduledDate}
-              doctorId={doctorId}
-              away={awayPeriods}
-              selected={scheduledHour && scheduledMinute ? toScheduledAt(scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod) : null}
-              onPick={(iso) => {
-                const fields = toPickerFields(new Date(iso))
-                setScheduledHour(fields.hour)
-                setScheduledMinute(fields.minute)
-                setScheduledPeriod(fields.period)
-              }}
-            />
-          )}
           {conflicts.length > 0 && (
-            <div className="form-warning">
+            <div className="form-warning" role="alert">
               <p>{t('appointments.conflictWarning', { count: String(conflicts.length) })}</p>
               <ul>
                 {conflicts.map((c) => (
@@ -1392,21 +1392,23 @@ function AppointmentsPage() {
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => {
-                  setConflictAcknowledged(true)
-                  requestAnimationFrame(() => scheduleFormRef.current?.requestSubmit())
-                }}
-              >
-                {t('appointments.scheduleAnyway')}
-              </button>
             </div>
           )}
           <div className="record-edit-actions">
-            <button type="submit" disabled={submitting}>
-              {submitting ? t('common.saving') : t('appointments.scheduleSubmit')}
+            {/* One element in both states, so keyboard focus stays on it when the warning appears. */}
+            <button
+              type={conflicts.length > 0 ? 'button' : 'submit'}
+              disabled={submitting}
+              onClick={
+                conflicts.length > 0
+                  ? () => {
+                      setConflictAcknowledged(true)
+                      requestAnimationFrame(() => scheduleFormRef.current?.requestSubmit())
+                    }
+                  : undefined
+              }
+            >
+              {submitting ? t('common.saving') : t(conflicts.length > 0 ? 'appointments.scheduleAnyway' : 'appointments.scheduleSubmit')}
             </button>
             <button type="button" className="cancel-button" onClick={closeBooking}>
               {t('common.cancel')}

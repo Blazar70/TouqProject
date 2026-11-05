@@ -1776,23 +1776,26 @@ input[type='checkbox']:focus-visible {
 }
 
 .form-warning {
-  color: var(--text-h);
-  background: var(--bg-tint);
-  border: 1px solid var(--border-strong);
-  padding: 0.65rem 0.85rem;
+  margin-bottom: 0.75rem;
+  color: var(--status-amber-fg);
+  background: var(--status-amber-bg);
+  padding: 0.75rem;
   border-radius: 6px;
-  font-size: 0.88rem;
+  font-size: 0.85rem;
 }
 
 .form-warning p {
-  margin: 0 0 0.4rem;
+  margin: 0 0 0.25rem;
   font-weight: 600;
 }
 
 .form-warning ul {
-  margin: 0 0 0.65rem;
-  padding-inline-start: 1.1rem;
-  color: var(--text-muted);
+  margin: 0;
+  padding-inline-start: 1rem;
+}
+
+.form-warning .secondary-button {
+  margin-top: 0.75rem;
 }
 
 .settings-section {
@@ -1941,15 +1944,18 @@ input[type='checkbox']:focus-visible {
 }
 
 /* Booking pop-up: facts about the picked pet, under the Pet field. */
+.pet-form-grid > .booking-pet {
+  grid-column: 1 / -1;
+  margin-bottom: 0.5rem;
+}
+
+/* Reads as a caption of the pet above it, so only warnings stand out in the form. */
 .booking-pet-info {
   grid-column: 1 / -1;
   display: grid;
   gap: 0.25rem;
-  margin-bottom: 0.85rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 6px;
-  background: var(--bg-tint);
-  color: var(--text);
+  margin-bottom: 1rem;
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 
@@ -2092,23 +2098,45 @@ input[type='checkbox']:focus-visible {
   grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .free-times-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .free-times-list button {
   min-height: 2.75rem;
 }
 
-.free-times-list .free-time-picked {
+/* Outlined, not filled: a dozen filled chips outweigh the form around them. */
+.pet-form .free-times-list .secondary-button {
+  background: transparent;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pet-form .free-times-list .secondary-button:hover {
+  background: var(--bg-tint);
+}
+
+.pet-form .free-times-list .free-time-picked,
+.pet-form .free-times-list .free-time-picked:hover {
   border-color: var(--accent);
   background: var(--bg-tint-hover);
   color: var(--text-h);
+  font-weight: 600;
+}
+
+/* A mouse needs no 44px target; rows stay low beside the fields. */
+@media (min-width: 1024px) and (hover: hover) {
+  .free-times-list button {
+    min-height: 2rem;
+    padding-block: 0.25rem;
+  }
 }
 
 .profile-failed-actions {
@@ -2116,9 +2144,16 @@ input[type='checkbox']:focus-visible {
 }
 
 .free-times-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.25rem 0.5rem;
+  align-items: baseline;
+}
+
+@media (max-width: 640px) {
+  .free-times-group {
+    grid-template-columns: 1fr;
+  }
 }
 
 .age-row {
@@ -4331,6 +4366,27 @@ button.cancel-button:disabled,
 
   .data-r-visits .data-label,
   .data-r-bills .data-label {
+    display: inline;
+  }
+}
+
+/* Staff's action buttons and the Services list (in a half-width Settings column) run out of room here. */
+@media (max-width: 1179.98px) {
+  .data-staff .data-head,
+  .data-services .data-head,
+  .data-services-novat .data-head {
+    display: none;
+  }
+
+  .data-table.data-staff .data-row,
+  .data-table.data-services .data-row,
+  .data-table.data-services-novat .data-row {
+    display: flex;
+  }
+
+  .data-staff .data-label,
+  .data-services .data-label,
+  .data-services-novat .data-label {
     display: inline;
   }
 }
