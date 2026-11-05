@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.110.3'
 import { corsHeaders } from '../_shared/cors.ts'
 import { MIN_PASSWORD_LENGTH, parseStaffLogin } from '../_shared/staffRules.ts'
 import { publishableKey, secretKey } from '../_shared/keys.ts'

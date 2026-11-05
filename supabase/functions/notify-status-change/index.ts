@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.110.3'
 import { corsHeaders } from '../_shared/cors.ts'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
 import { getsAlert } from '../_shared/alertRecipients.ts'

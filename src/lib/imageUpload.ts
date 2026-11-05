@@ -2,13 +2,19 @@ import { supabase } from './supabase'
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 // Phone photos and X-ray exports are often bigger: these types are shrunk before upload (H50), so they may start larger.
-const SHRINKABLE = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const HEIC = ['image/heic', 'image/heif']
+const SHRINKABLE = ['image/jpeg', 'image/png', 'image/webp', ...HEIC]
 const MAX_SOURCE_BYTES = 30 * 1024 * 1024
 const MAX_SIDE = 2000
 
 export const CLINIC_LOGOS_BUCKET = 'clinic-logos'
 
 export type ImageValidationError = 'notImage' | 'tooLarge'
+export const IMAGE_ERROR_KEYS = {
+  notImage: 'petDetail.imageOnly',
+  tooLarge: 'petDetail.imageTooLarge',
+  notReadable: 'petDetail.imageUnreadable',
+} as const
 
 // `shrinks: false` for files uploaded as they are (clinic logos keep their transparent PNG).
 export function validateImageFile(file: File, shrinks = true): ImageValidationError | null {
@@ -25,9 +31,10 @@ export function fitWithin(width: number, height: number, max = MAX_SIDE) {
 }
 
 // Photos as a ~2000 px JPEG (H50): a 4 MB phone photo becomes a few hundred KB, faster on clinic Wi-Fi.
-// Small files, GIFs and anything the browser can't decode (HEIC outside Safari) go up unchanged.
-export async function shrinkImage(file: File): Promise<File> {
-  if (!SHRINKABLE.includes(file.type) || file.size <= 700 * 1024) return file
+// Small files, GIFs and anything the browser can't decode stay as they are; HEIC always converts, most browsers can't show it.
+async function shrinkImage(file: File): Promise<File> {
+  const heic = HEIC.includes(file.type)
+  if (!SHRINKABLE.includes(file.type) || (file.size <= 700 * 1024 && !heic)) return file
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
     const { width, height } = fitWithin(bitmap.width, bitmap.height)
@@ -40,18 +47,26 @@ export async function shrinkImage(file: File): Promise<File> {
     context.drawImage(bitmap, 0, 0, width, height)
     bitmap.close()
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85))
-    if (!blob || blob.size >= file.size) return file
+    if (!blob || (blob.size >= file.size && !heic)) return file
     return new File([blob], file.name.replace(/\.[^.]*$/, '') + '.jpg', { type: 'image/jpeg' })
   } catch {
     return file
   }
 }
 
+// Run when a photo is picked (nightly B36): the user hears about a photo that can't be used before saving, not after.
+export async function prepareImage(picked: File): Promise<{ file: File; error: keyof typeof IMAGE_ERROR_KEYS | null }> {
+  const invalid = validateImageFile(picked)
+  if (invalid) return { file: picked, error: invalid }
+  const file = await shrinkImage(picked)
+  if (HEIC.includes(file.type)) return { file, error: 'notReadable' }
+  return { file, error: file.size > MAX_IMAGE_BYTES ? 'tooLarge' : null }
+}
+
 // Uploads to the private pet-photos bucket (or the given one) and returns the
 // storage path to save in photo_url / logo_url. `pathWithoutExt` must start
 // with the clinic_id: the storage policies only allow writes to that folder.
-export async function uploadPhoto(pathWithoutExt: string, original: File, bucketId = 'pet-photos') {
-  const file = bucketId === CLINIC_LOGOS_BUCKET ? original : await shrinkImage(original)
+export async function uploadPhoto(pathWithoutExt: string, file: File, bucketId = 'pet-photos') {
   if (file.size > MAX_IMAGE_BYTES) return { path: null, error: 'tooLarge' as const }
   const path = `${pathWithoutExt}.${file.name.split('.').pop() || 'jpg'}`
   const bucket = supabase.storage.from(bucketId)

@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.110.3'
 import { corsHeaders } from '../_shared/cors.ts'
 import { CLINIC_ROLES, MIN_PASSWORD_LENGTH, parseStaffLogin, staffChangeError } from '../_shared/staffRules.ts'
 import type { ClinicRole, StaffCaller, StaffChange, StaffTarget } from '../_shared/staffRules.ts'

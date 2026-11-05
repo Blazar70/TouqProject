@@ -1,5 +1,5 @@
-import { createClient } from 'npm:@supabase/supabase-js@2'
-import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2.110.3'
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.110.3'
 import { petPhotoIcon, sendToSubscriptions } from '../_shared/push.ts'
 import { getsAlert, getsInpatientAlert } from '../_shared/alertRecipients.ts'
 import { secretKey } from '../_shared/keys.ts'

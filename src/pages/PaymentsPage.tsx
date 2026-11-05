@@ -516,6 +516,7 @@ function PaymentsPage() {
               {t('payments.pet')}
               <RequiredMark />
               <PetPicker
+                registerBack="payments"
                 pet={invoicePet}
                 value={petId}
                 onChange={(id) => {

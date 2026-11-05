@@ -17,6 +17,9 @@ type AuthContextValue = {
   /** Receptionists and managers handle money; doctors and nurses don't (0074). */
   handlesMoney: boolean
   refreshClinicName: () => void
+  /** The profile request failed and there is no profile to fall back on (nightly B38). */
+  profileFailed: boolean
+  retryProfile: () => void
   loading: boolean
   passwordRecovery: boolean
   clearPasswordRecovery: () => void
@@ -34,6 +37,8 @@ const AuthContext = createContext<AuthContextValue>({
   clinicDisabled: false,
   handlesMoney: false,
   refreshClinicName: () => {},
+  profileFailed: false,
+  retryProfile: () => {},
   loading: true,
   passwordRecovery: false,
   clearPasswordRecovery: () => {},
@@ -50,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [clinicLogoUrl, setClinicLogoUrl] = useState<string | null>(null)
   const [clinicDisabled, setClinicDisabled] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [profileError, setProfileError] = useState(false)
   const [mfaStep, setMfaStep] = useState<'enroll' | 'verify' | null>(null)
   // Set when the user arrives via a "reset your password" email link —
   // Supabase signs them into a temporary session and fires this specific
@@ -74,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = useCallback(async () => {
     if (!session) {
+      setProfileError(false)
       setMfaStep(null)
       setProfile(null)
       setClinicName(null)
@@ -90,11 +97,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // clinics_select_own_vet_regardless_disabled) specifically so this can
     // detect that state and the app can show a clear message instead of
     // just silently showing empty data everywhere.
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*, clinics(name, phone, disabled, logo_url)')
       .eq('id', session.user.id)
       .maybeSingle()
+
+    // Not the same as "no profile": keep what is loaded, so a failed refresh doesn't throw a working user out.
+    setProfileError(Boolean(error))
+    if (error) {
+      setProfileLoaded(true)
+      return
+    }
 
     const step = MFA_ENABLED ? nextMfaStep((await supabase.auth.mfa.getAuthenticatorAssuranceLevel()).data, mfaRequired(data)) : null
     setMfaStep(step)
@@ -134,13 +148,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadProfile()
   }, [loadProfile])
 
+  const retryProfile = useCallback(() => {
+    setProfileLoaded(false)
+    loadProfile()
+  }, [loadProfile])
+
+  const profileFailed = profileError && profile?.id !== session?.user.id
+  useEffect(() => {
+    if (!profileFailed) return
+    window.addEventListener('online', retryProfile)
+    return () => window.removeEventListener('online', retryProfile)
+  }, [profileFailed, retryProfile])
+
   const loading = !sessionLoaded || !profileLoaded
   const clearPasswordRecovery = useCallback(() => setPasswordRecovery(false), [])
   const handlesMoney = profile?.clinic_role === 'receptionist' || profile?.clinic_role === 'manager'
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, handlesMoney, refreshClinicName, loading, passwordRecovery, clearPasswordRecovery, mfaStep, recheckMfa: refreshClinicName }}
+      value={{ session, profile, clinicName, clinicPhone, clinicLogoUrl, clinicDisabled, handlesMoney, refreshClinicName, profileFailed, retryProfile, loading, passwordRecovery, clearPasswordRecovery, mfaStep, recheckMfa: refreshClinicName }}
     >
       {children}
     </AuthContext.Provider>

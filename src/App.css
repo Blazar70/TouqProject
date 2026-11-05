@@ -2111,6 +2111,39 @@ input[type='checkbox']:focus-visible {
   color: var(--text-h);
 }
 
+.profile-failed-actions {
+  margin-top: 1rem;
+}
+
+.free-times-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.age-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 0.75rem;
+}
+
+.age-row input {
+  min-height: 44px;
+  width: 100%;
+}
+
+/* Only where an on-screen keyboard appears. */
+@media (hover: hover) {
+  .touch-only {
+    display: none;
+  }
+}
+
+.status-attention {
+  background: var(--status-amber-bg);
+  color: var(--status-amber-fg);
+}
+
 .confirm-type {
   display: flex;
   flex-direction: column;

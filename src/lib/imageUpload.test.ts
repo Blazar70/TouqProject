@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { fitWithin, validateImageFile } from './imageUpload'
+import { describe, expect, it, vi } from 'vitest'
+import { fitWithin, prepareImage, validateImageFile } from './imageUpload'
+
+// Only pure functions here; lib/supabase.ts throws without its settings (nightly B35).
+vi.mock('./supabase', () => ({ supabase: {} }))
 
 const file = (type: string, mb: number) => new File([new Uint8Array(Math.round(mb * 1024 * 1024))], 'x', { type })
 
@@ -20,5 +23,17 @@ describe('validateImageFile', () => {
     expect(validateImageFile(file('image/gif', 6))).toBe('tooLarge')
     expect(validateImageFile(file('image/png', 6), false)).toBe('tooLarge')
     expect(validateImageFile(file('image/svg+xml', 1))).toBe('notImage')
+  })
+})
+
+// No createImageBitmap under vitest: every file behaves like one the browser can't decode (nightly B36).
+describe('prepareImage', () => {
+  it('refuses at pick time what could not be uploaded later', async () => {
+    expect((await prepareImage(file('image/jpeg', 12))).error).toBe('tooLarge')
+    expect((await prepareImage(file('image/heic', 3))).error).toBe('notReadable')
+    expect((await prepareImage(file('image/svg+xml', 1))).error).toBe('notImage')
+  })
+  it('accepts an undecodable file that already fits', async () => {
+    expect((await prepareImage(file('image/jpeg', 2))).error).toBeNull()
   })
 })

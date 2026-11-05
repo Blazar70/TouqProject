@@ -11,6 +11,8 @@ insert into auth.users (id, email, aud, role) values
 insert into clinics (id, name) values
   ('f6500000-0000-0000-0000-00000000000a', 'Report check A'),
   ('f6500000-0000-0000-0000-00000000000b', 'Report check B');
+-- VAT-registered: new clinics start without VAT since 0100.
+update clinics set vat_number = '300000000000003', tax_phase = 'phase1' where id::text like 'f6500000-%';
 insert into branches (id, clinic_id, name, invoice_code) values
   ('f6500000-0000-0000-0000-0000000000e1', 'f6500000-0000-0000-0000-00000000000a', 'East', 'EAST');
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values

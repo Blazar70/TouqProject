@@ -9,6 +9,8 @@ insert into auth.users (id, email, aud, role) values
   ('f7400000-0000-0000-0000-000000000003', 'd74@check.local', 'authenticated', 'authenticated'),
   ('f7400000-0000-0000-0000-000000000004', 'n74@check.local', 'authenticated', 'authenticated');
 insert into clinics (id, name) values ('f7400000-0000-0000-0000-00000000000a', '0074 check');
+-- VAT-registered: new clinics start without VAT since 0100.
+update clinics set vat_number = '300000000000003', tax_phase = 'phase1' where id::text like 'f7400000-%';
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f7400000-0000-0000-0000-000000000001', 'vet', 'f7400000-0000-0000-0000-00000000000a', 'R', 'receptionist'),
   ('f7400000-0000-0000-0000-000000000002', 'vet', 'f7400000-0000-0000-0000-00000000000a', 'M', 'manager'),

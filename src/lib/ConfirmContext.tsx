@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import { useLanguage } from './i18n/LanguageContext'
+import { searchNorm } from './search'
 
 type ConfirmOptions = {
   message: string
@@ -59,7 +60,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   }
 
   const confirmDisabled =
-    (Boolean(state?.danger) && secondsLeft > 0) || (state?.typeToConfirm !== undefined && typed.trim() !== state.typeToConfirm)
+    (Boolean(state?.danger) && secondsLeft > 0) || (state?.typeToConfirm !== undefined && searchNorm(typed.trim()) !== searchNorm(state.typeToConfirm))
 
   // Destructive dialogs open (and stay) on Cancel so a stray Enter never deletes.
   useEffect(() => {
@@ -94,7 +95,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             <p id="confirm-message">{state.message}</p>
             {state.typeToConfirm !== undefined && (
               <label className="confirm-type">
-                {t('confirm.typeToConfirm', { text: state.typeToConfirm })}
+                <span>
+                  {t('confirm.typeToConfirm')} <bdi><strong>{state.typeToConfirm}</strong></bdi>
+                </span>
                 <input ref={typeInputRef} value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" spellCheck={false} dir="auto" />
               </label>
             )}

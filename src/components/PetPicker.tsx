@@ -29,11 +29,17 @@ function PetPicker({
   value,
   onChange,
   compact = false,
+  registerBack,
+  onRegisterNew,
 }: {
   pet: Pet | null | undefined
   value: string
   onChange: (petId: string) => void
   compact?: boolean
+  /** The page "Register new pet" comes back to with the new pet picked (H54). */
+  registerBack?: 'appointments' | 'payments'
+  /** Takes over the navigation to the register page, to keep a draft first. */
+  onRegisterNew?: (href: string) => void
 }) {
   const { t } = useLanguage()
   const [query, setQuery] = useState('')
@@ -115,6 +121,8 @@ function PetPicker({
     setActive(0)
   }
 
+  const registerHref = `/pets/new${registerPrefill(query)}${registerBack ? `&back=${registerBack}` : ''}`
+
   return (
     <div className="pet-picker">
       <input
@@ -187,7 +195,15 @@ function PetPicker({
           ) : (
             <>
               {t('appointments.noMatch', { query })}{' '}
-              <Link to={`/pets/new${registerPrefill(query)}`} onMouseDown={(e) => e.preventDefault()}>
+              <Link
+                to={registerHref}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  if (!onRegisterNew) return
+                  e.preventDefault()
+                  onRegisterNew(registerHref)
+                }}
+              >
                 {t('pets.registerNew')}
               </Link>
             </>

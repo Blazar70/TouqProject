@@ -8,7 +8,7 @@ import { useAuth } from '../lib/AuthContext'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import { useToast } from '../lib/ToastContext'
 import { formatSaudiPhoneInput, isValidSaudiMobile } from '../lib/phone'
-import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
+import { IMAGE_ERROR_KEYS, prepareImage, uploadPhoto } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from '../components/SpeciesSelect'
@@ -18,6 +18,7 @@ import OwnerPickerModal from '../components/OwnerPickerModal'
 import type { PickedOwner } from '../components/OwnerPickerModal'
 import Ltr from '../components/Ltr'
 import MicrochipTaken from '../components/MicrochipTaken'
+import DateOfBirthField from '../components/DateOfBirthField'
 import { handleEnterAdvance } from '../lib/formEnterNav'
 import FormError from '../components/FormError'
 
@@ -28,6 +29,8 @@ function RegisterPetPage() {
   const navigate = useNavigate()
   // Filled from a pet search that found nothing (H44).
   const [prefill] = useSearchParams()
+  // Came from a booking or invoice's pet search (H54): go back there with the new pet picked. Only these two, never a URL from the link.
+  const back = ['appointments', 'payments'].find((page) => page === prefill.get('back'))
 
   const [name, setName] = useState(() => prefill.get('name') ?? '')
   const [species, setSpecies] = useState('')
@@ -43,6 +46,7 @@ function RegisterPetPage() {
   const [phoneMatch, setPhoneMatch] = useState<PickedOwner | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
+  const [preparingPhoto, setPreparingPhoto] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -56,10 +60,12 @@ function RegisterPetPage() {
   }, [photoPreviewUrl])
 
   const processPhotoFile = useCallback(
-    (file: File) => {
-      const validationError = validateImageFile(file)
-      if (validationError) {
-        setError(validationError === 'notImage' ? t('petDetail.imageOnly') : t('petDetail.imageTooLarge'))
+    async (picked: File) => {
+      setPreparingPhoto(true)
+      const { file, error: photoError } = await prepareImage(picked)
+      setPreparingPhoto(false)
+      if (photoError) {
+        setError(t(IMAGE_ERROR_KEYS[photoError]))
         return
       }
 
@@ -147,15 +153,15 @@ function RegisterPetPage() {
     if (photoFile) {
       const upload = await uploadPhoto(`${profile.clinic_id}/${newPet.id}`, photoFile)
       if (upload.error !== null) {
-        toast.error(t('common.couldNotSavePhoto'))
+        toast.error(t('registerPet.photoNotSaved'))
       } else {
         await supabase.from('pets').update({ photo_url: upload.path }).eq('id', newPet.id)
       }
     }
 
     toast.success(t('registerPet.registered', { name }))
-    // Straight into the new pet's file: next steps (book, bill) start there.
-    navigate(`/pets/${newPet.id}`)
+    // Otherwise straight into the new pet's file: next steps (book, bill) start there.
+    navigate(back ? `/${back}?pet=${newPet.id}&draft=1` : `/pets/${newPet.id}`)
   }
 
   return (
@@ -177,7 +183,7 @@ function RegisterPetPage() {
                 <input type="file" accept="image/*" onChange={handlePhotoChange} />
               </label>
             </div>
-            <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
+            <p className="pet-owner" role="status">{preparingPhoto ? t('common.preparingPhoto') : t('petDetail.pastePhotoHint')}</p>
           </div>
         </div>
         <label>
@@ -198,6 +204,8 @@ function RegisterPetPage() {
           {t('pets.microchip')}
           <input
             dir="ltr"
+            inputMode="numeric"
+            enterKeyHint="next"
             value={microchip}
             onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
             pattern={MICROCHIP_PATTERN}
@@ -207,10 +215,7 @@ function RegisterPetPage() {
           <span className="pet-owner">{t('pets.microchipHint')}</span>
           <MicrochipTaken microchip={microchip} />
         </label>
-        <label>
-          {t('registerPet.dateOfBirth')}
-          <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
-        </label>
+        <DateOfBirthField value={dateOfBirth} onChange={setDateOfBirth} />
         {owner ? (
           <div className="owner-chosen">
             <span>
@@ -253,10 +258,10 @@ function RegisterPetPage() {
           </>
         )}
         <div className="record-edit-actions">
-          <button type="submit" className="primary-button" disabled={submitting}>
+          <button type="submit" className="primary-button" disabled={submitting || preparingPhoto}>
             {submitting ? t('common.saving') : t('registerPet.submit')}
           </button>
-          <button type="button" className="cancel-button" onClick={() => navigate('/pets')}>
+          <button type="button" className="cancel-button" onClick={() => navigate(back ? `/${back}` : '/pets')}>
             {t('common.cancel')}
           </button>
         </div>

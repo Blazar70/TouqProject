@@ -5,6 +5,8 @@ begin;
 insert into auth.users (id, email, aud, role) values
   ('f7000000-0000-0000-0000-000000000001', 'rc1@check.local', 'authenticated', 'authenticated');
 insert into clinics (id, name) values ('f7000000-0000-0000-0000-00000000000a', 'Receipt check');
+-- VAT-registered: new clinics start without VAT since 0100.
+update clinics set vat_number = '300000000000003', tax_phase = 'phase1' where id::text like 'f7000000-%';
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f7000000-0000-0000-0000-000000000001', 'vet', 'f7000000-0000-0000-0000-00000000000a', 'R Manager', 'manager');
 insert into owner_files (id, clinic_id, name, phone) values
@@ -22,10 +24,10 @@ begin
 
   perform public.add_owner_balance('f7000000-0000-0000-0000-0000000000c1', 50, 'cash', null, (select id from branches where clinic_id = 'f7000000-0000-0000-0000-00000000000a' and is_main)); -- 0088: entries need a branch;
   perform public.add_owner_balance('f7000000-0000-0000-0000-0000000000c1', 30, 'card', null, (select id from branches where clinic_id = 'f7000000-0000-0000-0000-00000000000a' and is_main));
-  assert (select array_agg(receipt_number order by created_at) from owner_balance_entries
+  assert (select array_agg(receipt_number order by receipt_number) from owner_balance_entries
           where owner_file_id = 'f7000000-0000-0000-0000-0000000000c1')
          = array['DEP-' || v_code || '-000001', 'DEP-' || v_code || '-000002'],
-    'top-ups must get DEP-<code>-000001, -000002';
+    'top-ups must get DEP-<code>-000001, -000002, got ' || (select string_agg(coalesce(receipt_number, 'null'), ',') from owner_balance_entries where owner_file_id = 'f7000000-0000-0000-0000-0000000000c1');
 
 end $$;
 reset role;

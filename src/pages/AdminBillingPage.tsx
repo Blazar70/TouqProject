@@ -13,6 +13,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import Ltr from '../components/Ltr'
 import ClinicPicker from '../components/ClinicPicker'
 import { formatDate, formatIsoDate, formatMoney } from '../lib/format'
+import { searchNorm } from '../lib/search'
 import FormError from '../components/FormError'
 
 type Clinic = Database['public']['Tables']['clinics']['Row']
@@ -59,12 +60,12 @@ function AdminBillingPage() {
   const clinicNameById = useMemo(() => Object.fromEntries(clinics.map((c) => [c.id, c.name])), [clinics])
 
   const filteredPayments = useMemo(() => {
-    const q = billingSearch.trim().toLowerCase()
+    const q = searchNorm(billingSearch.trim())
     if (!q) return payments
-    return payments.filter(
-      (p) => p.status.toLowerCase().includes(q) || (clinicNameById[p.clinic_id] ?? '').toLowerCase().includes(q),
+    return payments.filter((p) =>
+      [p.status, t(`admin.billing.${p.status}` as TranslationKey), clinicNameById[p.clinic_id] ?? ''].some((text) => searchNorm(text).includes(q)),
     )
-  }, [payments, billingSearch, clinicNameById])
+  }, [payments, billingSearch, clinicNameById, t])
 
   async function handleCreatePayment(e: FormEvent) {
     e.preventDefault()
@@ -146,14 +147,15 @@ function AdminBillingPage() {
     if (!ok) return
 
     setDeletingPaymentId(payment.id)
-    if (payment.document_path) {
-      await supabase.storage.from(PAYMENT_DOCUMENTS_BUCKET).remove([payment.document_path])
-    }
     const { error } = await supabase.from('payments').delete().eq('id', payment.id)
     if (error) {
       toast.error(error.message)
       setDeletingPaymentId(null)
       return
+    }
+    // After the row: a leftover file is harmless, a record that lost its only PDF is not (nightly B40).
+    if (payment.document_path) {
+      await supabase.storage.from(PAYMENT_DOCUMENTS_BUCKET).remove([payment.document_path])
     }
     setPayments((current) => current.filter((p) => p.id !== payment.id))
     setDeletingPaymentId(null)
@@ -195,14 +197,19 @@ function AdminBillingPage() {
 
   async function handleViewDocument(payment: Payment) {
     if (!payment.document_path) return
+    // Opened inside the click: Safari blocks a new tab opened after waiting for the link (H65).
+    const tab = window.open('', '_blank')
+    if (tab) tab.opener = null
     const { data, error } = await supabase.storage
       .from(PAYMENT_DOCUMENTS_BUCKET)
       .createSignedUrl(payment.document_path, 60)
     if (error || !data) {
+      tab?.close()
       toast.error(error?.message ?? t('common.couldNotSave'))
       return
     }
-    window.open(data.signedUrl, '_blank', 'noopener')
+    if (tab) tab.location.href = data.signedUrl
+    else window.location.assign(data.signedUrl)
   }
 
   function handleExportPaymentsCsv() {

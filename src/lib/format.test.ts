@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { clinicDay, formatDate, formatDateTime, formatIsoDate, formatMoney, setDisplayLanguage, clinicMidnight } from './format'
+import { clinicDay, dobFromAge, formatDate, formatDateTime, formatIsoDate, formatMoney, setDisplayLanguage, clinicMidnight, upcomingGroup } from './format'
 
 describe('format', () => {
   it('gives the clinic day in Riyadh time, whatever the device zone', () => {
@@ -45,5 +45,26 @@ describe('format', () => {
   })
   it('clinic midnight is 21:00 UTC the day before', () => {
     expect(clinicMidnight('2026-10-23').toISOString()).toBe('2026-10-22T21:00:00.000Z')
+  })
+})
+
+describe('upcomingGroup (H63)', () => {
+  it('splits by clinic day: today, the next 7 days, later', () => {
+    expect(upcomingGroup('2026-11-04T20:59:00Z', '2026-11-04')).toBe('today') // 23:59 in Riyadh
+    expect(upcomingGroup('2026-11-04T21:00:00Z', '2026-11-04')).toBe('week') // 00:00 on the 5th
+    expect(upcomingGroup('2026-11-10T12:00:00Z', '2026-11-04')).toBe('week')
+    expect(upcomingGroup('2026-11-11T12:00:00Z', '2026-11-04')).toBe('later')
+  })
+})
+
+describe('dobFromAge (H59)', () => {
+  it('counts back years and months', () => {
+    expect(dobFromAge(2, 0, '2026-11-04')).toBe('2024-11-04')
+    expect(dobFromAge(0, 11, '2026-11-04')).toBe('2025-12-04')
+    expect(dobFromAge(1, 3, '2026-02-15')).toBe('2024-11-15')
+  })
+  it('clamps to the end of a shorter month', () => {
+    expect(dobFromAge(0, 1, '2026-03-31')).toBe('2026-02-28')
+    expect(dobFromAge(2, 1, '2026-03-31')).toBe('2024-02-29')
   })
 })

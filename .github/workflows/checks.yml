@@ -17,11 +17,9 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npm run lint
-      # Placeholder values: lib/supabase.ts throws without them, so tests importing it and the build would break (HANDOFF §8).
+      # No Supabase settings on purpose: unit tests must not need them.
       - run: npx vitest run
-        env:
-          VITE_SUPABASE_URL: https://placeholder.supabase.co
-          VITE_SUPABASE_ANON_KEY: placeholder
+      # Placeholder values: lib/supabase.ts throws without them and the bundle would be broken (HANDOFF §8).
       - run: npm run build
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co

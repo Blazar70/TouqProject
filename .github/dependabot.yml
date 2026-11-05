@@ -1,0 +1,22 @@
+# Weekly update PRs, grouped into one, and only for versions at least 7 days old so a poisoned release is usually pulled first.
+# Security updates ignore the cooldown and come at once.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      npm:
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ['*']

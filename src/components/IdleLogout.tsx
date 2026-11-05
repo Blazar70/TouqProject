@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { IDLE_LIMIT_DIRTY_MS, IDLE_LIMIT_MS, LAST_ACTIVE_KEY, LOCKED_KEY, idleGuards, idleState } from '../lib/idleLogout'
 import FormError from './FormError'
 import { friendlyErrorKey } from '../lib/friendlyError'
-import { formatTime } from '../lib/format'
+import { clinicDay, formatDateTime, formatTime } from '../lib/format'
 
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const
 
@@ -135,7 +135,7 @@ function IdleLogout() {
         <form className="lock-card pet-form" onSubmit={handleUnlock}>
           <h2 id="lock-title">{t('idle.lockedTitle')}</h2>
           <p className="pet-owner">{t('idle.lockedHint', { name: profile?.full_name ?? '' })}</p>
-          <p className="pet-owner">{t('idle.lastUsed', { time: formatTime(new Date(lastUsed)) })}</p>
+          <p className="pet-owner">{t('idle.lastUsed', { time: clinicDay(new Date(lastUsed)) === clinicDay() ? formatTime(new Date(lastUsed)) : formatDateTime(new Date(lastUsed)) })}</p>
           <FormError message={error} />
           <label>
             {t('auth.password')}

@@ -27,6 +27,7 @@ Most journeys SAVE data on the demo clinic "Al Nakheel"; that data is wiped in t
 | `pages.cjs <user> <passKey> <ar\|en> <light\|dark> <w> <h> <label> [admin]` | every route: console errors, sideways scroll, wrong-language text, tap targets < 24 px, unlabeled fields | no |
 | `forms.cjs <user> <passKey> <w> <h> <label>` | opens each pop-up/form: labels, focus moves in, Escape closes | no |
 | `j1-visit.cjs` → `j1b-bill-visit.cjs <appointmentId>` | book → confirm → arrived → doctor session → finish → add service → bill → paid | yes |
+| `j22-nightly-1104.cjs` | 11-04 fixes: photos checked at pick time, failed profile screen, staff list groups, billing delete + PDF + Arabic search, free times, register from booking, age, Arabic purge confirm | yes (throwaway clinic purged; a pet + a cancelled visit stay) |
 | `j2-stay.cjs [resume\|bill]` | admit → nurse update (Arabic digits) → discharge → bill the stay | yes |
 | `j3-credit.cjs` | fully credit MAIN-000017 → not on Unpaid, "Bill this visit" back (B22) | yes |
 | `j4-waiver-cash-staff.cjs [cash]` | waiver signed in owner view · cash count · manager adds staff | yes |

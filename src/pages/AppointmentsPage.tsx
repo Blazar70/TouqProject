@@ -80,6 +80,7 @@ localizer.merge = (date: Date, time: Date) =>
   dayjs.tz(`${dayjs.tz(date).format('YYYY-MM-DD')} ${dayjs.tz(time).format('HH:mm:ss')}`, CLINIC_TZ).toDate()
 const APPOINTMENT_SELECT = '*, pets(name, owner_name, owner_phone, pet_number, microchip), doctor:profiles!appointments_doctor_fkey(full_name), invoice:invoices!invoices_appointment_id_fkey(id, invoice_number, payment_status), starter:profiles!appointments_started_by_fkey(clinic_role), billed'
 const UNASSIGNED = 'unassigned'
+const BOOKING_DRAFT_KEY = 'touq.bookingDraft'
 // shortcut: appointments have no duration column yet, so every block is 30 min; add appointments.duration_minutes (design doc phase 5).
 const SLOT_MS = 30 * 60_000
 // shortcut: search scans the latest 500 appointments in the browser; move to a server-side search when a clinic outgrows that.
@@ -199,9 +200,22 @@ function AppointmentsPage() {
   // Booking form is a pop-up: "New appointment" or a slot click opens it (no scrolling to a form under the calendar).
   const [bookingOpen, setBookingOpen] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
+  // Set once the doctor list is in: before that the check below would drop the doctor as "not at this branch".
+  const draftDoctorId = useRef('')
 
   // A slot click only fills date/time/doctor (one click to redo); warn for what was typed or picked by hand.
-  useUnsavedChangesWarning(Boolean(petId || reason.trim()) || (selected !== null && panelMode !== 'details'))
+  // Off while leaving to register a pet: what was typed is kept in the draft (H54).
+  const [leavingTo, setLeavingTo] = useState<string | null>(null)
+  useUnsavedChangesWarning(!leavingTo && (Boolean(petId || reason.trim()) || (selected !== null && panelMode !== 'details')))
+
+  useEffect(() => {
+    if (leavingTo) navigate(leavingTo)
+  }, [leavingTo, navigate])
+  useEffect(() => {
+    if (!draftDoctorId.current || staff.length === 0) return
+    setDoctorId(draftDoctorId.current)
+    draftDoctorId.current = ''
+  }, [staff])
 
   const { start: rangeStart, end: rangeEnd } = visibleRange(date, view)
   // Same object until the date changes: MiniMonth resets its shown month whenever its value changes.
@@ -309,6 +323,7 @@ function AppointmentsPage() {
   useEffect(() => {
     if (!bookPetId || !isVet) return
     setPetId(bookPetId)
+    if (searchParams.get('draft')) restoreBookingDraft()
     openBooking()
     setSearchParams({}, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -532,6 +547,32 @@ function AppointmentsPage() {
     setScheduledPeriod(fields.period)
     if (resourceId && bookingStaff.some((s) => s.id === resourceId)) setDoctorId(String(resourceId))
     openBooking()
+  }
+
+  // "Register new pet" from the booking (H54): the form comes back as it was, with the new pet picked.
+  function leaveToRegister(href: string) {
+    try {
+      sessionStorage.setItem(BOOKING_DRAFT_KEY, JSON.stringify({ scheduledDate, scheduledHour, scheduledMinute, scheduledPeriod, reason, doctorId }))
+    } catch {
+      // Private mode: the pet still registers and comes back, only the date and doctor need picking again.
+    }
+    setLeavingTo(href)
+  }
+
+  function restoreBookingDraft() {
+    try {
+      const draft = JSON.parse(sessionStorage.getItem(BOOKING_DRAFT_KEY) ?? 'null')
+      sessionStorage.removeItem(BOOKING_DRAFT_KEY)
+      if (!draft) return
+      setScheduledDate(draft.scheduledDate)
+      setScheduledHour(draft.scheduledHour)
+      setScheduledMinute(draft.scheduledMinute)
+      setScheduledPeriod(draft.scheduledPeriod)
+      setReason(draft.reason)
+      draftDoctorId.current = draft.doctorId
+    } catch {
+      // Unreadable draft: an empty form with the new pet picked is fine.
+    }
   }
 
   function openBooking() {
@@ -1252,7 +1293,7 @@ function AppointmentsPage() {
           <label>
             {t('appointments.pet')}
             <RequiredMark />
-            <PetPicker pet={bookingPet} value={petId} onChange={setPetId} compact />
+            <PetPicker pet={bookingPet} value={petId} onChange={setPetId} compact registerBack="appointments" onRegisterNew={leaveToRegister} />
           </label>
           {bookingPet && <BookingPetInfo pet={bookingPet} />}
           <label>

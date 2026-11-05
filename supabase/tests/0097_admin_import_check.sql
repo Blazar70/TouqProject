@@ -35,7 +35,7 @@ begin
     {"owner_name": "Old owner", "owner_phone": "+966501111111", "pet_name": "Rex", "species": "Dog"},
     {"owner_name": "No phone", "pet_name": "Kiwi", "species": "Bird"}
   ]');
-  assert v = '{"pets": 4, "new_owners": 2, "matched_owners": 1}'::jsonb, 'counts: ' || v::text;
+  assert v - 'skipped_rows' = '{"pets": 4, "new_owners": 2, "matched_owners": 1, "skipped": 0}'::jsonb, 'counts: ' || v::text;
   assert (select count(*) from pets where owner_file_id = 'f9700000-0000-0000-0000-0000000000f1') = 1, 'Rex joins the existing owner';
   assert (select owner_name from pets where name = 'Rex' and clinic_id = 'f9700000-0000-0000-0000-00000000000a') = 'Already here', 'pet takes the owner file name';
   assert (select count(distinct owner_file_id) from pets where name in ('Milo', 'Luna') and clinic_id = 'f9700000-0000-0000-0000-00000000000a') = 1, 'one owner for both cats';

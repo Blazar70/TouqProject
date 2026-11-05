@@ -14,7 +14,7 @@ import { idleGuards } from '../lib/idleLogout'
 import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit, toPrescription } from '../lib/clinicalFields'
 import type { PrescriptionLine, RecordColumns, RecordEdit } from '../lib/clinicalFields'
 import { canWorkSession } from '../lib/appointmentStatus'
-import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
+import { IMAGE_ERROR_KEYS, prepareImage, uploadPhoto } from '../lib/imageUpload'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import { useUnsavedChangesWarning } from '../lib/useUnsavedChangesWarning'
@@ -71,13 +71,17 @@ function SessionPage() {
   const setField = (field: keyof RecordEdit, value: string) => setForm((f) => ({ ...f, [field]: value }))
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null)
+  const [preparingPhoto, setPreparingPhoto] = useState(false)
+  // The upload failed but the visit saved (H60): the photo stays picked; autosave leaves it alone until Save, a new photo or the connection returning.
+  const [photoFailed, setPhotoFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [lastPrescription, setLastPrescription] = useState<PrescriptionLine[]>([])
   const [autosaving, setAutosaving] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
 
-  const dirty = Boolean(photoFile) || JSON.stringify(form) !== JSON.stringify(recordToEdit(record))
+  const formDirty = JSON.stringify(form) !== JSON.stringify(recordToEdit(record))
+  const dirty = Boolean(photoFile) || formDirty
   useUnsavedChangesWarning(dirty && !done)
   // An idle sign-out saves the half-written record first instead of losing it (nightly B25).
   const saveRef = useRef<() => Promise<unknown>>(async () => {})
@@ -96,19 +100,22 @@ function SessionPage() {
   // A save that failed offline only retried on the next edit: the connection coming back retries it too.
   const [backOnline, setBackOnline] = useState(0)
   useEffect(() => {
-    const handleOnline = () => setBackOnline((n) => n + 1)
+    const handleOnline = () => {
+      setBackOnline((n) => n + 1)
+      setPhotoFailed(false)
+    }
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
   }, [])
   useEffect(() => {
-    if (!dirty || done || saving || autosaving || !vitals.ok || !appointment) return
+    if (!(formDirty || (photoFile && !photoFailed)) || done || saving || autosaving || !vitals.ok || !appointment) return
     const timer = window.setTimeout(async () => {
       setAutosaving(true)
       await saveRef.current()
       setAutosaving(false)
     }, 5000)
     return () => window.clearTimeout(timer)
-  }, [form, photoFile, dirty, done, saving, autosaving, vitals.ok, appointment, backOnline])
+  }, [form, photoFile, photoFailed, formDirty, done, saving, autosaving, vitals.ok, appointment, backOnline])
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000)
@@ -176,13 +183,16 @@ function SessionPage() {
   }, [photoPreviewUrl])
 
   const processPhotoFile = useCallback(
-    (file: File) => {
-      const validationError = validateImageFile(file)
-      if (validationError) {
-        setError(validationError === 'notImage' ? t('petDetail.imageOnly') : t('petDetail.imageTooLarge'))
+    async (picked: File) => {
+      setPreparingPhoto(true)
+      const { file, error: photoError } = await prepareImage(picked)
+      setPreparingPhoto(false)
+      if (photoError) {
+        setError(t(IMAGE_ERROR_KEYS[photoError]))
         return
       }
       setError(null)
+      setPhotoFailed(false)
       setPhotoPreviewUrl(URL.createObjectURL(file))
       setPhotoFile(file)
     },
@@ -202,7 +212,7 @@ function SessionPage() {
   // overwrite each other's work; returns the merged record.
   // shortcut: no live sync; each person sees the other's changes on their next save or reload. Add realtime if that bites.
   saveRef.current = () => saveRecord()
-  async function saveRecord(): Promise<MedicalRecord | null> {
+  async function saveRecord(tryPhoto = !photoFailed): Promise<MedicalRecord | null> {
     if (!appointment || !profile?.clinic_id) return null
     const vitalsResult = parseVitals(form)
     if (!vitalsResult.ok) {
@@ -243,16 +253,18 @@ function SessionPage() {
     }
     let result = saved
     // The record is saved at this point; a failed photo upload is worth surfacing but doesn't undo it.
-    if (photoFile) {
+    if (photoFile && tryPhoto) {
       const upload = await uploadPhoto(`${profile.clinic_id}/records/${saved.id}`, photoFile)
       if (upload.error !== null) {
-        toast.error(t('common.couldNotSavePhoto'))
+        setPhotoFailed(true)
+        toast.error(t('session.photoNotSaved'))
       } else {
         const { data: withPhoto } = await supabase.from('medical_records').update({ photo_url: upload.path }).eq('id', saved.id).select().single()
         if (withPhoto) result = withPhoto
+        setPhotoFailed(false)
+        setPhotoFile(null)
+        setPhotoPreviewUrl(null)
       }
-      setPhotoFile(null)
-      setPhotoPreviewUrl(null)
     }
     setRecord(result)
     // Typing that arrived while this was saving stays (and is saved next time).
@@ -264,7 +276,7 @@ function SessionPage() {
   async function handleSave() {
     setError(null)
     setSaving(true)
-    if (await saveRecord()) toast.success(t('petDetail.recordSaved'))
+    if (await saveRecord(true)) toast.success(t('petDetail.recordSaved'))
     setSaving(false)
   }
 
@@ -285,7 +297,7 @@ function SessionPage() {
 
     // Record first, then the status: a completed appointment never lacks its record.
     setSaving(true)
-    if (!(await saveRecord())) {
+    if (!(await saveRecord(true))) {
       setSaving(false)
       return
     }
@@ -393,6 +405,7 @@ function SessionPage() {
           </select>
         </label>
         <TemplatePicker form={form} onApply={setForm} />
+        <p className="pet-owner touch-only">{t('session.dictateTip')}</p>
         <label>
           {t('clinical.presentingComplaint')}
           <textarea value={form.complaint} onChange={(e) => setField('complaint', e.target.value)} rows={2} />
@@ -455,7 +468,9 @@ function SessionPage() {
                 <input type="file" accept="image/*" onChange={handlePhotoChange} />
               </label>
             </div>
-            <p className="pet-owner">{t('petDetail.pastePhotoHint')}</p>
+            <p className="pet-owner" role="status">
+              {preparingPhoto ? t('common.preparingPhoto') : photoFailed ? t('session.photoRetryHint') : t('petDetail.pastePhotoHint')}
+            </p>
           </div>
         </div>
         <p className="pet-owner autosave-status" role="status">
@@ -468,11 +483,11 @@ function SessionPage() {
                 : ''}
         </p>
         <div className="record-edit-actions">
-          <button type="submit" className="primary-button" disabled={saving}>
+          <button type="submit" className="primary-button" disabled={saving || preparingPhoto}>
             {saving ? t('common.saving') : t('session.finish')}
           </button>
           {/* Saves without finishing, so the other clinician in the session sees it. */}
-          <button type="button" className="secondary-button" onClick={handleSave} disabled={saving}>
+          <button type="button" className="secondary-button" onClick={handleSave} disabled={saving || preparingPhoto}>
             {t('common.save')}
           </button>
           <button type="button" className="cancel-button" onClick={() => navigate('/appointments')}>

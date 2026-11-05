@@ -32,7 +32,7 @@ const BLOCK_MS = 30 * 60_000
 
 // H49: the doctor's free 30-minute starts on `day`, from now on: not overlapping a booking (all blocks are 30 min)
 // and not in time off. `booked` = scheduled_at of the doctor's non-cancelled appointments that day.
-export function freeSlots(day: string, doctorId: string, booked: string[], away: AwayPeriod[], now = Date.now(), limit = 8) {
+export function freeSlots(day: string, doctorId: string, booked: string[], away: AwayPeriod[], now = Date.now(), limit = FREE_SLOTS) {
   const taken = booked.map((at) => new Date(at).getTime())
   const first = new Date(clinicTimeToIso(day, FREE_FROM)).getTime()
   const free: string[] = []
@@ -43,4 +43,12 @@ export function freeSlots(day: string, doctorId: string, booked: string[], away:
     if (!isAway(away, doctorId, iso)) free.push(iso)
   }
   return free
+}
+
+export type SlotPeriod = 'morning' | 'afternoon' | 'evening'
+
+// Part of the clinic's day a free time falls in (H53).
+export function slotPeriod(iso: string): SlotPeriod {
+  const hour = Number(isoToClinicFields(iso).time.slice(0, 2))
+  return hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'
 }

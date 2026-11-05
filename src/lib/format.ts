@@ -44,3 +44,20 @@ export const formatMoney =(amount: number) =>
 
 // Calendar locale (dayjs): Arabic month/day names with Latin digits, weeks from Sunday.
 export const calendarCulture = (language: string) => (language === 'ar' ? 'ar-sa' : 'en')
+
+// Which heading an upcoming appointment goes under on the Staff page (H63); `today` is a clinicDay().
+export function upcomingGroup(iso: string, today: string): 'today' | 'week' | 'later' {
+  const day = clinicDay(iso)
+  if (day <= today) return 'today'
+  return day < clinicDay(new Date(clinicMidnight(today).getTime() + 7 * 86_400_000)) ? 'week' : 'later'
+}
+
+// "About 2 years 3 months old" as a birth date (H59); a shorter month clamps instead of spilling into the next.
+export function dobFromAge(years: number, months: number, today = clinicDay()) {
+  const [y, m, d] = today.split('-').map(Number)
+  const total = y * 12 + (m - 1) - years * 12 - months
+  const year = Math.floor(total / 12)
+  const month = total - year * 12
+  const day = Math.min(d, new Date(Date.UTC(year, month + 1, 0)).getUTCDate())
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}

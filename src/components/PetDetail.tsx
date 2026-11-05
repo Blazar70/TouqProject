@@ -11,7 +11,8 @@ import type { Database } from '../lib/database.types'
 import { VISIT_TYPES, visitTypeLabel } from '../lib/visitTypes'
 import { editToRecord, isDoctorOnlyField, parseVitals, recordToEdit, toPrescription, visitRecordFields } from '../lib/clinicalFields'
 import type { RecordColumns, RecordEdit } from '../lib/clinicalFields'
-import { uploadPhoto, validateImageFile } from '../lib/imageUpload'
+import { IMAGE_ERROR_KEYS, prepareImage, uploadPhoto } from '../lib/imageUpload'
+import DateOfBirthField from './DateOfBirthField'
 import { usePasteImage } from '../lib/usePasteImage'
 import { useDropImage } from '../lib/useDropImage'
 import SpeciesSelect from './SpeciesSelect'
@@ -180,17 +181,18 @@ function PetDetail({
   }
 
   const processPhotoFile = useCallback(
-    async (file: File) => {
+    async (picked: File) => {
       if (!profile?.clinic_id) return
-
-      const validationError = validateImageFile(file)
-      if (validationError) {
-        setPetError(validationError === 'notImage' ? t('petDetail.imageOnly') : t('petDetail.imageTooLarge'))
-        return
-      }
 
       setPetError(null)
       setUploadingPhoto(true)
+
+      const { file, error: photoError } = await prepareImage(picked)
+      if (photoError) {
+        setPetError(t(IMAGE_ERROR_KEYS[photoError]))
+        setUploadingPhoto(false)
+        return
+      }
 
       const upload = await uploadPhoto(`${profile.clinic_id}/${pet.id}`, file)
 
@@ -653,6 +655,8 @@ function PetDetail({
                 {t('pets.microchip')}
                 <input
                   dir="ltr"
+                  inputMode="numeric"
+                  enterKeyHint="next"
                   value={microchip}
                   onChange={(e) => setMicrochip(cleanMicrochip(e.target.value))}
                   pattern={MICROCHIP_PATTERN}
@@ -662,10 +666,7 @@ function PetDetail({
                 <span className="pet-owner">{t('pets.microchipHint')}</span>
                 <MicrochipTaken microchip={microchip} petId={pet.id} />
               </label>
-              <label>
-                {t('registerPet.dateOfBirth')}
-                <input type="date" dir="ltr" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
-              </label>
+              <DateOfBirthField value={dateOfBirth} onChange={setDateOfBirth} />
               <div className="record-edit-actions">
                 <button type="submit" disabled={savingPet}>
                   {savingPet ? t('common.saving') : t('common.saveChanges')}

@@ -29,7 +29,7 @@ import BranchPicker from './components/BranchPicker'
 import './App.css'
 
 function App() {
-  const { session, profile, clinicName, clinicDisabled, handlesMoney, loading, passwordRecovery, mfaStep } = useAuth()
+  const { session, profile, clinicName, clinicDisabled, handlesMoney, profileFailed, retryProfile, loading, passwordRecovery, mfaStep } = useAuth()
   const { t } = useLanguage()
   const branch = useBranch()
 
@@ -42,6 +42,26 @@ function App() {
   if (loading || branch.loading) return <LoadingScreen />
 
   if (!session) return <LoginPage />
+
+  // Without a profile the app would open with no role and no menus, as if the account had lost its rights.
+  if (profileFailed) {
+    return (
+      <div className="app">
+        <main className="app-main">
+          <h1>{t('auth.profileFailedTitle')}</h1>
+          <p>{t('auth.profileFailedBody')}</p>
+          <div className="record-edit-actions profile-failed-actions">
+            <button type="button" className="primary-button" onClick={retryProfile}>
+              {t('auth.profileRetry')}
+            </button>
+            <button type="button" className="secondary-button" onClick={signOutThisDevice}>
+              {t('nav.logout')}
+            </button>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   // Before the profile opens: admins and managers must use a code (0095), others only if they turned it on.
   if (mfaStep) return <MfaPage step={mfaStep} />

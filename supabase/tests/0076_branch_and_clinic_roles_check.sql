@@ -151,7 +151,7 @@ begin
   begin
     update clinics set max_staff_discount_percent = 50 where id = 'f7600000-0000-0000-0000-00000000000a';
     assert false, 'branch manager cap change must be refused';
-  exception when sqlstate 'P0001' then assert sqlerrm = 'Only a whole-clinic manager can change the VAT number or discount limit', sqlerrm;
+  exception when sqlstate 'P0001' then assert sqlerrm = 'Only a whole-clinic manager can change the discount limit', sqlerrm;
   end;
   begin
     update appointments set status = 'requested' where id = 'f7600000-0000-0000-0000-0000000000a2';
@@ -163,11 +163,16 @@ begin
   assert current_setting('touq.branch_write_free', true) = 'off', 'time off must close the bypass';
 end $$;
 
--- Whole-clinic manager: writes everywhere, sets VAT/cap.
+-- Whole-clinic manager: writes everywhere, sets the cap; the VAT number is the admin's since 0100.
 select set_config('request.jwt.claims', json_build_object('sub', 'f7600000-0000-0000-0000-000000000004', 'role', 'authenticated')::text, true);
 do $$
 begin
-  update clinics set vat_number = '300000000000003', max_staff_discount_percent = 20 where id = 'f7600000-0000-0000-0000-00000000000a';
+  update clinics set max_staff_discount_percent = 20 where id = 'f7600000-0000-0000-0000-00000000000a';
+  begin
+    update clinics set vat_number = '300000000000003' where id = 'f7600000-0000-0000-0000-00000000000a';
+    assert false, 'a manager must not set the VAT number';
+  exception when raise_exception then assert sqlerrm = 'only an admin may change this clinic setting', sqlerrm;
+  end;
   update appointments set status = 'requested' where id = 'f7600000-0000-0000-0000-0000000000a1';
   insert into appointments (pet_id, clinic_id, created_by, scheduled_at, status, branch_id) values
     ('f7600000-0000-0000-0000-0000000000c1', 'f7600000-0000-0000-0000-00000000000a', 'f7600000-0000-0000-0000-000000000004', now() + interval '4 days', 'requested', current_setting('check.north')::uuid);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clinicTimeToIso, freeSlots, isAway, isoToClinicFields } from './timeOff'
+import { clinicTimeToIso, freeSlots, isAway, isoToClinicFields, slotPeriod } from './timeOff'
 
 describe('timeOff', () => {
   it('reads inputs as Riyadh time', () => {
@@ -32,5 +32,19 @@ describe('freeSlots (H49)', () => {
   it('starts after now on the same day, and away periods of other doctors do not count', () => {
     const away = [{ doctor_id: 'd2', starts_at: at('00:00'), ends_at: at('23:59') }]
     expect(freeSlots('2026-11-03', 'd1', [], away, new Date(at('20:40')).getTime())).toEqual([at('21:00'), at('21:30')])
+  })
+})
+
+describe('free times over the whole day (H53)', () => {
+  it('reaches the evening on an empty day', () => {
+    const slots = freeSlots('2026-11-03', 'd1', [], [], new Date('2026-11-03T00:00:00+03:00').getTime())
+    expect(slots).toHaveLength(28)
+    expect(slots.at(-1)).toBe(clinicTimeToIso('2026-11-03', '21:30'))
+  })
+  it('sorts times into parts of the clinic day', () => {
+    expect(slotPeriod(clinicTimeToIso('2026-11-03', '11:30'))).toBe('morning')
+    expect(slotPeriod(clinicTimeToIso('2026-11-03', '12:00'))).toBe('afternoon')
+    expect(slotPeriod(clinicTimeToIso('2026-11-03', '16:30'))).toBe('afternoon')
+    expect(slotPeriod(clinicTimeToIso('2026-11-03', '17:00'))).toBe('evening')
   })
 })

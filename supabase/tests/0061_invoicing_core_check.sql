@@ -12,6 +12,8 @@ insert into auth.users (id, email, aud, role) values
 insert into clinics (id, name) values
   ('f6100000-0000-0000-0000-00000000000a', 'Invoice check A'),
   ('f6100000-0000-0000-0000-00000000000b', 'Invoice check B');
+-- VAT-registered: new clinics start without VAT since 0100.
+update clinics set vat_number = '300000000000003', tax_phase = 'phase1' where id::text like 'f6100000-%';
 insert into profiles (id, role, clinic_id, full_name, clinic_role) values
   ('f6100000-0000-0000-0000-000000000001', 'vet', 'f6100000-0000-0000-0000-00000000000a', 'A Manager', 'manager'),
   ('f6100000-0000-0000-0000-000000000002', 'vet', 'f6100000-0000-0000-0000-00000000000a', 'A Reception', 'receptionist'),
@@ -85,7 +87,7 @@ begin
   exception when raise_exception then null;
   end;
   begin
-    update clinics set vat_number = '300000000000003' where id = 'f6100000-0000-0000-0000-00000000000a';
+    update clinics set vat_number = '310123456700003' where id = 'f6100000-0000-0000-0000-00000000000a';
     assert false, 'receptionist set the VAT number';
   exception when raise_exception then null;
   end;
@@ -109,7 +111,7 @@ begin
   end;
 end $$;
 
--- Manager: any discount; sets VAT number and limit.
+-- Manager: any discount; sets the limit (the VAT number is the admin's since 0100).
 select set_config('request.jwt.claims', json_build_object('sub', 'f6100000-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
 do $$
 declare
@@ -180,14 +182,23 @@ begin
   perform public.add_invoice_payment(v_id, 'cash', 50);
   assert (select payment_status from invoices where id = v_id) = 'paid', 'remaining after credit wrong';
 
-  -- Manager sets the billing settings; bad VAT numbers refused.
-  update clinics set vat_number = '310123456700003', max_staff_discount_percent = 20 where id = 'f6100000-0000-0000-0000-00000000000a';
+  update clinics set max_staff_discount_percent = 20 where id = 'f6100000-0000-0000-0000-00000000000a';
   begin
-    update clinics set vat_number = '123' where id = 'f6100000-0000-0000-0000-00000000000a';
-    assert false, 'bad VAT number accepted';
-  exception when check_violation then null;
+    update clinics set vat_number = '310123456700003' where id = 'f6100000-0000-0000-0000-00000000000a';
+    assert false, 'a manager must not set the VAT number';
+  exception when raise_exception then null;
   end;
 end $$;
+
+-- Bad VAT numbers refused, whoever sets them.
+reset role;
+select set_config('request.jwt.claims', '', true);
+do $$ begin
+  update clinics set vat_number = '123' where id = 'f6100000-0000-0000-0000-00000000000a';
+  assert false, 'bad VAT number accepted';
+exception when check_violation then null;
+end $$;
+set local role authenticated;
 
 -- The receptionist's limit follows the setting (now 20%).
 select set_config('request.jwt.claims', json_build_object('sub', 'f6100000-0000-0000-0000-000000000002', 'role', 'authenticated')::text, true);

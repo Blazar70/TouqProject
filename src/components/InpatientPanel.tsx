@@ -10,7 +10,7 @@ import { useConfirm } from '../lib/ConfirmContext'
 import { useToast } from '../lib/ToastContext'
 import type { Database } from '../lib/database.types'
 import { formatDate, formatDateTime, formatTime } from '../lib/format'
-import { shrinkImage, validateImageFile } from '../lib/imageUpload'
+import { IMAGE_ERROR_KEYS, prepareImage } from '../lib/imageUpload'
 import { toLatinDigits } from '../lib/arabicDigits'
 import { INPATIENT_MEDIA_BUCKET, MAX_VIDEO_BYTES, inpatientMessage, isVideo, stayDay, stayNights } from '../lib/inpatient'
 import Ltr from './Ltr'
@@ -65,6 +65,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
+  const [preparing, setPreparing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const open = stays?.find((s) => !s.discharged_at) ?? null
@@ -138,19 +139,26 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     load()
   }
 
-  function handleFiles(e: ChangeEvent<HTMLInputElement>) {
-    const picked = [...(e.target.files ?? [])]
+  async function handleFiles(e: ChangeEvent<HTMLInputElement>) {
+    const input = e.target
+    const picked = [...(input.files ?? [])]
+    const ready: File[] = []
+    setError(null)
+    setFiles([])
+    setPreparing(true)
     for (const file of picked) {
       const video = file.type.startsWith('video/')
-      const problem = video ? (file.size > MAX_VIDEO_BYTES ? 'tooLarge' : null) : validateImageFile(file)
-      if (problem) {
-        setError(t(video ? 'inpatient.videoTooLarge' : problem === 'tooLarge' ? 'petDetail.imageTooLarge' : 'petDetail.imageOnly'))
-        e.target.value = ''
+      const prepared = video ? { file, error: null } : await prepareImage(file)
+      if (prepared.error || (video && file.size > MAX_VIDEO_BYTES)) {
+        setError(t(prepared.error ? IMAGE_ERROR_KEYS[prepared.error] : 'inpatient.videoTooLarge'))
+        input.value = ''
+        setPreparing(false)
         return
       }
+      ready.push(prepared.file)
     }
-    setError(null)
-    setFiles(picked)
+    setPreparing(false)
+    setFiles(ready)
   }
 
   async function handleAddUpdate(e: FormEvent) {
@@ -160,8 +168,7 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
     setBusy(true)
     setError(null)
     const uploaded: string[] = []
-    for (const picked of files) {
-      const file = picked.type.startsWith('video/') ? picked : await shrinkImage(picked)
+    for (const file of files) {
       const path = `${profile.clinic_id}/${pet.id}/${open.id}/${crypto.randomUUID()}.${file.name.split('.').pop() || 'jpg'}`
       const { error: upError } = await supabase.storage.from(INPATIENT_MEDIA_BUCKET).upload(path, file, { contentType: file.type })
       if (upError) {
@@ -398,9 +405,10 @@ function InpatientPanel({ pet, onOpenStayChange }: { pet: Pet; onOpenStayChange?
           <label>
             {t('inpatient.media')}
             <input type="file" accept="image/*,video/*" multiple onChange={handleFiles} />
+            {preparing && <span className="pet-owner" role="status">{t('common.preparingPhoto')}</span>}
           </label>
           <div className="record-edit-actions">
-            <button type="submit" disabled={busy || (!draft.note.trim() && !draft.temp && !draft.heartRate && !draft.weight && files.length === 0)}>
+            <button type="submit" disabled={busy || preparing || (!draft.note.trim() && !draft.temp && !draft.heartRate && !draft.weight && files.length === 0)}>
               {busy ? t('common.saving') : t('inpatient.addUpdate', { branch: branchName(branchId) })}
             </button>
           </div>
