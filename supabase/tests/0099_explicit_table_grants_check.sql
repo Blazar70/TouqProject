@@ -7,7 +7,9 @@ begin;
 create temp table before_grants as
 select table_name, grantee, privilege_type from information_schema.role_table_grants
 where table_schema = 'public' and grantee in ('authenticated', 'service_role') and privilege_type in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
-  and table_name in (select tablename from pg_tables where schemaname = 'public');
+  and table_name in (select tablename from pg_tables where schemaname = 'public')
+  -- Newer tables grant themselves in their own migration, so 0099 can't bring them back. Add each new table here.
+  and table_name not in ('diagnosis_terms');
 
 do $$
 declare
