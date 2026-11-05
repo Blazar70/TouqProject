@@ -4249,11 +4249,11 @@ button.cancel-button:disabled,
 }
 
 .data-r-visits {
-  --data-cols: 7rem minmax(0, 1fr) 5rem minmax(0, 1fr) 9rem minmax(0, 1fr) minmax(0, 0.8fr) 8rem;
+  --data-cols: 7rem minmax(0, 1fr) 5rem minmax(0, 1fr) 9rem minmax(0, 1fr) minmax(0, 0.8fr) 9rem;
 }
 
 .data-r-bills {
-  --data-cols: 7rem 9rem minmax(0, 1fr) 5rem minmax(0, 1fr) 9rem 7rem 7rem 7rem;
+  --data-cols: 6.5rem 8rem minmax(0, 1fr) 4rem minmax(0, 1fr) 8.5rem 5.5rem 5.5rem 5.5rem;
 }
 
 .data-r-services {
@@ -4310,6 +4310,39 @@ button.cancel-button:disabled,
   .data-table .data-row .record-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
+  }
+}
+
+/* The Unpaid report's 8 and 9 columns don't fit beside the sidebar on a laptop: stack them like a tablet. */
+@media (max-width: 1399.98px) {
+  .data-r-visits .data-head,
+  .data-r-bills .data-head {
+    display: none;
+  }
+
+  .data-table.data-r-visits .data-row,
+  .data-table.data-r-bills .data-row {
+    display: flex;
+  }
+
+  .data-r-visits .data-label,
+  .data-r-bills .data-label {
+    display: inline;
+  }
+}
+
+/* Same for the Daily cash-up table, whose 7 columns run out of room sooner than this. */
+@media (max-width: 1279.98px) {
+  .data-r-cash .data-head {
+    display: none;
+  }
+
+  .data-table.data-r-cash .data-row {
+    display: flex;
+  }
+
+  .data-r-cash .data-label {
+    display: inline;
   }
 }
 

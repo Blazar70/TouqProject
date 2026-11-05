@@ -156,7 +156,7 @@ function ReportsPage() {
             cls: 'data-r-visits',
             head: [t('payments.date'), t('list.pet'), t('pets.petId'), t('list.owner'), t('common.phone'), t('reports.doctor'), t('print.branch'), t('reports.servicesTotal')],
             kinds: ['text', 'text', 'ltr', 'text', 'ltr', 'text', 'text', 'money'],
-            rows: visits.map((r) => [formatDate(clinicDay(r.at)), r.pet_name, r.pet_number, r.owner_name, r.owner_phone, r.doctor_name, branchName(r.branch_id), r.total]),
+            rows: visits.map((r) => [formatDate(clinicDay(r.at)), r.pet_name, r.pet_number, r.owner_name, r.owner_phone, r.doctor_name, branchName(r.branch_id), r.total === 0 ? t('reports.noCharges') : r.total]),
             foot: visits.length ? [t('reports.total'), '', '', '', '', '', '', sum(visits.map((r) => r.total))] : undefined,
           },
           {
@@ -245,7 +245,7 @@ function ReportsPage() {
   const built = data && data.key === report ? build(data) : null
   const title = t(REPORTS.find((r) => r.key === report)!.label)
   const meta = [`${t('print.branch')}: ${branchLabel}`, report === 'unpaid' ? (unpaidFrom || unpaidTo ? `${unpaidFrom || '…'} – ${unpaidTo || '…'}` : '') : rangeLabel].filter(Boolean)
-  const show = (v: Cell, k: Kind) => (v === null || v === '' ? '' : k === 'money' ? formatMoney(v as number) : String(v))
+  const show = (v: Cell, k: Kind) => (v === null || v === '' ? '' : k === 'money' && typeof v === 'number' ? formatMoney(v) : String(v))
 
   function exportCsv() {
     if (!built) return

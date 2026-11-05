@@ -132,7 +132,11 @@ function ManagerPage() {
             <Link to="/reports" className="stat-tile stat-tile-link">
               <div className="stat-label">{t('manager.unpaid', { currency })}</div>
               <div className="stat-number" dir="ltr">{formatMoney(sum(data.unpaid.map((r) => r.remaining)))}</div>
-              <div className="stat-meta">{t('manager.unpaidCount', { count: String(data.unpaid.length) })}</div>
+              <div className="stat-meta">
+                {t('manager.unpaidCount', { count: String(data.unpaid.filter((r) => r.kind === 'invoice').length) })}
+                {' · '}
+                {t('manager.unbilledCount', { count: String(data.unpaid.filter((r) => r.kind === 'visit').length) })}
+              </div>
             </Link>
             <div className="stat-tile">
               <div className="stat-label">{t('manager.cashOff')}</div>

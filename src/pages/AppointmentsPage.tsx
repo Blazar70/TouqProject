@@ -1167,8 +1167,14 @@ function AppointmentsPage() {
             ))}
             {handlesMoney && (
               <li>
-                <span className="calendar-unpaid">{t('visitServices.unpaid')}</span>
+                <span className="calendar-unpaid">{t('visitServices.notBilled')}</span>
                 {t('visitServices.unpaidLegend')}
+              </li>
+            )}
+            {handlesMoney && (
+              <li>
+                <span className="calendar-unpaid">{t('visitServices.unpaid')}</span>
+                {t('visitServices.billedUnpaidLegend')}
               </li>
             )}
           </ul>
@@ -1244,7 +1250,7 @@ function AppointmentsPage() {
                       <>
                         {' '}
                         <span className="calendar-unpaid">
-                          {t(event.appointment.invoice?.payment_status === 'partly_paid' ? 'payments.statusPartlyPaid' : 'visitServices.unpaid')}
+                          {t(!event.appointment.invoice ? 'visitServices.notBilled' : event.appointment.invoice.payment_status === 'partly_paid' ? 'payments.statusPartlyPaid' : 'visitServices.unpaid')}
                         </span>
                       </>
                     )}
