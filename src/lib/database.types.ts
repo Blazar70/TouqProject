@@ -1771,6 +1771,10 @@ export type Database = {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
         Returns: { branch_id: string; invoiced: number; credited: number; net: number; collected: number }[]
       }
+      auto_close_forgotten_appointments: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       report_top_diagnoses: {
         Args: { p_from: string; p_to: string; p_branch?: string | null }
         Returns: { term_id: string | null; name_en: string | null; name_ar: string | null; visits: number }[]

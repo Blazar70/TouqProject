@@ -47,6 +47,7 @@ export const AUDIT_ACTION_LABEL_KEYS: Record<string, TranslationKey> = {
   owners_pets_imported: 'admin.action.ownersPetsImported',
   profile_updated: 'admin.action.profileUpdated',
   pet_updated: 'admin.action.petUpdated',
+  appointments_auto_closed: 'admin.action.appointmentsAutoClosed',
 }
 
 export function auditActionLabelKey(action: string): TranslationKey | null {

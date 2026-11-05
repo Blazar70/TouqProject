@@ -20,6 +20,16 @@ describe('CANCELLATION_CATEGORIES', () => {
     expect(cancellationCategoryLabel(t, 'rescheduled')).toBe('translated:cancellation.rescheduled')
     expect(groupCancellationCounts(['rescheduled'])).toEqual([{ category: 'rescheduled', count: 1 }])
   })
+
+  it('never offers the nightly job\'s "auto_closed" but labels and counts it apart from no-shows', () => {
+    const t = (key: string) => `translated:${key}`
+    expect(CANCELLATION_CATEGORIES).not.toContain('auto_closed')
+    expect(cancellationCategoryLabel(t, 'auto_closed')).toBe('translated:cancellation.autoClosed')
+    expect(groupCancellationCounts(['auto_closed', 'no_show'])).toEqual([
+      { category: 'no_show', count: 1 },
+      { category: 'auto_closed', count: 1 },
+    ])
+  })
 })
 
 describe('groupCancellationCounts', () => {

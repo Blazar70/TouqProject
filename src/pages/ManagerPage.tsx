@@ -6,7 +6,8 @@ import { useBranch, useBranchView } from '../lib/BranchContext'
 import { ALL_BRANCHES } from '../lib/branchChoice'
 import { useLanguage } from '../lib/i18n/LanguageContext'
 import type { Database } from '../lib/database.types'
-import { clinicDay, clinicMidnight, formatDate, formatMoney } from '../lib/format'
+import { clinicDay, clinicMidnight, formatDate, formatDateTime, formatMoney } from '../lib/format'
+import { STATUS_LABEL_KEYS } from '../lib/appointmentStatus'
 import Ltr from '../components/Ltr'
 import LoadingScreen from '../components/LoadingScreen'
 import RefreshButton from '../components/RefreshButton'
@@ -16,7 +17,9 @@ import FormError from '../components/FormError'
 
 type Fn = Database['public']['Functions']
 type AuditLogEntry = Database['public']['Tables']['admin_audit_log']['Row']
+type StuckVisit = { id: string; status: string; scheduled_at: string; branch_id: string; pets: { name: string } | null; doctor: { full_name: string } | null }
 type Overview = {
+  stuck: StuckVisit[]
   today: Fn['report_income_branches']['Returns']
   month: Fn['report_income_branches']['Returns']
   unpaid: Fn['report_unpaid']['Returns']
@@ -50,11 +53,19 @@ function ManagerPage() {
       .eq('status', 'completed')
       .gte('scheduled_at', clinicMidnight(monthStart).toISOString())
     if (branch) visitsQuery = visitsQuery.eq('branch_id', branch)
+    // The pet came in on an earlier day and nobody finished the visit: never closed by the nightly job (0107).
+    let stuckQuery = supabase
+      .from('appointments')
+      .select('id, status, scheduled_at, branch_id, pets(name), doctor:profiles!appointments_doctor_fkey(full_name)')
+      .in('status', ['arrived', 'in_session'])
+      .lt('scheduled_at', clinicMidnight(today).toISOString())
+      .order('scheduled_at', { ascending: true })
+    if (branch) stuckQuery = stuckQuery.eq('branch_id', branch)
     // RLS gives the log to whole-clinic managers only (0080); skip the call for the rest.
     const activityQuery = isClinicManager
       ? supabase.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(ACTIVITY_LIMIT)
       : Promise.resolve({ data: [] as AuditLogEntry[], error: null })
-    const [todayRes, monthRes, unpaidRes, cashRes, visitsRes, activityRes] = await Promise.all([
+    const [todayRes, monthRes, unpaidRes, cashRes, visitsRes, activityRes, stuckRes] = await Promise.all([
       supabase.rpc('report_income_branches', { p_from: today, p_to: today, p_branch: branch }),
       supabase.rpc('report_income_branches', { p_from: monthStart, p_to: today, p_branch: branch }),
       supabase.rpc('report_unpaid', { p_branch: branch }),
@@ -62,8 +73,9 @@ function ManagerPage() {
       // shortcut: counts in the browser and PostgREST returns at most 1000 rows; move to SQL past ~1000 visits a month.
       visitsQuery,
       activityQuery,
+      stuckQuery,
     ])
-    const failed = [todayRes, monthRes, unpaidRes, cashRes, visitsRes, activityRes].find((r) => r.error)
+    const failed = [todayRes, monthRes, unpaidRes, cashRes, visitsRes, activityRes, stuckRes].find((r) => r.error)
     if (failed) {
       setError(t('reports.loadError'))
       return
@@ -75,6 +87,7 @@ function ManagerPage() {
     }
     setError(null)
     setData({
+      stuck: (stuckRes.data as StuckVisit[] | null) ?? [],
       today: todayRes.data ?? [],
       month: monthRes.data ?? [],
       unpaid: unpaidRes.data ?? [],
@@ -148,6 +161,32 @@ function ManagerPage() {
           </div>
 
           <div className="dash-columns">
+            {data.stuck.length > 0 && (
+              <section className="dash-panel manager-stuck">
+                <div className="dash-panel-header">
+                  <h2>{t('manager.stuckVisits')}</h2>
+                </div>
+                <p className="dash-empty">{t('manager.stuckHint')}</p>
+                <ul className="dash-list">
+                  {data.stuck.map((v) => (
+                    <li key={v.id}>
+                      <Link to={`/appointments?open=${v.id}`} className="dash-row">
+                        <span className="dash-row-main">
+                          <strong>{v.pets?.name ?? t('dashboard.unknownPet')}</strong>
+                          <span className="dash-row-sub">
+                            <Ltr>{formatDateTime(v.scheduled_at)}</Ltr>
+                            {v.doctor && ` · ${v.doctor.full_name}`}
+                            {viewBranch === ALL_BRANCHES && ` · ${branchName(v.branch_id)}`}
+                          </span>
+                        </span>
+                        <span className={`status-badge status-${v.status}`}>{t(STATUS_LABEL_KEYS[v.status])}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             <section className="dash-panel">
               <div className="dash-panel-header">
                 <h2>{t('manager.visitsByDoctor')}</h2>

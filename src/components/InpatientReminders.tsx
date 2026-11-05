@@ -165,7 +165,7 @@ function InpatientReminders({ stayId }: { stayId: string }) {
                 <div>
                   <strong>{task.label}</strong>
                   <div className="pet-owner">
-                    {t('reminders.schedule', { hours: String(task.every_hours), start: formatDateTime(task.starts_at) })}
+                    {t('reminders.schedule', { count: String(task.every_hours), start: formatDateTime(task.starts_at) })}
                     {task.ends_at && ` · ${t('reminders.until', { end: formatDateTime(task.ends_at) })}`}
                     {next && (
                       <>

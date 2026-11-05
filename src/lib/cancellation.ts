@@ -10,14 +10,15 @@ const ALL_CANCELLATION_CATEGORIES = [
   'rescheduled',
   'no_show',
   'other',
+  'auto_closed',
 ] as const
 
 export type CancellationCategory = (typeof ALL_CANCELLATION_CATEGORIES)[number]
 
 // What staff can pick when cancelling. "rescheduled" is retired now that the
 // Reschedule action moves the appointment instead; it stays above so older
-// cancellations keep their label and still count.
-export const CANCELLATION_CATEGORIES = ALL_CANCELLATION_CATEGORIES.filter((c) => c !== 'rescheduled')
+// cancellations keep their label and still count. "auto_closed" is set only by the nightly job (0107).
+export const CANCELLATION_CATEGORIES = ALL_CANCELLATION_CATEGORIES.filter((c) => c !== 'rescheduled' && c !== 'auto_closed')
 
 const CANCELLATION_CATEGORY_LABEL_KEYS: Record<CancellationCategory, TranslationKey> = {
   owner_cancelled: 'cancellation.ownerCancelled',
@@ -26,6 +27,7 @@ const CANCELLATION_CATEGORY_LABEL_KEYS: Record<CancellationCategory, Translation
   rescheduled: 'cancellation.rescheduled',
   no_show: 'cancellation.noShow',
   other: 'cancellation.other',
+  auto_closed: 'cancellation.autoClosed',
 }
 
 export function cancellationCategoryLabel(t: (key: TranslationKey) => string, category: string): string {

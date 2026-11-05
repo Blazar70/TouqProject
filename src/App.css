@@ -3859,6 +3859,10 @@ button.cancel-button:disabled,
   min-width: 0;
 }
 
+.manager-stuck {
+  grid-column: 1 / -1;
+}
+
 .dash-panel {
   min-width: 0;
   background: var(--bg-raised);
