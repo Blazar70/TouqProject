@@ -2,6 +2,8 @@
 
 Things looked at on 2026-10-30 and 2026-11-01 and kept for later, not used in Touq yet. Each says why it waits and when it could fit.
 
+**Installed by 2026-11-07** (user skills folder): better-accessibility, mobile-native, find-animation-opportunities. Installed, but not run on Touq yet.
+
 ## Libraries and skills
 
 | Name | What it is | Checked 10-30 | Why not now | Could fit |
